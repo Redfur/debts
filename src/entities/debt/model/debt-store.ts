@@ -42,6 +42,14 @@ type CreateDebtInput = {
 	note?: string;
 };
 
+type UpdateDebtInput = {
+	/** Направление, валюта и сумма меняются только пока по долгу нет ни одного погашения. */
+	direction?: DebtDirection;
+	currency?: CurrencyCode;
+	amount?: number;
+	note?: string;
+};
+
 type DebtState = {
 	contactsById: Record<string, PersistedContact>;
 	debtsById: Record<string, PersistedDebt>;
@@ -53,6 +61,7 @@ type DebtState = {
 	hydrate: () => Promise<void>;
 	getOrCreateContact: (name: string) => Promise<string | undefined>;
 	createDebt: (input: CreateDebtInput) => Promise<string | undefined>;
+	updateDebt: (id: string, patch: UpdateDebtInput) => Promise<boolean>;
 	addRepayment: (debtId: string, amount: number, note?: string) => Promise<boolean>;
 	deleteDebt: (id: string) => Promise<boolean>;
 	refreshRatesIfStale: (force?: boolean) => Promise<void>;
@@ -175,6 +184,55 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 				return { debtsById: nextDebts, operationsByDebtId: nextOps, lastError: message };
 			});
 			return undefined;
+		}
+	},
+
+	updateDebt: async (id: string, patch: UpdateDebtInput) => {
+		const debt = get().debtsById[id];
+		if (!debt) return false;
+		const prevOperations = get().operationsByDebtId[id] ?? [];
+		const hasRepayment = prevOperations.some((op) => op.kind === "repayment");
+
+		const now = new Date().toISOString();
+		const updatedDebt: PersistedDebt = { ...debt, updatedAt: now };
+		let updatedInitialOp: PersistedDebtOperation | undefined;
+
+		if (!hasRepayment) {
+			if (patch.amount !== undefined) {
+				const amount = roundAmount(patch.amount);
+				if (!Number.isFinite(amount) || amount <= 0) return false;
+				updatedDebt.principalAmount = amount;
+				const initialOp = prevOperations.find((op) => op.kind === "initial");
+				if (initialOp) updatedInitialOp = { ...initialOp, amount };
+			}
+			if (patch.direction !== undefined) updatedDebt.direction = patch.direction;
+			if (patch.currency !== undefined) updatedDebt.currency = patch.currency;
+		}
+		if (patch.note !== undefined) updatedDebt.note = patch.note.trim() || null;
+
+		const nextOperations = updatedInitialOp
+			? prevOperations.map((op) => (op.id === updatedInitialOp?.id ? updatedInitialOp : op))
+			: prevOperations;
+
+		set((s) => ({
+			debtsById: { ...s.debtsById, [id]: updatedDebt },
+			operationsByDebtId: { ...s.operationsByDebtId, [id]: nextOperations },
+			lastError: null,
+		}));
+
+		try {
+			const storage = getStorageAdapter();
+			await storage.putDebt(updatedDebt);
+			if (updatedInitialOp) await storage.putDebtOperation(updatedInitialOp);
+			return true;
+		} catch (e) {
+			const message = e instanceof Error ? e.message : String(e);
+			set((s) => ({
+				debtsById: { ...s.debtsById, [id]: debt },
+				operationsByDebtId: { ...s.operationsByDebtId, [id]: prevOperations },
+				lastError: message,
+			}));
+			return false;
 		}
 	},
 

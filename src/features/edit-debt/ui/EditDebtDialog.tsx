@@ -1,30 +1,33 @@
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ContactCombobox } from "@/features/select-contact";
+import { useDebtOperations, useDebtStore } from "@/entities/debt";
 import { CURRENCY_SYMBOL, SUPPORTED_CURRENCIES } from "@/shared/config/currencies";
 import { COMMON_NS } from "@/shared/i18n";
 import type { CurrencyCode, DebtDirection } from "@/shared/lib/storage";
-import { useCreateDebt } from "../model/use-create-debt";
-import { CREATE_DEBT_NS } from "../translations";
+import { useEditDebt } from "../model/use-edit-debt";
+import { EDIT_DEBT_NS } from "../translations";
 
 type Props = {
-	initialContactId?: string;
+	debtId: string;
 };
 
-const CreateDebtDialogComponent = NiceModal.create(({ initialContactId }: Props) => {
-	const { t } = useTranslation(CREATE_DEBT_NS);
+const EditDebtDialogComponent = NiceModal.create(({ debtId }: Props) => {
+	const { t } = useTranslation(EDIT_DEBT_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
 	const modal = useModal();
-	const { submit, pending } = useCreateDebt();
+	const { submit, pending } = useEditDebt();
 
-	const [contactId, setContactId] = useState<string | undefined>(initialContactId);
+	const debt = useDebtStore((s) => s.debtsById[debtId]);
+	const operations = useDebtOperations(debtId);
+	const locked = operations.some((op) => op.kind === "repayment");
+
 	const [direction, setDirection] = useState<DebtDirection>("owed_to_me");
 	const [currency, setCurrency] = useState<CurrencyCode>("RUB");
 	const [amount, setAmount] = useState("");
@@ -32,15 +35,18 @@ const CreateDebtDialogComponent = NiceModal.create(({ initialContactId }: Props)
 	const [error, setError] = useState<string | null>(null);
 
 	// NiceModal может держать компонент смонтированным между показами — сбрасываем форму при открытии.
+	// Читаем долг напрямую из стора (а не из реактивного `debt`), чтобы не сбрасывать
+	// уже введённые значения при фоновых обновлениях стора, пока диалог открыт.
 	useEffect(() => {
 		if (!modal.visible) return;
-		setContactId(initialContactId);
-		setDirection("owed_to_me");
-		setCurrency("RUB");
-		setAmount("");
-		setNote("");
+		const current = useDebtStore.getState().debtsById[debtId];
+		if (!current) return;
+		setDirection(current.direction);
+		setCurrency(current.currency);
+		setAmount(String(current.principalAmount));
+		setNote(current.note ?? "");
 		setError(null);
-	}, [modal.visible, initialContactId]);
+	}, [modal.visible, debtId]);
 
 	const closeModal = async () => {
 		await modal.hide();
@@ -52,27 +58,24 @@ const CreateDebtDialogComponent = NiceModal.create(({ initialContactId }: Props)
 		void closeModal();
 	};
 
+	if (!debt) return null;
+
 	const handleSubmit = async (e: FormEvent) => {
 		e.preventDefault();
-		if (!contactId) {
-			setError(t("errorContactRequired"));
-			return;
-		}
-		const parsedAmount = Number(amount.replace(",", "."));
-		if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-			setError(t("errorAmountInvalid"));
-			return;
+		const patch: Parameters<typeof submit>[1] = { note: note.trim() || undefined };
+		if (!locked) {
+			const parsedAmount = Number(amount);
+			if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+				setError(t("errorAmountInvalid"));
+				return;
+			}
+			patch.amount = parsedAmount;
+			patch.direction = direction;
+			patch.currency = currency;
 		}
 		setError(null);
-		const debtId = await submit({
-			contactId,
-			direction,
-			currency,
-			amount: parsedAmount,
-			note: note.trim() || undefined,
-		});
-		if (debtId) {
-			modal.resolve(debtId);
+		const ok = await submit(debtId, patch);
+		if (ok) {
 			await closeModal();
 		} else {
 			setError(t("errorGeneric"));
@@ -87,16 +90,12 @@ const CreateDebtDialogComponent = NiceModal.create(({ initialContactId }: Props)
 				</DialogHeader>
 				<form className="flex flex-col gap-4" onSubmit={(e) => void handleSubmit(e)}>
 					<div className="flex flex-col gap-1.5">
-						<Label>{t("contactLabel")}</Label>
-						<ContactCombobox value={contactId} onChange={setContactId} />
-					</div>
-
-					<div className="flex flex-col gap-1.5">
 						<Label>{t("directionLabel")}</Label>
 						<div className="flex gap-2">
 							<Button
 								type="button"
 								className="flex-1"
+								disabled={locked}
 								variant={direction === "owed_to_me" ? "default" : "outline"}
 								onClick={() => setDirection("owed_to_me")}
 							>
@@ -105,6 +104,7 @@ const CreateDebtDialogComponent = NiceModal.create(({ initialContactId }: Props)
 							<Button
 								type="button"
 								className="flex-1"
+								disabled={locked}
 								variant={direction === "i_owe" ? "default" : "outline"}
 								onClick={() => setDirection("i_owe")}
 							>
@@ -115,19 +115,19 @@ const CreateDebtDialogComponent = NiceModal.create(({ initialContactId }: Props)
 
 					<div className="grid grid-cols-[1fr_auto] gap-2">
 						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="debt-amount">{t("amountLabel")}</Label>
-							<Input
-								id="debt-amount"
-								inputMode="decimal"
+							<Label htmlFor="edit-debt-amount">{t("amountLabel")}</Label>
+							<AmountInput
+								id="edit-debt-amount"
 								placeholder="0"
 								value={amount}
-								onChange={(e) => setAmount(e.target.value)}
+								onValueChange={setAmount}
+								disabled={locked}
 							/>
 						</div>
 						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="debt-currency">{t("currencyLabel")}</Label>
-							<Select value={currency} onValueChange={(v) => setCurrency(v as CurrencyCode)}>
-								<SelectTrigger id="debt-currency" className="w-24">
+							<Label htmlFor="edit-debt-currency">{t("currencyLabel")}</Label>
+							<Select value={currency} onValueChange={(v) => setCurrency(v as CurrencyCode)} disabled={locked}>
+								<SelectTrigger id="edit-debt-currency" className="w-24">
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
@@ -141,9 +141,11 @@ const CreateDebtDialogComponent = NiceModal.create(({ initialContactId }: Props)
 						</div>
 					</div>
 
+					{locked ? <p className="text-muted-foreground text-xs">{t("lockedHint")}</p> : null}
+
 					<div className="flex flex-col gap-1.5">
-						<Label htmlFor="debt-note">{t("noteLabel")}</Label>
-						<Textarea id="debt-note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
+						<Label htmlFor="edit-debt-note">{t("noteLabel")}</Label>
+						<Textarea id="edit-debt-note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
 					</div>
 
 					{error ? <p className="text-destructive text-sm">{error}</p> : null}
@@ -153,7 +155,7 @@ const CreateDebtDialogComponent = NiceModal.create(({ initialContactId }: Props)
 							{tCommon("cancel")}
 						</Button>
 						<Button type="submit" disabled={pending}>
-							{tCommon("create")}
+							{tCommon("save")}
 						</Button>
 					</DialogFooter>
 				</form>
@@ -162,6 +164,6 @@ const CreateDebtDialogComponent = NiceModal.create(({ initialContactId }: Props)
 	);
 });
 
-export function showCreateDebtDialog(props?: Props) {
-	return NiceModal.show(CreateDebtDialogComponent, props ?? {});
+export function showEditDebtDialog(props: Props) {
+	return NiceModal.show(EditDebtDialogComponent, props);
 }

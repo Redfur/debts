@@ -16,6 +16,8 @@ export const contactDetailTranslations = {
 		deleteDebtConfirmTitle: "Удалить долг?",
 		deleteDebtConfirmBody: "Долг и вся история операций по нему будут удалены без возможности восстановления.",
 		historyTitle: "История",
+		historyShow: "Показать историю ({{count}})",
+		historyHide: "Скрыть историю",
 		operationInitial: "Создание долга",
 		operationRepayment: "Погашение",
 	},

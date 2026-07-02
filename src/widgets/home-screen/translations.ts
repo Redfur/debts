@@ -8,7 +8,5 @@ export const homeScreenTranslations = {
 		contactsSectionTitle: "Контакты",
 		addDebtAction: "Добавить долг",
 		emptyContacts: "Пока нет ни одного долга. Добавьте первый.",
-		owedToMeLine: "Вам должны: {{amount}}",
-		owedByMeLine: "Вы должны: {{amount}}",
 	},
 } as const;

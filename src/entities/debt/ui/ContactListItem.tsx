@@ -1,13 +1,18 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
-import { type Contact, ContactAvatar, computeContactSummary, useDebtStore } from "@/entities/debt";
 import { CURRENCY_SYMBOL, type SUPPORTED_CURRENCIES } from "@/shared/config/currencies";
 import { formatAmount } from "@/shared/lib/format-amount";
-import { HOME_SCREEN_NS } from "../translations";
+import { computeContactSummary } from "../model/compute-contact-summary";
+import { useDebtStore } from "../model/debt-store";
+import type { Contact } from "../model/types";
+import { ENTITY_DEBT_NS } from "../translations";
+import { ContactAvatar } from "./ContactAvatar";
 
 type Props = {
 	contact: Contact;
+	/** Откуда открыта карточка — определяет активную вкладку и кнопку «назад» на детальной странице. */
+	linkState: "home" | "contacts";
 };
 
 function formatBreakdown(byCurrency: Partial<Record<(typeof SUPPORTED_CURRENCIES)[number], number>>): string | null {
@@ -16,8 +21,8 @@ function formatBreakdown(byCurrency: Partial<Record<(typeof SUPPORTED_CURRENCIES
 	return entries.map(([code, amount]) => `${formatAmount(amount)} ${CURRENCY_SYMBOL[code]}`).join(" + ");
 }
 
-export function ContactListItem({ contact }: Props) {
-	const { t } = useTranslation(HOME_SCREEN_NS);
+export function ContactListItem({ contact, linkState }: Props) {
+	const { t } = useTranslation(ENTITY_DEBT_NS);
 	const debtsById = useDebtStore((s) => s.debtsById);
 	const operationsByDebtId = useDebtStore((s) => s.operationsByDebtId);
 	const summary = computeContactSummary(contact.id, debtsById, operationsByDebtId);
@@ -26,7 +31,7 @@ export function ContactListItem({ contact }: Props) {
 	const owedByMe = formatBreakdown(summary.owedByMeByCurrency);
 
 	return (
-		<Link to={`/contacts/${contact.id}`}>
+		<Link to={`/contacts/${contact.id}`} state={{ from: linkState }}>
 			<Card className="hover:bg-accent/50 transition-colors">
 				<CardContent className="flex items-center gap-3 py-3">
 					<ContactAvatar contact={contact} />

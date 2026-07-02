@@ -1,12 +1,12 @@
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { computeDebtBalance, useDebtStore } from "@/entities/debt";
+import { computeDebtBalance, useDebtOperations, useDebtStore } from "@/entities/debt";
 import { CURRENCY_SYMBOL } from "@/shared/config/currencies";
 import { COMMON_NS } from "@/shared/i18n";
 import { useAddRepayment } from "../model/use-add-repayment";
@@ -23,7 +23,7 @@ const AddRepaymentDialogComponent = NiceModal.create(({ debtId }: Props) => {
 	const { submit, pending } = useAddRepayment();
 
 	const debt = useDebtStore((s) => s.debtsById[debtId]);
-	const operations = useDebtStore((s) => s.operationsByDebtId[debtId] ?? []);
+	const operations = useDebtOperations(debtId);
 	const balance = debt ? computeDebtBalance(debt, operations) : 0;
 
 	const [amount, setAmount] = useState("");
@@ -52,7 +52,7 @@ const AddRepaymentDialogComponent = NiceModal.create(({ debtId }: Props) => {
 
 	const handleSubmit = async (e: FormEvent) => {
 		e.preventDefault();
-		const parsedAmount = Number(amount.replace(",", "."));
+		const parsedAmount = Number(amount);
 		if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
 			setError(t("errorAmountInvalid"));
 			return;
@@ -83,13 +83,7 @@ const AddRepaymentDialogComponent = NiceModal.create(({ debtId }: Props) => {
 
 					<div className="flex flex-col gap-1.5">
 						<Label htmlFor="repayment-amount">{t("amountLabel")}</Label>
-						<Input
-							id="repayment-amount"
-							inputMode="decimal"
-							placeholder="0"
-							value={amount}
-							onChange={(e) => setAmount(e.target.value)}
-						/>
+						<AmountInput id="repayment-amount" placeholder="0" value={amount} onValueChange={setAmount} />
 					</div>
 
 					<div className="flex flex-col gap-1.5">

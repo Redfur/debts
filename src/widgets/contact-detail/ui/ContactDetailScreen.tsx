@@ -1,20 +1,17 @@
-import { format } from "date-fns";
-import { ru } from "date-fns/locale";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { type Contact, ContactAvatar, computeContactSummary, computeDebtBalance, useDebtStore } from "@/entities/debt";
-import { showAddRepaymentDialog } from "@/features/add-repayment";
-import { showCreateDebtDialog } from "@/features/create-debt";
+import { type Contact, ContactAvatar, computeContactSummary, useDebtStore } from "@/entities/debt";
 import { CURRENCY_SYMBOL, type SUPPORTED_CURRENCIES } from "@/shared/config/currencies";
 import { COMMON_NS } from "@/shared/i18n";
 import { PageHeader, PageHeaderBackLink, ScreenBody } from "@/shared/layout";
 import { formatAmount } from "@/shared/lib/format-amount";
 import { showConfirmActionModal } from "@/shared/ui/modals";
 import { CONTACT_DETAIL_NS } from "../translations";
+import { DebtCard } from "./DebtCard";
 
 type Props = {
 	contact: Contact;
@@ -29,9 +26,13 @@ function formatBreakdown(byCurrency: Partial<Record<(typeof SUPPORTED_CURRENCIES
 export function ContactDetailScreen({ contact }: Props) {
 	const { t } = useTranslation(CONTACT_DETAIL_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
+	const location = useLocation();
 	const debtsById = useDebtStore((s) => s.debtsById);
 	const operationsByDebtId = useDebtStore((s) => s.operationsByDebtId);
 	const deleteDebt = useDebtStore((s) => s.deleteDebt);
+
+	// Открыта либо с главной (контакт с активным долгом), либо со страницы «Контакты» — см. use-active-nav-section.
+	const backTo = (location.state as { from?: "home" | "contacts" } | null)?.from === "home" ? "/" : "/contacts";
 
 	const summary = computeContactSummary(contact.id, debtsById, operationsByDebtId);
 
@@ -57,13 +58,15 @@ export function ContactDetailScreen({ contact }: Props) {
 	return (
 		<ScreenBody gap="comfortable">
 			<PageHeader
-				leading={<PageHeaderBackLink to="/" ariaLabel={t("backToHome")} />}
+				leading={<PageHeaderBackLink to={backTo} ariaLabel={tCommon("back")} />}
 				media={<ContactAvatar contact={contact} />}
 				title={contact.name}
 				actions={
-					<Button type="button" size="sm" onClick={() => void showCreateDebtDialog({ initialContactId: contact.id })}>
-						<Plus />
-						{t("addDebtAction")}
+					<Button type="button" size="sm" asChild>
+						<Link to={`/new?contactId=${contact.id}`}>
+							<Plus />
+							{t("addDebtAction")}
+						</Link>
 					</Button>
 				}
 			/>
@@ -93,73 +96,14 @@ export function ContactDetailScreen({ contact }: Props) {
 					<p className="text-muted-foreground text-sm">{t("emptyDebts")}</p>
 				) : (
 					<div className="flex flex-col gap-3">
-						{debts.map((debt) => {
-							const operations = operationsByDebtId[debt.id] ?? [];
-							const balance = computeDebtBalance(debt, operations);
-							const progress =
-								debt.principalAmount > 0 ? ((debt.principalAmount - balance) / debt.principalAmount) * 100 : 0;
-							const directionLabel = debt.direction === "owed_to_me" ? t("owedToMeTitle") : t("owedByMeTitle");
-
-							return (
-								<Card key={debt.id}>
-									<CardContent className="flex flex-col gap-3 py-4">
-										<div className="flex items-start justify-between gap-2">
-											<div className="min-w-0">
-												<p className="text-sm font-medium">
-													{directionLabel} · {formatAmount(debt.principalAmount)} {CURRENCY_SYMBOL[debt.currency]}
-												</p>
-												{debt.note ? <p className="text-muted-foreground text-xs">{debt.note}</p> : null}
-											</div>
-											{debt.status === "closed" ? (
-												<span className="text-muted-foreground text-xs">{t("statusClosed")}</span>
-											) : (
-												<Button type="button" variant="ghost" size="icon" onClick={() => handleDelete(debt.id)}>
-													<Trash2 className="size-4" />
-												</Button>
-											)}
-										</div>
-
-										{debt.status === "active" ? (
-											<>
-												<Progress value={progress} />
-												<div className="flex items-center justify-between gap-2">
-													<p className="text-muted-foreground text-xs">
-														{t("balanceLine", {
-															amount: `${formatAmount(balance)} ${CURRENCY_SYMBOL[debt.currency]}`,
-															principal: `${formatAmount(debt.principalAmount)} ${CURRENCY_SYMBOL[debt.currency]}`,
-														})}
-													</p>
-													<Button
-														type="button"
-														size="sm"
-														variant="outline"
-														onClick={() => void showAddRepaymentDialog({ debtId: debt.id })}
-													>
-														{t("repayAction")}
-													</Button>
-												</div>
-											</>
-										) : null}
-
-										<div className="flex flex-col gap-1 border-t pt-2">
-											<p className="text-muted-foreground text-xs font-medium">{t("historyTitle")}</p>
-											{operations.map((op) => (
-												<div key={op.id} className="flex items-center justify-between text-xs">
-													<span className="text-muted-foreground">
-														{op.kind === "initial" ? t("operationInitial") : t("operationRepayment")}
-														{" · "}
-														{format(new Date(op.createdAt), "d MMM yyyy", { locale: ru })}
-													</span>
-													<span>
-														{formatAmount(op.amount)} {CURRENCY_SYMBOL[debt.currency]}
-													</span>
-												</div>
-											))}
-										</div>
-									</CardContent>
-								</Card>
-							);
-						})}
+						{debts.map((debt) => (
+							<DebtCard
+								key={debt.id}
+								debt={debt}
+								operations={operationsByDebtId[debt.id] ?? []}
+								onDelete={handleDelete}
+							/>
+						))}
 					</div>
 				)}
 			</div>

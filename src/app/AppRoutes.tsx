@@ -4,7 +4,12 @@ import { HomePage } from "@/pages/home";
 
 import "@/widgets/home-screen";
 import "@/widgets/contact-detail";
-import { SettingsRouteFallback } from "./route-fallbacks";
+import {
+	ContactDetailRouteFallback,
+	ContactsRouteFallback,
+	CreateDebtRouteFallback,
+	SettingsRouteFallback,
+} from "./route-fallbacks";
 
 const SettingsPage = lazy(async () => {
 	const m = await import("@/pages/settings");
@@ -16,11 +21,44 @@ const ContactDetailPage = lazy(async () => {
 	return { default: m.ContactDetailPage };
 });
 
+const ContactsPage = lazy(async () => {
+	const m = await import("@/pages/contacts");
+	return { default: m.ContactsPage };
+});
+
+const CreateDebtPage = lazy(async () => {
+	const m = await import("@/pages/create-debt");
+	return { default: m.CreateDebtPage };
+});
+
 export function AppRoutes() {
 	return (
 		<Routes>
 			<Route path="/" element={<HomePage />} />
-			<Route path="/contacts/:contactId" element={<ContactDetailPage />} />
+			<Route
+				path="/new"
+				element={
+					<Suspense fallback={<CreateDebtRouteFallback />}>
+						<CreateDebtPage />
+					</Suspense>
+				}
+			/>
+			<Route
+				path="/contacts"
+				element={
+					<Suspense fallback={<ContactsRouteFallback />}>
+						<ContactsPage />
+					</Suspense>
+				}
+			/>
+			<Route
+				path="/contacts/:contactId"
+				element={
+					<Suspense fallback={<ContactDetailRouteFallback />}>
+						<ContactDetailPage />
+					</Suspense>
+				}
+			/>
 			<Route
 				path="/settings"
 				element={

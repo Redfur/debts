@@ -1,9 +1,9 @@
 import { Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDebtStore } from "@/entities/debt";
-import { showCreateDebtDialog } from "@/features/create-debt";
 import { PageHeader, ScreenBody } from "@/shared/layout";
 import { HOME_SCREEN_NS } from "../translations";
 import { ContactList } from "./ContactList";
@@ -28,9 +28,11 @@ export function HomeScreen() {
 			<PageHeader
 				title={t("title")}
 				actions={
-					<Button type="button" onClick={() => void showCreateDebtDialog()}>
-						<Plus />
-						{t("addDebtAction")}
+					<Button type="button" asChild>
+						<Link to="/new">
+							<Plus />
+							{t("addDebtAction")}
+						</Link>
 					</Button>
 				}
 			/>

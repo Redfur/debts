@@ -1,6 +1,6 @@
 import { XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import type * as React from "react";
+import * as React from "react";
 import { cn } from "@/shared/lib/utils";
 
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -36,13 +36,37 @@ function DialogContent({
 	className,
 	children,
 	showCloseButton = true,
+	onPointerDownOutside,
 	...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & { showCloseButton?: boolean }) {
+	const contentRef = React.useRef<HTMLDivElement>(null);
+
 	return (
 		<DialogPortal>
 			<DialogOverlay />
 			<DialogPrimitive.Content
+				ref={contentRef}
 				data-slot="dialog-content"
+				// Пока внутри диалога открыт вложенный слой (Select, Combobox, DropdownMenu и т.п.),
+				// Radix временно отключает pointer-events у DialogContent — клик по полю диалога
+				// физически попадает на элемент позади (например Overlay) и распознаётся как клик
+				// "вне" диалога, закрывая его вместе с вложенным слоем. Проверяем координаты клика:
+				// если они физически внутри рамки диалога — это не клик наружу, игнорируем его.
+				onPointerDownOutside={(event) => {
+					const original = event.detail.originalEvent;
+					const rect = contentRef.current?.getBoundingClientRect();
+					if (
+						rect &&
+						original.clientX >= rect.left &&
+						original.clientX <= rect.right &&
+						original.clientY >= rect.top &&
+						original.clientY <= rect.bottom
+					) {
+						event.preventDefault();
+						return;
+					}
+					onPointerDownOutside?.(event);
+				}}
 				className={cn(
 					"bg-background border-border fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border p-6 shadow-lg duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
 					className,
