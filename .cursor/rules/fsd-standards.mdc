@@ -1,0 +1,58 @@
+---
+description: FSD и правила организации кода
+alwaysApply: true
+---
+
+# Feature-Sliced Design и стандарты кода
+
+## Структура src/
+
+```
+app/ → pages/ → widgets/ → features/ → entities/ → shared
+```
+
+Импорт только из слоёв ниже. `app` и `shared` — исключение, могут импортировать друг друга.
+
+## UI: shadcn + Tailwind
+
+`npx shadcn@latest add <component>`. Компоненты в `src/components/ui/`. Импорт: `@/components/ui/...`
+
+### Поля ввода и выбора (не нативный HTML в фичах/виджетах/страницах)
+
+В UI-слое приложения **не** использовать голые `<input>`, `<select>`, `<textarea>`, нативные checkbox/radio и т.п., если для этого есть компонент shadcn.
+
+1. Сначала смотреть `src/components/ui/` — подключить готовое (`Input`, `Select`, `Textarea`, `Checkbox`, `Switch` и т.д.).
+2. Если файла нет — установить: `npx shadcn@latest add <имя>` (как в документации shadcn для нужного паттерна).
+3. **Только если** в реестре shadcn нет подходящего компонента — писать свой (обычно в `src/components/ui/` или осмысленно в слайсе), согласовав стили с остальным UI.
+
+Исключение: сами файлы в `src/components/ui/` — это обёртки над нативными элементами; там нативный тег допустим.
+
+## Где размещать код
+
+- **entities/** — document, line (типы, модель, базовые UI)
+- **features/** — save-note, create-note, edit-line (действия)
+- **widgets/** — note-sidebar, notebook-editor (крупные блоки)
+- **pages/** — notebook (страница блокнота)
+- **shared/** — lib, **layout** (шапка экрана, ScreenBody — `@/shared/layout`), config, i18n
+
+## Публичный API
+
+Каждый слайс экспортирует через `index.ts`. Импорт снаружи: `@/entities/line`, не `@/entities/line/ui/LineRow`.
+
+## TypeScript
+
+Не использовать `as` там, где это не нужно — полагаться на вывод типов и перегрузки.
+
+## Именование
+
+- Компоненты: PascalCase
+- Файлы: PascalCase для компонентов, kebab-case для папок
+- Хуки: use + camelCase
+
+## Локализация
+
+Переводы внутри слайса: `translations.ts`, `injectTranslation(TRANS_NS, translations)` в index.ts, `useTranslation(TRANS_NS)` в компонентах.
+
+## Документация
+
+Полные правила: docs/coding-standards.md

@@ -1,0 +1,6 @@
+{
+	"$schema": "https://unpkg.com/knip@6/schema.json",
+	"project": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.css"],
+	"ignore": ["src/components/ui/**"],
+	"ignoreDependencies": ["next-themes", "globals", "react-day-picker", "react-is", "recharts"]
+}

@@ -1,0 +1,110 @@
+name: Release and deploy to GitHub Pages
+
+# Деплой привязан к push тега (тот же коммит, что и workflow), а не к событию release —
+# так не требуется, чтобы workflow лежал только на default branch для триггера release.
+# Ручной запуск: Actions → этот workflow → Run workflow (указать тег, например v1.0.0).
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Тег для сборки и деплоя (например v1.0.0). Тег должен существовать в репозитории."
+        required: true
+        type: string
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  create_release:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify semver tag
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Tag must match vMAJOR.MINOR.PATCH, got: $TAG"
+            exit 1
+          fi
+
+      - name: Skip if release already exists
+        id: exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" &>/dev/null; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Release ${GITHUB_REF_NAME} already exists, skipping."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build release notes
+        if: steps.exists.outputs.skip != 'true'
+        run: bash .github/scripts/build-release-notes.sh "${GITHUB_REF_NAME}" > release_body.md
+
+      - name: Create GitHub Release
+        if: steps.exists.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "Release ${GITHUB_REF_NAME}" \
+            --notes-file release_body.md
+
+  build:
+    needs: create_release
+    if: |
+      always() &&
+      needs.create_release.result != 'failure' &&
+      needs.create_release.result != 'cancelled' &&
+      (needs.create_release.result == 'success' || needs.create_release.result == 'skipped')
+    runs-on: ubuntu-latest
+    env:
+      VITE_BASE_PATH: /${{ github.event.repository.name }}/
+      VITE_APP_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
+      VITE_REPO_URL: https://github.com/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run check
+      - run: npm run knip
+      - run: npm run build
+      - run: cp dist/index.html dist/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
