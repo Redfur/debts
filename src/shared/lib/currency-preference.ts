@@ -5,13 +5,13 @@ import type { CurrencyCode } from "@/shared/lib/storage";
 
 const DEFAULT_DISPLAY_CURRENCY: CurrencyCode = "RUB";
 
-export const DISPLAY_CURRENCY_CHANGE_EVENT = "app-display-currency-change";
+const DISPLAY_CURRENCY_CHANGE_EVENT = "app-display-currency-change";
 
-export type DisplayCurrencyChangeDetail = {
+type DisplayCurrencyChangeDetail = {
 	currency: CurrencyCode;
 };
 
-export function getDisplayCurrency(): CurrencyCode {
+function getDisplayCurrency(): CurrencyCode {
 	if (typeof localStorage === "undefined") return DEFAULT_DISPLAY_CURRENCY;
 	try {
 		const stored = localStorage.getItem(CLIENT_STORAGE_KEYS.displayCurrency);

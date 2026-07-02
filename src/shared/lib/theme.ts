@@ -2,7 +2,7 @@ import { CLIENT_STORAGE_KEYS } from "@/shared/lib/client-storage-keys";
 
 const THEME_KEY = CLIENT_STORAGE_KEYS.theme;
 
-export type Theme = "light" | "dark";
+type Theme = "light" | "dark";
 
 /** Режим темы: системная (по умолчанию) или явная светлая/тёмная. */
 export type ThemePreference = "system" | "light" | "dark";

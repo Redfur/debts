@@ -13,7 +13,7 @@ export type PersistedContact = {
 };
 
 export type DebtDirection = "i_owe" | "owed_to_me";
-export type DebtStatus = "active" | "closed";
+type DebtStatus = "active" | "closed";
 
 export type PersistedDebt = {
 	id: string;
@@ -29,7 +29,7 @@ export type PersistedDebt = {
 	closedAt: string | null;
 };
 
-export type DebtOperationKind = "initial" | "repayment";
+type DebtOperationKind = "initial" | "repayment";
 
 export type PersistedDebtOperation = {
 	id: string;

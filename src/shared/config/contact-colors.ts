@@ -1,5 +1,5 @@
 /** Пресет цветов аватара-инициала контакта; выбор детерминирован по `id` при создании. */
-export const CONTACT_COLOR_PRESET_HEX: readonly string[] = [
+const CONTACT_COLOR_PRESET_HEX: readonly string[] = [
 	"#ef4444",
 	"#f97316",
 	"#eab308",

@@ -34,4 +34,4 @@
 ## 6. CI/CD
 
 - `.github/workflows/ci.yml` — `check`/`knip`/`build` на каждый push.
-- `.github/workflows/release.yml` + `scripts/release.sh` — тег → GitHub Release → деплой на GitHub Pages. Требует git remote на GitHub; подключить, когда проект будет готов к публикации.
+- `.github/workflows/release.yml` + `scripts/release.sh` — тег → GitHub Release → деплой на GitHub Pages (см. README «Релизы и деплой»).

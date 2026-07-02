@@ -38,7 +38,7 @@
 
 ## State management: Zustand
 
-**Расположение:** `src/entities/debt/model/debt-store.ts` (`useDebtStore`) — по аналогии с pushlog: один стор на связанный домен (контакты + долги + операции + кэш курса), чтобы `features` не импортировали `app`.
+**Расположение:** `src/entities/debt/model/debt-store.ts` (`useDebtStore`) — один стор на связанный домен (контакты + долги + операции + кэш курса), чтобы `features` не импортировали `app`.
 
 **Структура состояния**
 
@@ -46,9 +46,10 @@
 - `operationsByDebtId: Record<debtId, DebtOperation[]>` — отсортированы по `createdAt`
 - `ratesCache: ExchangeRatesCache | null` — курс валют, персистится в `meta`
 - `ratesFetchError: string | null` — мягкая ошибка обновления курса (не блокирует UI, не путается с `lastError`)
-- `hydrated`, `lastError` — как в pushlog
+- `hydrated: boolean` — гидратация завершена (успех или ошибка чтения)
+- `lastError: string | null` — последняя ошибка storage / операций
 
-**Actions:** `hydrate()`, `getOrCreateContact(name)`, `createDebt(input)`, `addRepayment(debtId, amount, note?)`, `deleteDebt(id)`, `refreshRatesIfStale(force?)`, `clearError()`. Запись в IDB — после оптимистичного обновления памяти, с откатом при ошибке (см. `pushlog-store.ts` как референс паттерна).
+**Actions:** `hydrate()`, `getOrCreateContact(name)`, `createDebt(input)`, `addRepayment(debtId, amount, note?)`, `deleteDebt(id)`, `refreshRatesIfStale(force?)`, `clearError()`. Запись в IDB — после оптимистичного обновления памяти, с откатом при ошибке.
 
 Агрегаты **не** в сторе: `computeDebtBalance`, `computeContactSummary`, `computeGlobalTotals` — чистые функции в `entities/debt/model/`, вызываются в UI через `@/entities/debt`.
 

@@ -13,6 +13,9 @@ dist-ssr
 dev-dist
 *.local
 
+# Claude Code local settings (per-user paths/permissions, not shared)
+.claude/settings.local.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
