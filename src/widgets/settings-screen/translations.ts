@@ -15,8 +15,8 @@ export const settingsScreenTranslations = {
 		ratesSection: "Курс валют",
 		backupSection: "Резервная копия",
 		backupHint: "Экспортируйте данные в JSON и при необходимости восстановите их из файла.",
-		backupExport: "Экспортировать JSON",
-		backupImport: "Импортировать JSON",
+		backupExport: "Экспортировать",
+		backupImport: "Импортировать",
 		backupImportDialogTitle: "Импортировать резервную копию?",
 		backupImportDialogBody:
 			"Текущие данные будут полностью заменены содержимым файла: контактов — {{contacts}}, долгов — {{debts}}, дата экспорта — {{date}}. Это действие нельзя отменить.",

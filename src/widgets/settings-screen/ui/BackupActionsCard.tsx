@@ -1,3 +1,4 @@
+import { Download } from "lucide-react";
 import { type ChangeEvent, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -87,11 +88,12 @@ export function BackupActionsCard() {
 				<CardTitle className="text-sm font-medium">{t("backupSection")}</CardTitle>
 				<CardDescription className="text-xs">{t("backupHint")}</CardDescription>
 			</CardHeader>
-			<CardContent className="flex flex-col gap-2 sm:flex-row">
-				<Button type="button" variant="outline" onClick={() => void handleExport()} disabled={busy}>
+			<CardContent className="flex gap-2">
+				<Button type="button" variant="outline" size="sm" onClick={() => void handleExport()} disabled={busy}>
+					<Download />
 					{t("backupExport")}
 				</Button>
-				<Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={busy}>
+				<Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={busy}>
 					{t("backupImport")}
 				</Button>
 				<input

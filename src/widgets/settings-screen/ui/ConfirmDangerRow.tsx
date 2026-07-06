@@ -32,12 +32,12 @@ export function ConfirmDangerRow({
 	};
 
 	return (
-		<div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+		<div className="flex items-center justify-between gap-3">
 			<div className="min-w-0 flex-1">
 				<p className="text-sm font-medium">{triggerLabel}</p>
 				<p className="text-muted-foreground mt-0.5 text-xs leading-snug">{description}</p>
 			</div>
-			<Button type="button" variant="destructive" className="shrink-0" onClick={handleTriggerClick}>
+			<Button type="button" variant="destructive" size="sm" className="shrink-0" onClick={handleTriggerClick}>
 				{triggerLabel}
 			</Button>
 		</div>

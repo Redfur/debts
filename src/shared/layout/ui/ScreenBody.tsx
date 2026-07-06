@@ -18,7 +18,7 @@ type Props = {
 };
 
 const gapClass: Record<ScreenBodyGap, string> = {
-	compact: "gap-4",
+	compact: "gap-3",
 	comfortable: "gap-6",
 };
 
