@@ -32,7 +32,7 @@ export function ContactListItem({ contact, linkState }: Props) {
 
 	return (
 		<Link to={`/contacts/${contact.id}`} state={{ from: linkState }}>
-			<Card className="hover:bg-accent/50 transition-colors">
+			<Card className="hover:bg-secondary transition-colors">
 				<CardContent className="flex items-center gap-3 py-3">
 					<ContactAvatar contact={contact} />
 					<div className="min-w-0 flex-1">

@@ -80,13 +80,17 @@
 
 ### 2. Примитивы UI-кита
 
-- **`button`** переписывается под [StyleB]: пилюля, варианты `accent` / `primary` / `secondary` / `destructive` / `ghost`, размеры `default` 44 px и `lg` 52 px (формы, шторки), `icon` 44×44. Фокус — кольцо 2 px с отступом 2 px. Старые размеры `xs` / `sm` удаляются, все места вызова обновляются.
+- **`button`** переписывается под [StyleB]: пилюля, варианты `accent` / `primary` / `secondary` / `destructive` / `ghost`, размеры `default` 44 px, `lg` 52 px (формы, шторки), `sm` 36 px (компактные места: фильтры на десктопе, строки настроек) и `icon` 44×44 / `icon-sm` 36×36. У всех размеров зона касания не меньше 44×44 (утилита `touch-target`). Фокус — кольцо 2 px с отступом 2 px. Размеры `xs`, `icon-xs`, `icon-lg` удаляются.
 - **`badge`** — пилюля с вариантами `success-neutral` («✓ Погашен»: фон `muted`), `warning`, `destructive`.
-- **`sheet`** — shadcn `sheet` на Radix Dialog, `side="bottom"`: радиус 28 сверху, ручка 36×5, отступ снизу `env(safe-area-inset-bottom)` + 16.
-- **`segmented-control`** — `ToggleGroup` из `radix-ui` с `type="single"`. Используется для темы, фильтра на главной и направления в формах.
-- **`shared/ui/responsive-dialog`** — выбирает `Sheet` на ширине меньше 1024 px и `Dialog` на большей. Решение принимает `useMediaQuery("(min-width: 1024px)")` в `shared/lib`. На него переводятся погашение, изменение, выбор валюты и `ConfirmActionModal`. NiceModal остаётся механизмом открытия.
+- **Шторка** — адаптивный режим самих `components/ui/dialog` и `alert-dialog` (общие классы `modalContentClass` / `modalOverlayClass`, `ModalHandle`):
+  - меньше 1024 px: шторка снизу, радиус 28 сверху, ручка 36×5, отступ снизу `env(safe-area-inset-bottom)` + 16;
+  - от 1024 px (`lg:`): диалог по центру.
 
-*Альтернатива — `vaul` (drawer с жестами).* Отклонена: новая зависимость, а жесты не требуются.
+  Переключение — только CSS-брейкпоинтами, без JS.
+- **`segmented-control`** — `ToggleGroup` из `radix-ui` с `type="single"`. Используется для темы, фильтра на главной и направления в формах.
+- Погашение, изменение, выбор валюты и `ConfirmActionModal` уже построены на `Dialog` / `AlertDialog`, поэтому становятся шторками без смены API. NiceModal остаётся механизмом открытия.
+
+*Альтернативы.* Отдельный `sheet` + `useMediaQuery` отклонён: JS-переключение компонентов даёт мигание при гидрации и дублирует API. `vaul` (drawer с жестами) отклонён: новая зависимость, а жесты не требуются.
 
 ### 3. Общие компоненты и слои FSD
 
@@ -148,7 +152,7 @@
 - Форма из `features/create-debt` перестраивается:
   - строка выбранного контакта;
   - `segmented-control` направления с подсказкой (переводы с подстановкой имени: «{{name}} вернёт деньги вам» / «{{name}} ждёт деньги от вас»);
-  - крупное поле суммы `AmountInput` размера `amount-display` и кнопка валюты, открывающая `responsive-dialog` со списком валют;
+  - крупное поле суммы `AmountInput` размера `amount-display` и кнопка валюты, открывающая адаптивный `Dialog` со списком валют;
   - заметка;
   - нижняя панель с «Создать».
 - **«Создать» над клавиатурой:**
@@ -163,7 +167,7 @@
 
 ### 9. Настройки и статус курса
 
-- `SettingsGroup` / `SettingsRow` по [Settings]. «Валюта итогов» открывает `responsive-dialog` со списком валют.
+- `SettingsGroup` / `SettingsRow` по [Settings]. «Валюта итогов» открывает адаптивный `Dialog` со списком валют.
 - **Статус курса** (`features/refresh-exchange-rates`):
   - `navigator.onLine` → хук `shared/lib/use-online-status` на событиях `online` / `offline`;
   - офлайн + кэш → «Нет сети · курс от 15 октября»;

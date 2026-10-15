@@ -4,15 +4,15 @@
 
 ## 1. Фундамент: шрифт, токены, примитивы
 
-- [ ] 1.1 Заменить `@fontsource-variable/geist` на `@fontsource-variable/onest` (импорт в `src/index.css`, `--font-sans`), задать `font-variant-numeric: tabular-nums` на `body`; проверить в DevTools → Computed, что у текста шрифт «Onest Variable», а `npm run knip` не находит лишних зависимостей
-- [ ] 1.2 Переписать токены `src/index.css` по таблице design.md (решение 1): роли shadcn, `owed-to-me*`, `i-owe*`, `success*`, `warning*`, `destructive-muted`, `nav-glass`, `avatar-1…8` (+ `-foreground`), радиусы, тени, утилиты типографики; удалить переменные шаблона Vite; проверить `npm run build` и визуально фон `#F4F5F7` / `#0F1115` в обеих темах
-- [ ] 1.3 Перевести наведение в `components/ui` (`command`, `select`, `dropdown-menu` и др.) с `bg-accent` на `bg-secondary`; проверить `grep -rn "bg-accent\|text-accent-foreground" src/components` — только там, где нужен индиго
-- [ ] 1.4 Написать `scripts/check-contrast.mjs` и `npm run tokens:contrast` (пары и пороги — design.md, решение 12), подобрать тёмные `avatar-5…8`; добавить шаг в `.github/workflows/ci.yml`; проверить, что скрипт проходит и падает, если временно задать `--muted-foreground` равным `--card`
-- [ ] 1.5 Переписать `components/ui/button.tsx` под [StyleB] (пилюля; `accent` / `primary` / `secondary` / `destructive` / `ghost`; 44 / 52 / icon 44; кольцо фокуса) и обновить все места вызова старых размеров `xs` / `sm` / `icon-*`; проверить `npm run build` и Tab-фокус на главной
-- [ ] 1.6 Добавить `badge`, `sheet` (`side="bottom"`, ручка, safe-area) и `segmented-control` (ToggleGroup) в `components/ui`; проверить `npm run check`
-- [ ] 1.7 Создать `shared/lib/use-media-query`, `shared/ui/responsive-dialog` и перевести `ConfirmActionModal`, `EditDebtDialog`, `AddRepaymentDialog` на него; проверить: на 390 px подтверждение удаления выезжает шторкой, на 1440 px — диалог по центру; Escape и касание фона закрывают
-- [ ] 1.8 Создать `shared/lib/format-date.ts` (`formatShortDate`, `formatLongDate`, `formatMoment`, `formatDateTimeWithYear`), `shared/lib/use-online-status`, `shared/lib/use-keyboard-inset`; проверить `npm run build` (поведение — в задачах 6.3, 7.4, 9.2)
-- [ ] 1.9 Создать `shared/ui/money` (`Money`, `CurrencyBreakdown`) и `shared/ui/empty-state`; проверить на главной, что «1 234 567,89 ₽» не переносится между числом и «₽»
+- [x] 1.1 Заменить `@fontsource-variable/geist` на `@fontsource-variable/onest` (импорт в `src/index.css`, `--font-sans`), задать `font-variant-numeric: tabular-nums` на `body`; проверить в DevTools → Computed, что у текста шрифт «Onest Variable», а `npm run knip` не находит лишних зависимостей
+- [x] 1.2 Переписать токены `src/index.css` по таблице design.md (решение 1): роли shadcn, `owed-to-me*`, `i-owe*`, `success*`, `warning*`, `destructive-muted`, `nav-glass`, `avatar-1…8` (+ `-foreground`), радиусы, тени, утилиты типографики; удалить переменные шаблона Vite; проверить `npm run build` и визуально фон `#F4F5F7` / `#0F1115` в обеих темах
+- [x] 1.3 Перевести наведение в `components/ui` (`command`, `select`, `dropdown-menu` и др.) с `bg-accent` на `bg-secondary`; проверить `grep -rn "bg-accent\|text-accent-foreground" src/components` — только там, где нужен индиго
+- [x] 1.4 Написать `scripts/check-contrast.mjs` и `npm run tokens:contrast` (пары и пороги — design.md, решение 12), подобрать тёмные `avatar-5…8`; добавить шаг в `.github/workflows/ci.yml`; проверить, что скрипт проходит и падает, если временно задать `--muted-foreground` равным `--card`
+- [x] 1.5 Переписать `components/ui/button.tsx` под [StyleB] (пилюля; `accent` / `primary` / `secondary` / `destructive` / `ghost`; 44 / 52 / icon 44; кольцо фокуса) и обновить все места вызова старых размеров `xs` / `sm` / `icon-*`; проверить `npm run build` и Tab-фокус на главной
+- [x] 1.6 Добавить `badge` и `segmented-control` (ToggleGroup) в `components/ui`; проверить `npm run check`
+- [x] 1.7 Сделать `components/ui/dialog` и `alert-dialog` адаптивными (шторка снизу на ширине меньше 1024 px с ручкой и safe-area, диалог по центру от 1024 px) — `ConfirmActionModal`, `EditDebtDialog`, `AddRepaymentDialog` наследуют поведение; проверить: на 390 px подтверждение удаления выезжает шторкой, на 1440 px — диалог по центру; Escape и касание фона закрывают
+- [x] 1.8 Создать `shared/lib/format-date.ts` (`formatShortDate`, `formatLongDate`, `formatMoment`, `formatDateTimeWithYear`), `shared/lib/use-online-status`, `shared/lib/use-keyboard-inset`; проверить `npm run build` (поведение — в задачах 6.3, 7.4, 9.2)
+- [x] 1.9 Создать `shared/ui/money` (`Money`, `CurrencyBreakdown`) и `shared/ui/empty-state`; проверить на главной, что «1 234 567,89 ₽» не переносится между числом и «₽»
 
 ## 2. Сущность `debt`
 
@@ -52,7 +52,7 @@
 ## 7. Новый долг
 
 - [ ] 7.1 Полноэкранная форма: шапка «Отмена» / «Новый долг», строка контакта с «Выбрать другой контакт», `segmented-control` направления с подсказкой «{{name}} вернёт деньги вам» / «{{name}} ждёт деньги от вас», заметка с плейсхолдером «Например, такси из аэропорта»; проверить по [NewDebt]
-- [ ] 7.2 Крупное поле суммы и кнопка валюты, открывающая `responsive-dialog` со списком валют; проверить смену валюты на «$» и создание долга в долларах
+- [ ] 7.2 Крупное поле суммы и кнопка валюты, открывающая адаптивный `Dialog` со списком валют; проверить смену валюты на «$» и создание долга в долларах
 - [ ] 7.3 `ContactPicker` на весь экран вместо `ContactCombobox`: автофокус, подсветка совпадений, плашки остатков, «Создать «…»» с «Новый контакт сразу выберется», состояния [PickEmpty] / [PickMatches] / [PickContact]; проверить вводом «ан», «Петя» и на чистой базе
 - [ ] 7.4 Панель «Создать» над клавиатурой (`interactive-widget=resizes-content` в `index.html` + `use-keyboard-inset`) и ошибки под полями / над кнопкой по [NewDebtErrors]; проверить на реальном Android (Chrome) и iOS (Safari) или в эмуляторе: кнопка видна при открытой клавиатуре
 
