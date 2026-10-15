@@ -136,7 +136,7 @@ export function BillSplitSection({ form }: { form: BillFormApi }) {
 							{state.splitMode === "shares" ? (
 								<fieldset
 									aria-label={t("sharesGroup", { name })}
-									className="bg-background flex shrink-0 items-center rounded-full"
+									className="bg-(--field-bg,var(--background)) flex shrink-0 items-center rounded-full"
 								>
 									<Button
 										type="button"
@@ -164,7 +164,7 @@ export function BillSplitSection({ form }: { form: BillFormApi }) {
 								</fieldset>
 							) : null}
 							{state.splitMode === "amounts" ? (
-								<div className="bg-background focus-within:shadow-[inset_0_0_0_2px_var(--ring)] flex min-h-12 w-[124px] shrink-0 items-center gap-1 rounded-[14px] px-3">
+								<div className="bg-(--field-bg,var(--background)) focus-within:shadow-[inset_0_0_0_2px_var(--ring)] flex min-h-12 w-[124px] shrink-0 items-center gap-1 rounded-[14px] px-3">
 									<label htmlFor={`${fieldId}-${p.ref}`} className="sr-only">
 										{t("amountA11y", { name })}
 									</label>

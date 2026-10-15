@@ -4,6 +4,7 @@ import { computeGlobalTotals, useDebtStore } from "@/entities/debt";
 import { PageHeader, ScreenBody } from "@/shared/layout";
 import { useDisplayCurrency } from "@/shared/lib/currency-preference";
 import { HOME_SCREEN_NS } from "../translations";
+import { BillsSection } from "./BillsSection";
 import { ContactList } from "./ContactList";
 import { HomeDifferenceCard, HomeNetPosition } from "./HomeNetPosition";
 import { HomeOnboarding } from "./HomeOnboarding";
@@ -13,13 +14,15 @@ export function HomeScreen() {
 	const { t } = useTranslation(HOME_SCREEN_NS);
 	const hydrated = useDebtStore((s) => s.hydrated);
 	const debtsById = useDebtStore((s) => s.debtsById);
+	const hasBills = useDebtStore((s) => Object.keys(s.billsById).length > 0);
 	const operationsByDebtId = useDebtStore((s) => s.operationsByDebtId);
 	const ratesCache = useDebtStore((s) => s.ratesCache);
 	const displayCurrency = useDisplayCurrency();
 
 	if (!hydrated) return <HomeSkeleton />;
 
-	if (Object.keys(debtsById).length === 0) {
+	const hasDebts = Object.keys(debtsById).length > 0;
+	if (!hasDebts && !hasBills) {
 		return (
 			<ScreenBody className="flex-1">
 				<PageHeader title={t("title")} />
@@ -57,7 +60,8 @@ export function HomeScreen() {
 				owedByMe={totals.totalOwedByMeConverted}
 				displayCurrency={displayCurrency}
 			/>
-			<ContactList />
+			<ContactList hasDebts={hasDebts} />
+			<BillsSection />
 		</ScreenBody>
 	);
 }

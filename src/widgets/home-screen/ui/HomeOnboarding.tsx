@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Plus, Split } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { buttonVariants } from "@/components/ui/button";
@@ -26,7 +26,7 @@ function OnboardingIllustration() {
 	);
 }
 
-/** Главная без долгов: приветствие, «Добавить первый долг» и восстановление из копии. */
+/** Главная без долгов и счетов: приветствие, «Добавить первый долг», «Разделить счёт» и восстановление из копии. */
 export function HomeOnboarding() {
 	const { t } = useTranslation(HOME_SCREEN_NS);
 	const { startImport, busy } = useImportBackup();
@@ -42,6 +42,17 @@ export function HomeOnboarding() {
 				<Link to="/new" className={cn(buttonVariants({ variant: "accent", size: "lg" }))}>
 					<Plus className="size-5" strokeWidth={2.4} aria-hidden="true" />
 					{t("emptyAdd")}
+				</Link>
+				<Link
+					to="/bills/new"
+					state={{ backTo: "/" }}
+					className={cn(
+						buttonVariants({ variant: "secondary", size: "lg" }),
+						"bg-card shadow-card hover:bg-card/80 mt-1",
+					)}
+				>
+					<Split className="size-5" aria-hidden="true" />
+					{t("emptySplit")}
 				</Link>
 				<button
 					type="button"

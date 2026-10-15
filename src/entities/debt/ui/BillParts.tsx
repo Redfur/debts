@@ -37,7 +37,7 @@ type MyPartProps = {
 };
 
 /** Плашка строки счёта: «+X» мне переводят, «−X» перевожу я, «без меня», у закрытых — «✓ Закрыт». */
-export function BillMyPart({ totals, currency, closed }: MyPartProps) {
+function BillMyPart({ totals, currency, closed }: MyPartProps) {
 	const { t } = useTranslation(ENTITY_DEBT_NS);
 	if (closed) {
 		return (
@@ -57,7 +57,7 @@ export function BillMyPart({ totals, currency, closed }: MyPartProps) {
 }
 
 /** «6 000 ₽ на четверых». */
-export function useBillAmountForPeople(bill: Pick<Bill, "totalAmount" | "currency" | "participants">): string {
+function useBillAmountForPeople(bill: Pick<Bill, "totalAmount" | "currency" | "participants">): string {
 	const { t } = useTranslation(ENTITY_DEBT_NS);
 	return t("billAmountForPeople", {
 		amount: formatMoney(bill.totalAmount, bill.currency),

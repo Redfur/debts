@@ -1,7 +1,9 @@
 import type { BillParticipant, BillSplitMode, DebtDirection, PersistedBill } from "@/shared/lib/storage";
 
+export type { BillParticipant };
+
 export type Bill = PersistedBill;
-export type { BillParticipant, BillSplitMode };
+export type { BillSplitMode };
 
 /** `ref` участника-пользователя. */
 export const ME_REF = "me";

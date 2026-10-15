@@ -1,7 +1,7 @@
 import { ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import type { Debt, DebtOperation } from "@/entities/debt";
+import { type Debt, type DebtOperation, useDebtStore } from "@/entities/debt";
 import { formatMoney } from "@/shared/lib/format-amount";
 import { formatShortDate } from "@/shared/lib/format-date";
 import { cn } from "@/shared/lib/utils";
@@ -17,6 +17,9 @@ type Props = {
 export function DebtHistory({ debt, operations, defaultOpen }: Props) {
 	const { t } = useTranslation(CONTACT_DETAIL_NS);
 	const ordered = [...operations].reverse();
+	const bill = useDebtStore((s) => (debt.billId ? s.billsById[debt.billId] : undefined));
+	// У «Создание долга» из счёта вместо заметки — «из счёта «<описание>»».
+	const billNote = bill ? t("fromBill", { title: bill.title ?? t("untitledBill") }) : null;
 
 	return (
 		<Collapsible defaultOpen={defaultOpen} className="border-border flex flex-col border-t">
@@ -46,7 +49,9 @@ export function DebtHistory({ debt, operations, defaultOpen }: Props) {
 										{t(repayment ? "operationRepayment" : "operationInitial")}
 									</span>
 									<span className="text-caption text-muted-foreground">
-										{[formatShortDate(op.createdAt), op.note].filter(Boolean).join(" · ")}
+										{[formatShortDate(op.createdAt), repayment ? op.note : (billNote ?? op.note)]
+											.filter(Boolean)
+											.join(" · ")}
 									</span>
 								</span>
 								<span className="text-body-s font-semibold whitespace-nowrap">

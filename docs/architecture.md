@@ -11,10 +11,10 @@ React 19, Vite 8, TypeScript, Zustand, react-router-dom, react-i18next, Tailwind
 | Слой | Папка | Роль |
 |------|--------|------|
 | App | `src/app/` | Провайдеры (i18n, NiceModal, Tooltip, гидрация стора, Toaster), роутинг (`AppRoutes`, lazy-страницы + `route-fallbacks` со скелетонами), каркас `app/layout` (`AppShell`, `BottomNav`, `CreateFab`, `SideNav`, `StorageErrorBanner`, `useShellMode` / `useSideNavSection`), `RouteErrorBoundary` |
-| Pages | `src/pages/` | `home` (`/`), `create-debt` (`/new`), `contacts` (`/contacts`, раскладка «список + карточка» с `Outlet`), `contact-detail` (`/contacts/:contactId`), `settings` (`/settings`) |
-| Widgets | `src/widgets/` | `home-screen`, `contacts-screen`, `contact-detail`, `settings-screen` |
-| Features | `src/features/` | `select-contact` (`ContactPicker`), `create-debt`, `edit-debt`, `add-repayment`, `set-display-currency`, `refresh-exchange-rates`, `export-backup`, `import-backup`, `pwa-app-update` |
-| Entities | `src/entities/` | `debt`: типы, Zustand-стор `useDebtStore`, хук `useDebtOperations`, агрегаты `computeDebtBalance` / `computeContactSummary` / `computeContactTotals` / `computeGlobalTotals` / `computeNetPosition` / `countContactsByDirection`, UI `ContactAvatar`, `ContactRow`, `AmountPill`, `DirectionChip`, `DirectionToggle`, `DebtStatusBadge`, `NetPositionLine` |
+| Pages | `src/pages/` | `home` (`/`), `create-debt` (`/new`), `create-bill` (`/bills/new`), `bill-detail` (`/bills/:billId`), `edit-bill` (`/bills/:billId/edit`), `contacts` (`/contacts`, раскладка «список + карточка» с `Outlet`), `contact-detail` (`/contacts/:contactId`), `settings` (`/settings`) |
+| Widgets | `src/widgets/` | `home-screen` (в т.ч. секция «Счета»), `contacts-screen`, `contact-detail`, `bill-detail`, `settings-screen` |
+| Features | `src/features/` | `select-contact` (`ContactPicker`, мультивыбор `ParticipantsPicker`), `create-debt`, `create-bill` (`BillForm`: создание, изменение, изменение после погашений; `PayerSheet`), `delete-bill` (`showDeleteBillConfirm`), `toggle-bill-closed`, `edit-debt`, `add-repayment`, `set-display-currency`, `refresh-exchange-rates`, `export-backup`, `import-backup`, `pwa-app-update` |
+| Entities | `src/entities/` | `debt`: типы, Zustand-стор `useDebtStore`, хук `useDebtOperations`, агрегаты `computeDebtBalance` / `computeContactSummary` / `computeContactTotals` / `computeGlobalTotals` / `computeNetPosition` / `countContactsByDirection`, UI `ContactAvatar`, `ContactRow`, `AmountPill`, `DirectionChip`, `DirectionToggle`, `DebtStatusBadge`, `NetPositionLine`; счёт — `model/bill/` (расчёт, `useBillDebts`), UI `BillRow`, `BillMyPart`, `BillStatusBadge`, `TransferRow`, `BillLink`, `ParticipantAvatar` |
 | Shared | `src/shared/` | `lib/` (storage, exchange-rate, theme, currency-preference, format-amount, format-date, round-amount, id, i18n, first-grapheme, use-online-status, use-keyboard-inset), `config/` (currencies, contact-colors), `i18n/` (`common`), `layout/` (`PageHeader`, `PageHeaderBackLink`, `ScreenBody`), `ui/` (`AmountField`, `CurrencyPicker`, `SearchField`, `HighlightMatch`, `EmptyState`, `form-message`, `money`, `modals/ConfirmActionModal`) |
 | UI-kit | `src/components/ui/` | shadcn без бизнес-логики, перестроенный под дизайн-систему (кнопки-пилюли, `dialog` / `alert-dialog` как шторка на мобильном); добавлены вручную: `textarea`, `amount-input` (маска суммы), `badge`, `segmented-control` |
 
@@ -29,25 +29,29 @@ React 19, Vite 8, TypeScript, Zustand, react-router-dom, react-i18next, Tailwind
 | `/contacts` | `pages/contacts` (index → `ContactsIndexPage`) → `widgets/contacts-screen` | lazy |
 | `/contacts/:contactId` | вложен в `/contacts`: `pages/contact-detail` → `widgets/contact-detail` | lazy |
 | `/settings` | `pages/settings` → `widgets/settings-screen` | lazy |
+| `/bills/new` | `pages/create-bill` → `features/create-bill` (`BillForm`) | lazy |
+| `/bills/:billId` | `pages/bill-detail` → `widgets/bill-detail` | lazy |
+| `/bills/:billId/edit` | `pages/edit-bill` → `features/create-bill` (`BillForm` с `bill`, `locked` при погашениях) | lazy |
 | `*` | редирект на `/` | — |
 
-Откуда открыта карточка контакта, передаётся через `location.state.from` (`"home" | "contacts"`, проп `linkState` у `ContactRow`); от него зависят активный раздел бокового меню (`useSideNavSection`) и цель кнопки «назад».
+Откуда открыта карточка контакта, передаётся через `location.state.from` (`"home" | "contacts"`, проп `linkState` у `ContactRow`); от него зависят активный раздел бокового меню (`useSideNavSection`) и цель кнопки «назад». Экран счёта получает `BillLinkState` (`{ from: "home" }` или `{ from: "contact", contactId }`) — «назад» ведёт на главную или в карточку контакта; форма счёта — `{ backTo }` для «Отмены». После создания счёта — `navigate(/bills/:id, { replace: true })`, чтобы «назад» не возвращал в форму.
 
 ## Каркас и режимы
 
 `AppShell` выбирает режим по пути (`useShellMode`, через `matchPath`):
 
-- `section` — `/`, `/contacts`, `/settings`: на мобильном плавающее нижнее меню `BottomNav` и круглая кнопка «+» (`CreateFab`, ведёт на `/new`);
-- `fullscreen` — `/new` и `/contacts/:id` на мобильном: без нижнего меню, со своей шапкой.
+- `section` — `/`, `/contacts`, `/settings`: на мобильном плавающее нижнее меню `BottomNav` и круглая кнопка «+» (`CreateFab` — меню Radix `DropdownMenu` «Новый долг» → `/new` / «Разделить счёт» → `/bills/new`; открытое меню поворачивает «+» в «×» «Закрыть меню»);
+- `fullscreen` — `/new`, `/contacts/:id` и `/bills/*` на мобильном: без нижнего меню, со своей шапкой. В боковом меню `/bills/*` подсвечивает «Главную».
 
 От 1024 px всегда показывается боковое меню `SideNav` и «+» в правом нижнем углу. Раскладка «список + карточка» на `/contacts` — CSS-сетка в `ContactsPage`: на мобильном видна только одна колонка (`max-lg:hidden`), на десктопе обе. Баннер ошибки хранилища каркас подставляет под заголовок любого экрана через контекст `PageHeaderAfterSlot`.
 
-Форма нового долга держит кнопку «Создать» над клавиатурой: `interactive-widget=resizes-content` в `index.html` (Chrome/Android сжимает layout) и отступ по `visualViewport` из `useKeyboardInset` (iOS Safari).
+Формы нового долга и счёта держат кнопку над клавиатурой: `interactive-widget=resizes-content` в `index.html` (Chrome/Android сжимает layout) и отступ по `visualViewport` из `useKeyboardInset` (iOS Safari).
 
 ## Модальные окна
 
 - `Dialog` и `AlertDialog` на ширине меньше 1024 px — шторка снизу, шире — диалог по центру (только CSS, общие классы в `components/ui/dialog.tsx`).
-- Утилитарная модалка подтверждения — `shared/ui/modals/ConfirmActionModal` (`AlertDialog`): удаление долга, сброс данных. Подтверждение импорта со сводкой — `features/import-backup/ui/ImportBackupConfirm`.
+- Утилитарная модалка подтверждения — `shared/ui/modals/ConfirmActionModal` (`AlertDialog`, необязательная строка `lead` над описанием): удаление долга и счёта, сброс данных.
+- Шторка «Кто заплатил» (`features/create-bill/ui/PayerSheet`) — управляемый `Dialog` внутри формы. Модалки рендерятся вне роутера, поэтому «Открыть счёт» в «Изменить долг» передаётся колбэком `onOpenBill`. Подтверждение импорта со сводкой — `features/import-backup/ui/ImportBackupConfirm`.
 - Модалки с доменной логикой — в фичах: `features/edit-debt/ui/EditDebtDialog.tsx`, `features/add-repayment/ui/AddRepaymentDialog.tsx` (`NiceModal.create` + shadcn `Dialog`). Открываются хелперами `showEditDebtDialog` / `showAddRepaymentDialog`.
 - Создание долга — не модалка, а страница `/new`.
 - `components/ui/dialog.tsx`: `DialogContent` игнорирует «клик наружу», если координаты события внутри рамки диалога — обход бага Radix с вложенными слоями (`Select`/`Popover`), которые временно отключают `pointer-events` у диалога.

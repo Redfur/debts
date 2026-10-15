@@ -24,7 +24,7 @@ export function fromCents(cents: number): number {
 }
 
 /** Делит ли участник счёт: «Поровну» — по отметке, «Долями» и «Суммами» — по ненулевой доле. */
-export function isInBillSplit(participant: BillParticipant, mode: BillSplitMode): boolean {
+function isInBillSplit(participant: BillParticipant, mode: BillSplitMode): boolean {
 	if (mode === "equal") return participant.inSplit;
 	return mode === "shares" ? (participant.shareInput ?? 0) > 0 : toCents(participant.shareInput) > 0;
 }
@@ -75,7 +75,7 @@ export function validateBill(draft: BillDraft): BillValidation {
 }
 
 /** Баланс участника в копейках: заплатил минус доля. */
-export function computeBillBalances(draft: BillDraft): number[] {
+function computeBillBalances(draft: BillDraft): number[] {
 	const { cents } = computeBillShares(draft);
 	return draft.participants.map((p, i) => toCents(p.paid) - cents[i]);
 }

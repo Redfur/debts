@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 import { buttonVariants } from "@/components/ui/button";
 import { type Contact, ContactAvatar, computeContactTotals, type Debt, useDebtStore } from "@/entities/debt";
+import { showDeleteBillConfirm } from "@/features/delete-bill";
 import { COMMON_NS } from "@/shared/i18n";
 import { PageHeader, PageHeaderBackLink, ScreenBody } from "@/shared/layout";
 import { useDisplayCurrency } from "@/shared/lib/currency-preference";
@@ -27,6 +28,7 @@ export function ContactDetailScreen({ contact }: Props) {
 	const operationsByDebtId = useDebtStore((s) => s.operationsByDebtId);
 	const ratesCache = useDebtStore((s) => s.ratesCache);
 	const deleteDebt = useDebtStore((s) => s.deleteDebt);
+	const billsById = useDebtStore((s) => s.billsById);
 	const displayCurrency = useDisplayCurrency();
 
 	// «Назад» — туда, откуда открыли (главная или «Контакты»); по прямой ссылке — в «Контакты».
@@ -41,6 +43,12 @@ export function ContactDetailScreen({ contact }: Props) {
 	}, [debtsById, contact.id]);
 
 	const handleDelete = (debt: Debt) => {
+		// Долг из счёта отдельно не удаляется — удаляется весь счёт.
+		const bill = debt.billId ? billsById[debt.billId] : undefined;
+		if (bill) {
+			void showDeleteBillConfirm({ bill, fromDebt: true });
+			return;
+		}
 		const amount = formatMoney(debt.principalAmount, debt.currency);
 		void showConfirmActionModal({
 			title: t("deleteDebtConfirmTitle"),

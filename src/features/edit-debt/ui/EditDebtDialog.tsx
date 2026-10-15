@@ -1,5 +1,5 @@
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
-import { Info } from "lucide-react";
+import { Info, ReceiptText } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ import { EDIT_DEBT_NS } from "../translations";
 
 type Props = {
 	debtId: string;
+	/** «Открыть счёт» у долга из счёта: шторка рендерится вне роутера, переход делает вызывающий экран. */
+	onOpenBill?: (billId: string) => void;
 };
 
 type Errors = { amount?: string; form?: string };
@@ -33,7 +35,7 @@ function ReadOnlyTile({ label, children }: { label: string; children: ReactNode 
 	);
 }
 
-const EditDebtDialogComponent = NiceModal.create(({ debtId }: Props) => {
+const EditDebtDialogComponent = NiceModal.create(({ debtId, onOpenBill }: Props) => {
 	const { t } = useTranslation(EDIT_DEBT_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
 	const { t: tDebt } = useTranslation(ENTITY_DEBT_NS);
@@ -46,7 +48,9 @@ const EditDebtDialogComponent = NiceModal.create(({ debtId }: Props) => {
 	const debt = useDebtStore((s) => s.debtsById[debtId]);
 	const contactName = useDebtStore((s) => (debt ? s.contactsById[debt.contactId]?.name : undefined));
 	const operations = useDebtOperations(debtId);
-	const locked = operations.some((op) => op.kind === "repayment");
+	const bill = useDebtStore((s) => (debt?.billId ? s.billsById[debt.billId] : undefined));
+	// Долг из счёта: направление, сумма и валюта меняются только через счёт.
+	const locked = Boolean(bill) || operations.some((op) => op.kind === "repayment");
 
 	const [direction, setDirection] = useState<DebtDirection>("owed_to_me");
 	const [currency, setCurrency] = useState<CurrencyCode>("RUB");
@@ -111,8 +115,25 @@ const EditDebtDialogComponent = NiceModal.create(({ debtId }: Props) => {
 						<>
 							<div className="bg-secondary text-muted-foreground flex gap-2.5 rounded-[16px] px-3.5 py-3">
 								<Info className="mt-px size-4 shrink-0" aria-hidden="true" />
-								<span className="text-caption">{t("lockedHint")}</span>
+								<span className="text-caption">
+									{bill ? t("billHint", { title: bill.title ?? t("untitledBill") }) : t("lockedHint")}
+								</span>
 							</div>
+							{bill && onOpenBill ? (
+								<Button
+									type="button"
+									variant="secondary"
+									className="self-start"
+									onClick={() => {
+										// `modal.hide()` без `resolveHide` не завершается — переходим до закрытия.
+										onOpenBill(bill.id);
+										void closeModal();
+									}}
+								>
+									<ReceiptText className="size-4" aria-hidden="true" />
+									{t("openBill")}
+								</Button>
+							) : null}
 							<div className="grid grid-cols-2 gap-2">
 								<ReadOnlyTile label={t("directionLabel")}>
 									{debt.direction === "owed_to_me" ? `+ ${tDebt("directionOwedToMe")}` : `− ${tDebt("directionIOwe")}`}

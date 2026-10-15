@@ -285,7 +285,8 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 		const updatedDebt: PersistedDebt = { ...debt, updatedAt: now };
 		let updatedInitialOp: PersistedDebtOperation | undefined;
 
-		if (!hasRepayment) {
+		// Направление, сумма и валюта долга из счёта меняются только через счёт.
+		if (!hasRepayment && !debt.billId) {
 			if (patch.amount !== undefined) {
 				const amount = roundAmount(patch.amount);
 				if (!Number.isFinite(amount) || amount <= 0) return false;

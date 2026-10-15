@@ -157,7 +157,7 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 				<header className="hidden flex-wrap items-center justify-between gap-3 lg:flex">
 					<h1 className="text-title-desktop">{heading}</h1>
 					<div className="flex gap-2">
-						<Button type="button" variant="secondary" onClick={onCancel}>
+						<Button type="button" variant="secondary" className="bg-card shadow-card" onClick={onCancel}>
 							{tCommon("cancel")}
 						</Button>
 						<Button type="button" variant="accent" disabled={saveDisabled} onClick={() => void save()}>
@@ -258,11 +258,19 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 	);
 }
 
-/** Колонка десктопа — белая карточка с подзаголовком; внутренние карточки на ней становятся серыми. */
+/**
+ * Колонка десктопа — белая карточка с подзаголовком; внутренние карточки на ней становятся серыми.
+ * Исходный цвет карточки сохраняется в `--card-raised` для выбранного сегмента и полей сумм (`--field-bg`).
+ */
 function DesktopColumn({ title, hidden, children }: { title: string; hidden: boolean; children: ReactNode }) {
 	return (
-		<section className={cn("lg:bg-card lg:shadow-card lg:rounded-[24px] lg:p-6", hidden && "max-lg:hidden")}>
-			<div className="flex flex-col gap-5 lg:[--card:var(--background)] lg:[--shadow-card:none]">
+		<section
+			className={cn(
+				"lg:bg-card lg:shadow-card lg:rounded-[24px] lg:p-6 lg:[--card-raised:var(--card)]",
+				hidden && "max-lg:hidden",
+			)}
+		>
+			<div className="flex flex-col gap-5 lg:[--card:var(--background)] lg:[--field-bg:var(--card-raised)] lg:[--secondary:var(--muted)] lg:[--shadow-card:none] lg:[&_[data-slot=segmented-control-item][data-state=on]]:bg-(--card-raised)">
 				<h2 className="text-caption text-muted-foreground hidden font-semibold lg:block">{title}</h2>
 				{children}
 			</div>

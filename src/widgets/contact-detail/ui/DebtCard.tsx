@@ -1,6 +1,15 @@
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { computeDebtBalance, type Debt, type DebtOperation, DirectionChip } from "@/entities/debt";
+import {
+	BillLink,
+	type BillLinkState,
+	computeDebtBalance,
+	type Debt,
+	type DebtOperation,
+	DirectionChip,
+	useDebtStore,
+} from "@/entities/debt";
 import { showAddRepaymentDialog } from "@/features/add-repayment";
 import { showEditDebtDialog } from "@/features/edit-debt";
 import { COMMON_NS } from "@/shared/i18n";
@@ -25,6 +34,10 @@ export function DebtCard({ debt, operations, onDelete }: Props) {
 	const repaid = debt.principalAmount - balance;
 	const percent = debt.principalAmount > 0 ? (repaid / debt.principalAmount) * 100 : 0;
 	const owedToMe = debt.direction === "owed_to_me";
+	const bill = useDebtStore((s) => (debt.billId ? s.billsById[debt.billId] : undefined));
+	const navigate = useNavigate();
+	const openBill = (billId: string) =>
+		navigate(`/bills/${billId}`, { state: { from: "contact", contactId: debt.contactId } satisfies BillLinkState });
 
 	return (
 		<article className="bg-card shadow-card flex flex-col gap-3 rounded-card p-4">
@@ -33,6 +46,7 @@ export function DebtCard({ debt, operations, onDelete }: Props) {
 				<span className="text-caption text-muted-foreground">{formatShortDate(debt.createdAt)}</span>
 			</div>
 			<h3 className="text-heading break-words">{debt.note || t("untitledDebt")}</h3>
+			{bill ? <BillLink bill={bill} state={{ from: "contact", contactId: debt.contactId }} /> : null}
 			<div className="flex flex-col gap-2">
 				<div className="flex items-baseline justify-between gap-2">
 					<span className="text-caption text-muted-foreground">{t("balance")}</span>
@@ -78,7 +92,7 @@ export function DebtCard({ debt, operations, onDelete }: Props) {
 					type="button"
 					variant="secondary"
 					className="bg-background px-3.5 font-normal"
-					onClick={() => void showEditDebtDialog({ debtId: debt.id })}
+					onClick={() => void showEditDebtDialog({ debtId: debt.id, onOpenBill: openBill })}
 				>
 					{tCommon("edit")}
 				</Button>

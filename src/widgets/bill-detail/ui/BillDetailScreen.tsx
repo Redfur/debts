@@ -119,7 +119,11 @@ export function BillDetailScreen({ bill, backTo }: Props) {
 				}
 				actions={
 					<>
-						<Link to={editHref} state={linkState} className={buttonVariants({ variant: "secondary" })}>
+						<Link
+							to={editHref}
+							state={linkState}
+							className={cn(buttonVariants({ variant: "secondary" }), "bg-card shadow-card")}
+						>
 							{tCommon("edit")}
 						</Link>
 						<Button type="button" variant="destructive-soft" className="hidden lg:inline-flex" onClick={handleDelete}>

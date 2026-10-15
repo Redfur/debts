@@ -3,30 +3,19 @@ import { ENTITY_DEBT_NS, entityDebtTranslations } from "./translations";
 
 injectTranslation(ENTITY_DEBT_NS, entityDebtTranslations as Record<string, Record<string, string>>);
 
-export type {
-	Bill,
-	BillDraft,
-	BillParticipant,
-	BillSplitMode,
-	BillStatus,
-	BillTransfer,
-	BillValidationError,
-	MyBillDebt,
-} from "./model/bill";
 export {
 	computeBillMyTotals,
 	computeBillShares,
 	computeBillStatus,
 	computeBillTransfers,
-	computeMyBillDebts,
 	fromCents,
-	isInBillSplit,
-	ME_REF,
 	spreadBillRemainder,
 	toCents,
-	useBillDebts,
 	validateBill,
-} from "./model/bill";
+} from "./model/bill/compute-bill";
+export type { Bill, BillDraft, BillSplitMode, BillTransfer } from "./model/bill/types";
+export { ME_REF } from "./model/bill/types";
+export { useBillDebts } from "./model/bill/use-bill-debts";
 export { computeContactSummary } from "./model/compute-contact-summary";
 export { computeContactTotals } from "./model/compute-contact-totals";
 export { computeDebtBalance } from "./model/compute-debt-balance";
@@ -48,11 +37,9 @@ export { ParticipantAvatar, useParticipantName } from "./ui/BillParticipant";
 export type { BillLinkState } from "./ui/BillParts";
 export {
 	BillLink,
-	BillMyPart,
 	BillRow,
 	BillStatusBadge,
 	TransferRow,
-	useBillAmountForPeople,
 } from "./ui/BillParts";
 export { ContactAvatar } from "./ui/ContactAvatar";
 export { ContactRow, ContactRowList } from "./ui/ContactRow";

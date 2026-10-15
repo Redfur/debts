@@ -39,6 +39,7 @@ const ImportBackupConfirm = NiceModal.create(({ payload, onConfirm }: Props) => 
 	const rows: [string, string][] = [
 		[t("contacts"), String(payload.contacts.length)],
 		[t("debts"), String(payload.debts.length)],
+		[t("bills"), String(payload.bills.length)],
 		[t("createdAt"), formatDateTimeWithYear(payload.exportedAt)],
 	];
 

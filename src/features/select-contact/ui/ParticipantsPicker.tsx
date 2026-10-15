@@ -51,10 +51,12 @@ export function ParticipantsPicker({ value, onDone, onCancel }: Props) {
 		setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
 	const create = async () => {
-		const id = await getOrCreateContact(trimmed);
+		const name = trimmed;
+		const id = await getOrCreateContact(name);
 		if (!id) return;
 		setSelected((prev) => (prev.includes(id) ? prev : [...prev, id]));
-		setQuery("");
+		// Пока контакт записывался, могли начать вводить следующее имя — его не стираем.
+		setQuery((current) => (current.trim() === name ? "" : current));
 		inputRef.current?.focus();
 	};
 

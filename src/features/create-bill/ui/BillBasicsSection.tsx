@@ -219,7 +219,7 @@ function SeveralPayers({ form, locked }: { form: BillFormApi; locked: boolean })
 					<li key={ref} className={cn("flex min-h-16 items-center gap-3 pr-3 pl-4", index > 0 && "border-t")}>
 						<ParticipantAvatar participantRef={ref} className="size-9 text-sm" />
 						<span className="text-body min-w-0 flex-1 truncate font-medium">{nameOf(ref)}</span>
-						<div className="bg-background focus-within:shadow-[inset_0_0_0_2px_var(--ring)] flex min-h-12 w-[124px] shrink-0 items-center gap-1 rounded-[14px] px-3">
+						<div className="bg-(--field-bg,var(--background)) focus-within:shadow-[inset_0_0_0_2px_var(--ring)] flex min-h-12 w-[124px] shrink-0 items-center gap-1 rounded-[14px] px-3">
 							<label htmlFor={`${fieldId}-${ref}`} className="sr-only">
 								{t("paidA11y", { name: nameOf(ref) })}
 							</label>

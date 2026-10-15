@@ -1,8 +1,17 @@
 import { ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { type Debt, type DebtOperation, DebtStatusBadge, ENTITY_DEBT_NS } from "@/entities/debt";
+import {
+	BillLink,
+	type BillLinkState,
+	type Debt,
+	type DebtOperation,
+	DebtStatusBadge,
+	ENTITY_DEBT_NS,
+	useDebtStore,
+} from "@/entities/debt";
 import { showEditDebtDialog } from "@/features/edit-debt";
 import { COMMON_NS } from "@/shared/i18n";
 import { formatMoney } from "@/shared/lib/format-amount";
@@ -22,6 +31,10 @@ export function ClosedDebtRow({ debt, operations, onDelete }: Props) {
 	const { t: tDebt } = useTranslation(ENTITY_DEBT_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
 	const owedToMe = debt.direction === "owed_to_me";
+	const bill = useDebtStore((s) => (debt.billId ? s.billsById[debt.billId] : undefined));
+	const navigate = useNavigate();
+	const openBill = (billId: string) =>
+		navigate(`/bills/${billId}`, { state: { from: "contact", contactId: debt.contactId } satisfies BillLinkState });
 	const summary = [
 		`${owedToMe ? "+" : "−"}${formatMoney(debt.principalAmount, debt.currency)}`,
 		tDebt(owedToMe ? "directionOwedToMeLower" : "directionIOweLower"),
@@ -45,12 +58,13 @@ export function ClosedDebtRow({ debt, operations, onDelete }: Props) {
 					</span>
 				</CollapsibleTrigger>
 				<CollapsibleContent className="flex flex-col gap-3 px-4 pb-4">
+					{bill ? <BillLink bill={bill} state={{ from: "contact", contactId: debt.contactId }} /> : null}
 					<div className="flex gap-1.5">
 						<Button
 							type="button"
 							variant="secondary"
 							className="bg-background flex-1 font-normal"
-							onClick={() => void showEditDebtDialog({ debtId: debt.id })}
+							onClick={() => void showEditDebtDialog({ debtId: debt.id, onOpenBill: openBill })}
 						>
 							{tCommon("edit")}
 						</Button>

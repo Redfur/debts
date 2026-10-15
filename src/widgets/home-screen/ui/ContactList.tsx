@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
+import { buttonVariants } from "@/components/ui/button";
 import {
 	AmountPill,
 	type Contact,
@@ -20,8 +21,11 @@ import { HOME_SCREEN_NS } from "../translations";
 
 const FILTERS: ContactDirectionFilter[] = ["all", "owed-to-me", "i-owe"];
 
-/** Контакты с непогашенными долгами: фильтр «Все / Мне должны / Я должен»; на десктопе — таблица. */
-export function ContactList() {
+/**
+ * Контакты с непогашенными долгами: фильтр «Все / Мне должны / Я должен»; на десктопе — таблица.
+ * Без активных долгов — «всё погашено», а если долгов нет совсем (есть только счета без меня) — пояснение про итоги.
+ */
+export function ContactList({ hasDebts }: { hasDebts: boolean }) {
 	const { t } = useTranslation(HOME_SCREEN_NS);
 	const { t: tDebt } = useTranslation(ENTITY_DEBT_NS);
 	const contactsById = useDebtStore((s) => s.contactsById);
@@ -42,8 +46,24 @@ export function ContactList() {
 	);
 	const contacts = withActive.filter((c) => contactMatchesFilter(c.id, filter, debtsById, operationsByDebtId));
 
+	if (!hasDebts) {
+		return (
+			<div className="flex flex-col items-center gap-3 px-1 py-5 text-center">
+				<p className="text-muted-foreground text-body-s">{t("noDebtsOnlyBills")}</p>
+				<Link to="/new" className={cn(buttonVariants({ variant: "secondary" }), "bg-card shadow-card")}>
+					{t("emptyAdd")}
+				</Link>
+			</div>
+		);
+	}
+
 	if (withActive.length === 0) {
-		return <p className="text-muted-foreground text-body-s px-1 py-6 text-center">{t("allSettled")}</p>;
+		return (
+			<div className="flex flex-col gap-0.5 px-1 py-6 text-center">
+				<p className="text-body-s font-medium">{t("allSettled")}</p>
+				<p className="text-caption text-muted-foreground">{t("allSettledHint")}</p>
+			</div>
+		);
 	}
 
 	const filterLabel = (f: ContactDirectionFilter) =>

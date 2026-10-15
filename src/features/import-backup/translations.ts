@@ -6,6 +6,7 @@ export const importBackupTranslations = {
 		confirmTitle: "Загрузить резервную копию?",
 		contacts: "Контактов",
 		debts: "Долгов",
+		bills: "Счетов",
 		createdAt: "Копия создана",
 		confirmBody: "Всё, что сейчас записано на этом устройстве, заменится данными из копии.",
 		confirmAction: "Заменить данные",

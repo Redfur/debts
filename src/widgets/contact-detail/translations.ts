@@ -13,6 +13,8 @@ export const contactDetailTranslations = {
 		sectionClosed: "Погашенные",
 		emptyDebts: "У этого контакта пока нет долгов.",
 		untitledDebt: "Долг",
+		untitledBill: "Счёт",
+		fromBill: "из счёта «{{title}}»",
 		balance: "Остаток",
 		ofPrincipal: "из {{amount}}",
 		progressA11y: "Возвращено {{repaid}} из {{principal}}",
