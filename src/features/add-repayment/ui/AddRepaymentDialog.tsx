@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { computeDebtBalance, useDebtOperations, useDebtStore } from "@/entities/debt";
 import { CURRENCY_SYMBOL } from "@/shared/config/currencies";
 import { COMMON_NS } from "@/shared/i18n";
+import { formatAmount } from "@/shared/lib/format-amount";
 import { useAddRepayment } from "../model/use-add-repayment";
 import { ADD_REPAYMENT_NS } from "../translations";
 
@@ -78,7 +79,7 @@ const AddRepaymentDialogComponent = NiceModal.create(({ debtId }: Props) => {
 				</DialogHeader>
 				<form className="flex flex-col gap-4" onSubmit={(e) => void handleSubmit(e)}>
 					<p className="text-muted-foreground text-sm">
-						{t("balanceLine", { amount: balance, symbol: CURRENCY_SYMBOL[debt.currency] })}
+						{t("balanceLine", { amount: formatAmount(balance), symbol: CURRENCY_SYMBOL[debt.currency] })}
 					</p>
 
 					<div className="flex flex-col gap-1.5">

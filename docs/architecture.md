@@ -1,0 +1,97 @@
+# Архитектура
+
+Справочник по устройству кода. Поведение продукта (что система должна делать) описано в [`openspec/specs/`](../openspec/specs); здесь — как это реализовано. Термины и модель данных — в [domain.md](./domain.md), правила кода — в [coding-standards.md](./coding-standards.md).
+
+## Стек
+
+React 19, Vite 8, TypeScript, Zustand, react-router-dom, react-i18next, Tailwind CSS 4, shadcn/ui (Radix), `@ebay/nice-modal-react`, IndexedDB через `idb`, PWA (`vite-plugin-pwa`), date-fns, Sonner (toasts). Бэкенда нет.
+
+## Feature-Sliced Design (привязка к репозиторию)
+
+| Слой | Папка | Роль |
+|------|--------|------|
+| App | `src/app/` | Провайдеры (i18n, NiceModal, Tooltip, гидрация стора, Toaster), роутинг (`AppRoutes`, lazy-страницы + `route-fallbacks`), каркас (`AppShell`, `AppNavLink`, `useActiveNavSection`, `StorageErrorBanner`), `RouteErrorBoundary` |
+| Pages | `src/pages/` | `home` (`/`), `create-debt` (`/new`), `contacts` (`/contacts`), `contact-detail` (`/contacts/:contactId`), `settings` (`/settings`) |
+| Widgets | `src/widgets/` | `home-screen`, `contacts-screen`, `contact-detail`, `settings-screen` |
+| Features | `src/features/` | `select-contact`, `create-debt`, `edit-debt`, `add-repayment`, `set-display-currency`, `refresh-exchange-rates`, `pwa-app-update` |
+| Entities | `src/entities/` | `debt`: типы, Zustand-стор `useDebtStore`, хук `useDebtOperations`, агрегаты `computeDebtBalance` / `computeContactSummary` / `computeGlobalTotals`, UI `ContactAvatar`, `ContactListItem` |
+| Shared | `src/shared/` | `lib/` (storage, exchange-rate, theme, currency-preference, format-amount, round-amount, id, i18n, first-grapheme), `config/` (currencies, contact-colors), `i18n/` (`common`), `layout/` (`PageHeader`, `PageHeaderBackLink`, `ScreenBody`), `ui/modals/` (`ConfirmActionModal`) |
+| UI-kit | `src/components/ui/` | shadcn без бизнес-логики; добавлены вручную: `dialog`, `command`, `textarea`, `amount-input` (маска суммы) |
+
+Импорт — только сверху вниз: `app → pages → widgets → features → entities → shared`; `app` и `shared` могут импортировать друг друга. Публичный API слайса — только `index.ts`.
+
+## Маршруты
+
+| Путь | Страница | Загрузка |
+|------|----------|----------|
+| `/` | `pages/home` → `widgets/home-screen` | eager |
+| `/new[?contactId=]` | `pages/create-debt` → `features/create-debt` (`CreateDebtForm`) | lazy |
+| `/contacts` | `pages/contacts` → `widgets/contacts-screen` | lazy |
+| `/contacts/:contactId` | `pages/contact-detail` → `widgets/contact-detail` | lazy |
+| `/settings` | `pages/settings` → `widgets/settings-screen` | lazy |
+| `*` | редирект на `/` | — |
+
+Откуда открыта карточка контакта, передаётся через `location.state.from` (`"home" | "contacts"`, проп `linkState` у `ContactListItem`); от него зависят активная вкладка (`useActiveNavSection`) и цель кнопки «назад».
+
+## Модальные окна
+
+- Утилитарная модалка подтверждения — `shared/ui/modals/ConfirmActionModal` (`AlertDialog`): удаление долга, импорт, сброс данных.
+- Модалки с доменной логикой — в фичах: `features/edit-debt/ui/EditDebtDialog.tsx`, `features/add-repayment/ui/AddRepaymentDialog.tsx` (`NiceModal.create` + shadcn `Dialog`). Открываются хелперами `showEditDebtDialog` / `showAddRepaymentDialog`.
+- Создание долга — не модалка, а страница `/new`.
+- `components/ui/dialog.tsx`: `DialogContent` игнорирует «клик наружу», если координаты события внутри рамки диалога — обход бага Radix с вложенными слоями (`Select`/`Popover`), которые временно отключают `pointer-events` у диалога.
+
+## State management: Zustand
+
+`src/entities/debt/model/debt-store.ts` (`useDebtStore`) — один стор на домен (контакты + долги + операции + курс), чтобы `features` не импортировали `app`.
+
+**Состояние:** `contactsById`, `debtsById`, `operationsByDebtId` (по `createdAt`), `ratesCache`, `ratesFetchError` (мягкая ошибка курса, не путать с `lastError`), `hydrated`, `lastError`.
+
+**Actions:** `hydrate()`, `getOrCreateContact(name)`, `createDebt(input)`, `updateDebt(id, patch)`, `addRepayment(debtId, amount, note?)`, `deleteDebt(id)`, `refreshRatesIfStale(force?)`, `clearError()`.
+
+- Все записи — оптимистично: сначала память, затем IndexedDB, при ошибке — откат и `lastError`.
+- `updateDebt`: направление/сумма/валюта меняются, только пока нет операций `repayment`; при смене суммы обновляется и операция `initial`.
+- Агрегаты не хранятся в сторе — это чистые функции в `entities/debt/model/`.
+
+## Персистентность
+
+- **IndexedDB** (`src/shared/lib/storage/`, БД `debts`, версия 1): сторы `contacts`, `debts` (индекс `by-contactId`), `debtOperations` (индекс `by-debtId`), `meta` (одна запись: `schemaVersion` + `ratesCache`). Доступ — через интерфейс `StorageAdapter` (`contract.ts`), реализация `indexed-db-adapter.ts`. `deleteDebt` каскадно удаляет операции в одной транзакции. Миграций пока нет (`schemaVersion = 1`).
+- **localStorage** (не дублирует доменные данные): тема, валюта отображения; ключи — `shared/lib/client-storage-keys.ts`, сброс — `clear-client-storage.ts`.
+- **sessionStorage**: флаг однократной автоперезагрузки при ошибке загрузки чанка (`RouteErrorBoundary`).
+- **Backup/restore:** `storage/backup.ts` — `createDebtsBackup` / `parseDebtsBackup` / `restoreDebtsFromBackup`; формат `{ version: 1, exportedAt, meta, contacts, debts, debtOperations }`; восстановление = `wipeAppIndexedDatabase()` + запись всех записей + перезагрузка страницы.
+
+## Курс валют
+
+`src/shared/lib/exchange-rate/`: `fetchExchangeRates()` (база USD, источник `@fawazahmed0/currency-api` на jsDelivr, зеркало на `currency-api.pages.dev`), `convertAmount()`, `isRatesCacheStale()`. Кэш — `meta.ratesCache`.
+
+```
+hydrate() → refreshRatesIfStale() (fire-and-forget)
+    → fetchExchangeRates() → store.ratesCache → meta.ratesCache (IndexedDB)
+```
+
+## Data flow
+
+```
+UI (pages/widgets)
+    → feature (create-debt / add-repayment / …) вызывает action useDebtStore
+        → Zustand обновляет память (оптимистично)
+            → StorageAdapter → IndexedDB
+```
+
+## PWA
+
+`vite-plugin-pwa`: precache сборки, манифест `site.webmanifest`, обновление по запросу пользователя (`features/pwa-app-update` показывает toast «Доступна новая версия»). Для GitHub Pages база задаётся `VITE_BASE_PATH`.
+
+## Нефункциональные требования
+
+- **Производительность:** мгновенный отклик за счёт оптимистичных обновлений; загрузка курса не блокирует первый рендер; тяжёлые экраны грузятся лениво.
+- **Offline-first:** всё, кроме обновления курса, работает без сети.
+- **Надёжность:** доменные данные только в IndexedDB; ошибки записи откатываются; ошибка курса не выглядит как сбой хранилища.
+- **Приватность:** данные не покидают устройство; запрос курса не содержит персональных данных.
+- **Точность денег:** суммы округляются до 2 знаков (`roundAmount`) на каждой операции; отображение — `formatAmount` (ru-RU).
+- **Расширяемость под backend:** `StorageAdapter` — единая точка обмена данными; UUID совместимы с серверными. Выбор адаптера — в `app` (сейчас всегда IndexedDB).
+
+## Качество и CI
+
+- `npm run check` (Biome), `npm run knip`, `npm run build` (`tsc -b` + Vite), `npm run spec:validate` (OpenSpec) — в `.github/workflows/ci.yml` на каждый push.
+- Автотестов пока нет. Кандидаты на unit-тесты без React: `computeDebtBalance`, `computeContactSummary`, `computeGlobalTotals`, `convertAmount`, `parseDebtsBackup`, маска `AmountInput`; стор — с моком `StorageAdapter`.
+- Релизы: `scripts/release.sh` + `.github/workflows/release.yml` (тег → GitHub Release → GitHub Pages), см. README.
