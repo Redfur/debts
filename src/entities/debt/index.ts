@@ -25,5 +25,6 @@ export { ContactRow, ContactRowList } from "./ui/ContactRow";
 export { DebtStatusBadge } from "./ui/DebtStatusBadge";
 export { DirectionChip } from "./ui/DirectionChip";
 export { DirectionIcon } from "./ui/DirectionIcon";
+export { DirectionToggle } from "./ui/DirectionToggle";
 export { NetPositionLine, RatioBar } from "./ui/NetPosition";
 export { ENTITY_DEBT_NS };

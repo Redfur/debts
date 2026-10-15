@@ -8,11 +8,13 @@ type Props = {
 	amount: number;
 	currency: CurrencyCode;
 	direction: DebtDirection;
+	/** `pill` — плашка с фоном; `text` — только цветной текст (строки выбора контакта). */
+	variant?: "pill" | "text";
 	className?: string;
 };
 
 /** Плашка суммы с направлением: «+10 000 ₽» / «−2 300 ₽» в цветах роли; диктор читает «Мне должны 10 000 ₽». */
-export function AmountPill({ amount, currency, direction, className }: Props) {
+export function AmountPill({ amount, currency, direction, variant = "pill", className }: Props) {
 	const { t } = useTranslation(ENTITY_DEBT_NS);
 	const money = formatMoney(amount, currency);
 	const owedToMe = direction === "owed_to_me";
@@ -21,8 +23,10 @@ export function AmountPill({ amount, currency, direction, className }: Props) {
 			role="img"
 			aria-label={t(owedToMe ? "amountOwedToMeA11y" : "amountIOweA11y", { amount: money })}
 			className={cn(
-				"inline-block rounded-chip px-2 py-0.5 text-sm leading-[18px] font-semibold whitespace-nowrap tabular-nums",
-				owedToMe ? "bg-owed-to-me-muted text-owed-to-me-strong" : "bg-i-owe-muted text-i-owe-strong",
+				"inline-block whitespace-nowrap tabular-nums",
+				variant === "pill" && "rounded-chip px-2 py-0.5 text-sm leading-[18px] font-semibold",
+				variant === "pill" && (owedToMe ? "bg-owed-to-me-muted" : "bg-i-owe-muted"),
+				owedToMe ? "text-owed-to-me-strong" : "text-i-owe-strong",
 				className,
 			)}
 		>
