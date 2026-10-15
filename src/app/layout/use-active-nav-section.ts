@@ -8,8 +8,6 @@ export type NavSection = "home" | "contacts" | "settings" | null;
  */
 export type ShellMode = "section" | "fullscreen";
 
-type ContactDetailOrigin = "home" | "contacts";
-
 export function useShellMode(): ShellMode {
 	const { pathname } = useLocation();
 	return matchPath("/new", pathname) || matchPath("/contacts/:contactId", pathname) ? "fullscreen" : "section";
@@ -22,11 +20,4 @@ export function useSideNavSection(): NavSection {
 	if (pathname === "/" || pathname === "/new") return "home";
 	if (pathname === "/contacts" || pathname.startsWith("/contacts/")) return "contacts";
 	return null;
-}
-
-/** Куда ведёт «назад» с карточки контакта: туда, откуда открыли; по прямой ссылке — в «Контакты». */
-export function useContactBackTarget(): string {
-	const { state } = useLocation();
-	const from = (state as { from?: ContactDetailOrigin } | null)?.from;
-	return from === "home" ? "/" : "/contacts";
 }

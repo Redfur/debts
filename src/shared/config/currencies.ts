@@ -19,3 +19,9 @@ export const CURRENCY_LABEL: Record<CurrencyCode, string> = {
 export function isSupportedCurrency(value: string): value is CurrencyCode {
 	return (SUPPORTED_CURRENCIES as readonly string[]).includes(value);
 }
+
+/** Следующая поддерживаемая валюта по кругу (₽ → $ → € → ¥ → ₽). */
+export function nextSupportedCurrency(current: CurrencyCode): CurrencyCode {
+	const index = SUPPORTED_CURRENCIES.indexOf(current);
+	return SUPPORTED_CURRENCIES[(index + 1) % SUPPORTED_CURRENCIES.length];
+}
