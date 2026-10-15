@@ -12,16 +12,16 @@
 
 ## 2. Хранилище и резервная копия
 
-- [ ] 2.1 Добавить в `shared/lib/storage/schema.ts` `PersistedBill`, `BillParticipant`, `BillSplitMode` и `PersistedDebt.billId: string | null`; проверить `npm run build` (ошибки типов укажут места создания долгов — заполнить `billId: null`)
-- [ ] 2.2 Поднять IndexedDB до версии 2 в `indexed-db-adapter.ts` (`upgrade` по `oldVersion`: стор `bills`, индекс `debts.by-billId`), `CURRENT_SCHEMA_VERSION = 2`; проверить: профиль с данными версии 1 (собрать `main`, записать долги, переключиться на ветку) открывается без потерь, в DevTools → Application → IndexedDB есть `bills` и индекс
-- [ ] 2.3 Расширить `StorageAdapter` (`contract.ts`) и реализацию: `getAllBills`, `putBillWithDebts(bill, upsertDebts, upsertOperations, deleteDebtIds)` и `deleteBillCascade(billId)` одной транзакцией, `replaceAll` с `bills`; проверить: при искусственно брошенной ошибке внутри транзакции в базе не остаётся ни счёта, ни долгов
-- [ ] 2.4 Перевести резервную копию на `version: 2` с `bills` в `backup.ts`; `parseDebtsBackup` принимает v1 (`bills = []`, `billId = null`) и v2, обнуляет `billId`, ссылающийся на несуществующий счёт; проверить: экспорт → импорт v2 даёт те же счета и долги, импорт файла v1 из `main` проходит
-- [ ] 2.5 Обновить `docs/domain.md` (термины «Счёт», «Перевод», модель `Bill`, `Debt.billId`, схема связей, пример данных) и раздел «Персистентность» в `docs/architecture.md` (БД v2, миграция, бэкап v2); проверить, что поля в документах совпадают с `schema.ts`
+- [x] 2.1 Добавить в `shared/lib/storage/schema.ts` `PersistedBill`, `BillParticipant`, `BillSplitMode` и `PersistedDebt.billId: string | null`; проверить `npm run build` (ошибки типов укажут места создания долгов — заполнить `billId: null`)
+- [x] 2.2 Поднять IndexedDB до версии 2 в `indexed-db-adapter.ts` (`upgrade` по `oldVersion`: стор `bills`, индекс `debts.by-billId`), `CURRENT_SCHEMA_VERSION = 2`; проверить: профиль с данными версии 1 (собрать `main`, записать долги, переключиться на ветку) открывается без потерь, в DevTools → Application → IndexedDB есть `bills` и индекс
+- [x] 2.3 Расширить `StorageAdapter` (`contract.ts`) и реализацию: `getAllBills`, `putBillWithDebts(bill, upsertDebts, upsertOperations, deleteDebtIds)` и `deleteBillCascade(billId)` одной транзакцией, `replaceAll` с `bills`; проверить: при искусственно брошенной ошибке внутри транзакции в базе не остаётся ни счёта, ни долгов
+- [x] 2.4 Перевести резервную копию на `version: 2` с `bills` в `backup.ts`; `parseDebtsBackup` принимает v1 (`bills = []`, `billId = null`) и v2, обнуляет `billId`, ссылающийся на несуществующий счёт; проверить: экспорт → импорт v2 даёт те же счета и долги, импорт файла v1 из `main` проходит
+- [x] 2.5 Обновить `docs/domain.md` (термины «Счёт», «Перевод», модель `Bill`, `Debt.billId`, схема связей, пример данных) и раздел «Персистентность» в `docs/architecture.md` (БД v2, миграция, бэкап v2); проверить, что поля в документах совпадают с `schema.ts`
 
 ## 3. Расчёт счёта
 
-- [ ] 3.1 Реализовать `shared/lib/settlement` — `minimizeTransfers` (DP по маскам для n ≤ 12 ненулевых балансов, жадный внутри групп, жадный целиком для n > 12, детерминированный порядок); проверить скриптом: {+2, +2, +3, −3, −4} → 3 перевода; примеры «Ужин в Хинкальной» и «Дача» из брифа дают ровно указанные переводы
-- [ ] 3.2 Реализовать `entities/debt/model/bill/`: `computeBillShares` (копейки, раздача остатка по порядку), `computeBillBalances`, `computeBillTransfers`, `computeMyBillDebts`, `computeBillStatus`, `validateBill`; экспортировать через `entities/debt/index.ts`; проверить скриптом все сценарии «Способы деления», «Кто кому переводит», «Долги из счёта», «Проверка счёта перед сохранением» из spec `bills` (в том числе 1 000 ₽ / 3 → 333,34 / 333,33 / 333,33)
+- [x] 3.1 Реализовать `shared/lib/settlement` — `minimizeTransfers` (DP по маскам для n ≤ 12 ненулевых балансов, жадный внутри групп, жадный целиком для n > 12, детерминированный порядок); проверить скриптом: {+2, +2, +3, −3, −4} → 3 перевода; примеры «Ужин в Хинкальной» и «Дача» из брифа дают ровно указанные переводы
+- [x] 3.2 Реализовать `entities/debt/model/bill/`: `computeBillShares` (копейки, раздача остатка по порядку), `computeBillBalances`, `computeBillTransfers`, `computeMyBillDebts`, `computeBillStatus`, `validateBill`; экспортировать через `entities/debt/index.ts`; проверить скриптом все сценарии «Способы деления», «Кто кому переводит», «Долги из счёта», «Проверка счёта перед сохранением» из spec `bills` (в том числе 1 000 ₽ / 3 → 333,34 / 333,33 / 333,33)
 
 ## 4. Стор
 

@@ -1,30 +1,34 @@
 import { getStorageAdapter } from "./indexed-db-adapter";
-import type { PersistedContact, PersistedDebt, PersistedDebtOperation, PersistedMeta } from "./schema";
+import type { PersistedBill, PersistedContact, PersistedDebt, PersistedDebtOperation, PersistedMeta } from "./schema";
 
+/** Версия 1 — без счетов; читается при импорте, но не пишется. */
 export type DebtsBackupPayload = {
-	version: 1;
+	version: 2;
 	exportedAt: string;
 	meta: PersistedMeta;
 	contacts: PersistedContact[];
 	debts: PersistedDebt[];
 	debtOperations: PersistedDebtOperation[];
+	bills: PersistedBill[];
 };
 
 export async function createDebtsBackup(): Promise<DebtsBackupPayload> {
 	const storage = getStorageAdapter();
-	const [contacts, debts, debtOperations, meta] = await Promise.all([
+	const [contacts, debts, debtOperations, bills, meta] = await Promise.all([
 		storage.getAllContacts(),
 		storage.getAllDebts(),
 		storage.getAllDebtOperations(),
+		storage.getAllBills(),
 		storage.getMeta(),
 	]);
 	return {
-		version: 1,
+		version: 2,
 		exportedAt: new Date().toISOString(),
 		meta,
 		contacts,
-		debts,
+		debts: debts.map((debt) => ({ ...debt, billId: debt.billId ?? null })),
 		debtOperations,
+		bills,
 	};
 }
 
@@ -52,16 +56,34 @@ export function parseDebtsBackup(raw: string): DebtsBackupPayload {
 	if (typeof parsed !== "object" || parsed === null) {
 		throw new Error("Неверный формат резервной копии.");
 	}
-	const candidate = parsed as DebtsBackupPayload;
+	const candidate = parsed as Partial<Omit<DebtsBackupPayload, "version">> & { version?: unknown };
+	const version = candidate.version;
 	if (
+		(version !== 1 && version !== 2) ||
+		typeof candidate.exportedAt !== "string" ||
 		!Array.isArray(candidate.contacts) ||
 		!Array.isArray(candidate.debts) ||
 		!Array.isArray(candidate.debtOperations) ||
-		!isPersistedMeta(candidate.meta)
+		!isPersistedMeta(candidate.meta) ||
+		(version === 2 && !Array.isArray(candidate.bills))
 	) {
 		throw new Error("Неверный формат резервной копии.");
 	}
-	return candidate;
+	const bills = version === 2 ? (candidate.bills ?? []) : [];
+	const billIds = new Set(bills.map((bill) => bill.id));
+	return {
+		version: 2,
+		exportedAt: candidate.exportedAt,
+		meta: candidate.meta,
+		contacts: candidate.contacts,
+		// Долг, ссылающийся на отсутствующий счёт, становится обычным.
+		debts: candidate.debts.map((debt) => ({
+			...debt,
+			billId: debt.billId && billIds.has(debt.billId) ? debt.billId : null,
+		})),
+		debtOperations: candidate.debtOperations,
+		bills,
+	};
 }
 
 /** Полная замена данных в IndexedDB содержимым резервной копии (одной транзакцией). */

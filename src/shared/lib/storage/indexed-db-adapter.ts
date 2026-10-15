@@ -1,10 +1,10 @@
 import { type DBSchema, deleteDB, type IDBPDatabase, openDB } from "idb";
 import type { StorageAdapter } from "./contract";
-import type { PersistedContact, PersistedDebt, PersistedDebtOperation, PersistedMeta } from "./schema";
+import type { PersistedBill, PersistedContact, PersistedDebt, PersistedDebtOperation, PersistedMeta } from "./schema";
 
 const DB_NAME = "debts";
-const DB_VERSION = 1;
-const CURRENT_SCHEMA_VERSION = 1;
+const DB_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 2;
 
 type MetaRow = PersistedMeta & { key: string };
 
@@ -16,12 +16,16 @@ interface DebtsDBSchema extends DBSchema {
 	debts: {
 		key: string;
 		value: PersistedDebt;
-		indexes: { "by-contactId": string };
+		indexes: { "by-contactId": string; "by-billId": string };
 	};
 	debtOperations: {
 		key: string;
 		value: PersistedDebtOperation;
 		indexes: { "by-debtId": string };
+	};
+	bills: {
+		key: string;
+		value: PersistedBill;
 	};
 	meta: {
 		key: string;
@@ -34,20 +38,19 @@ let dbPromise: Promise<IDBPDatabase<DebtsDBSchema>> | null = null;
 function getDb(): Promise<IDBPDatabase<DebtsDBSchema>> {
 	if (!dbPromise) {
 		dbPromise = openDB<DebtsDBSchema>(DB_NAME, DB_VERSION, {
-			upgrade(database) {
-				if (!database.objectStoreNames.contains("contacts")) {
+			upgrade(database, oldVersion, _newVersion, tx) {
+				if (oldVersion < 1) {
 					database.createObjectStore("contacts", { keyPath: "id" });
-				}
-				if (!database.objectStoreNames.contains("debts")) {
 					const debtsStore = database.createObjectStore("debts", { keyPath: "id" });
 					debtsStore.createIndex("by-contactId", "contactId");
-				}
-				if (!database.objectStoreNames.contains("debtOperations")) {
 					const operationsStore = database.createObjectStore("debtOperations", { keyPath: "id" });
 					operationsStore.createIndex("by-debtId", "debtId");
-				}
-				if (!database.objectStoreNames.contains("meta")) {
 					database.createObjectStore("meta", { keyPath: "key" });
+				}
+				if (oldVersion < 2) {
+					// Старые долги не переписываются: отсутствующий billId читается как null и не попадает в индекс.
+					database.createObjectStore("bills", { keyPath: "id" });
+					tx.objectStore("debts").createIndex("by-billId", "billId");
 				}
 			},
 			blocking() {
@@ -67,6 +70,22 @@ async function closeDb(): Promise<void> {
 }
 
 const META_KEY = "app";
+
+/** Синхронное исключение внутри транзакции (например, DataError у `put`) её не отменяет — отменяем сами. */
+async function commitOrAbort(tx: { done: Promise<void>; abort(): void }, write: () => Promise<void>): Promise<void> {
+	try {
+		await write();
+	} catch (e) {
+		try {
+			tx.abort();
+		} catch {
+			// Транзакция уже завершилась или отменена.
+		}
+		await tx.done.catch(() => undefined);
+		throw e;
+	}
+	await tx.done;
+}
 
 function createIndexedDbStorageAdapter(): StorageAdapter {
 	return {
@@ -103,6 +122,51 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 			await tx.done;
 		},
 
+		async getAllBills() {
+			const db = await getDb();
+			return db.getAll("bills");
+		},
+
+		async putBillWithDebts(bill, upsertDebts, upsertOperations, deleteDebtIds) {
+			const db = await getDb();
+			const tx = db.transaction(["bills", "debts", "debtOperations"], "readwrite");
+			const debtsStore = tx.objectStore("debts");
+			const operationsStore = tx.objectStore("debtOperations");
+			const operationsIndex = operationsStore.index("by-debtId");
+			await commitOrAbort(tx, async () => {
+				await tx.objectStore("bills").put(bill);
+				for (const debtId of deleteDebtIds) {
+					for (const operationId of await operationsIndex.getAllKeys(debtId)) {
+						await operationsStore.delete(operationId);
+					}
+					await debtsStore.delete(debtId);
+				}
+				for (const debt of upsertDebts) {
+					await debtsStore.put(debt);
+				}
+				for (const operation of upsertOperations) {
+					await operationsStore.put(operation);
+				}
+			});
+		},
+
+		async deleteBillCascade(billId: string) {
+			const db = await getDb();
+			const tx = db.transaction(["bills", "debts", "debtOperations"], "readwrite");
+			const debtsStore = tx.objectStore("debts");
+			const operationsStore = tx.objectStore("debtOperations");
+			const operationsIndex = operationsStore.index("by-debtId");
+			await commitOrAbort(tx, async () => {
+				for (const debtId of await debtsStore.index("by-billId").getAllKeys(billId)) {
+					for (const operationId of await operationsIndex.getAllKeys(debtId)) {
+						await operationsStore.delete(operationId);
+					}
+					await debtsStore.delete(debtId);
+				}
+				await tx.objectStore("bills").delete(billId);
+			});
+		},
+
 		async getAllDebtOperations() {
 			const db = await getDb();
 			return db.getAll("debtOperations");
@@ -123,25 +187,28 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 
 		async setMeta(meta: PersistedMeta) {
 			const db = await getDb();
-			await db.put("meta", { key: META_KEY, ...meta });
+			await db.put("meta", { key: META_KEY, ...meta, schemaVersion: CURRENT_SCHEMA_VERSION });
 		},
 
-		async replaceAll({ contacts, debts, debtOperations, meta }) {
+		async replaceAll({ contacts, debts, debtOperations, bills, meta }) {
 			const db = await getDb();
-			const tx = db.transaction(["contacts", "debts", "debtOperations", "meta"], "readwrite");
+			const tx = db.transaction(["contacts", "debts", "debtOperations", "bills", "meta"], "readwrite");
 			const contactsStore = tx.objectStore("contacts");
 			const debtsStore = tx.objectStore("debts");
 			const operationsStore = tx.objectStore("debtOperations");
+			const billsStore = tx.objectStore("bills");
 			const metaStore = tx.objectStore("meta");
 			await Promise.all([
 				contactsStore.clear(),
 				debtsStore.clear(),
 				operationsStore.clear(),
+				billsStore.clear(),
 				metaStore.clear(),
 				...contacts.map((contact) => contactsStore.put(contact)),
 				...debts.map((debt) => debtsStore.put(debt)),
 				...debtOperations.map((operation) => operationsStore.put(operation)),
-				metaStore.put({ key: META_KEY, ...meta }),
+				...bills.map((bill) => billsStore.put(bill)),
+				metaStore.put({ key: META_KEY, ...meta, schemaVersion: CURRENT_SCHEMA_VERSION }),
 				tx.done,
 			]);
 		},

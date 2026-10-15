@@ -27,6 +27,8 @@ export type PersistedDebt = {
 	createdAt: string;
 	updatedAt: string;
 	closedAt: string | null;
+	/** Счёт, из которого создан долг; `null` — обычный долг. */
+	billId: string | null;
 };
 
 type DebtOperationKind = "initial" | "repayment";
@@ -38,6 +40,33 @@ export type PersistedDebtOperation = {
 	amount: number;
 	note: string | null;
 	createdAt: string;
+};
+
+export type BillSplitMode = "equal" | "shares" | "amounts";
+
+export type BillParticipant = {
+	/** `"me"` — пользователь, иначе id контакта. */
+	ref: string;
+	/** Сколько участник заплатил. */
+	paid: number;
+	/** Участвует в делении («делит счёт»). */
+	inSplit: boolean;
+	/** Число долей (`shares`) или сумма доли (`amounts`); для `equal` — `null`. */
+	shareInput: number | null;
+};
+
+export type PersistedBill = {
+	id: string;
+	title: string | null;
+	currency: CurrencyCode;
+	totalAmount: number;
+	splitMode: BillSplitMode;
+	/** Порядок важен: задаёт раздачу неделимых копеек и порядок переводов. */
+	participants: BillParticipant[];
+	/** Ручное закрытие — только у счёта без моих переводов. */
+	manualClosedAt: string | null;
+	createdAt: string;
+	updatedAt: string;
 };
 
 /** Курсы к одной базовой валюте (см. `shared/lib/exchange-rate`); обновляется не чаще раза в день. */

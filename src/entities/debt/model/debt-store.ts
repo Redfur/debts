@@ -153,6 +153,7 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 			createdAt: now,
 			updatedAt: now,
 			closedAt: null,
+			billId: null,
 		};
 		const operationRow: PersistedDebtOperation = {
 			id: generateId(),

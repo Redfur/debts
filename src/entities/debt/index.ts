@@ -3,6 +3,28 @@ import { ENTITY_DEBT_NS, entityDebtTranslations } from "./translations";
 
 injectTranslation(ENTITY_DEBT_NS, entityDebtTranslations as Record<string, Record<string, string>>);
 
+export type {
+	Bill,
+	BillDraft,
+	BillParticipant,
+	BillSplitMode,
+	BillStatus,
+	BillTransfer,
+	BillValidationError,
+	MyBillDebt,
+} from "./model/bill";
+export {
+	computeBillShares,
+	computeBillStatus,
+	computeBillTransfers,
+	computeMyBillDebts,
+	fromCents,
+	isInBillSplit,
+	ME_REF,
+	spreadBillRemainder,
+	toCents,
+	validateBill,
+} from "./model/bill";
 export { computeContactSummary } from "./model/compute-contact-summary";
 export { computeContactTotals } from "./model/compute-contact-totals";
 export { computeDebtBalance } from "./model/compute-debt-balance";
