@@ -77,6 +77,10 @@
 - [x] 10.3 Добавить в `CHANGELOG.md` → `[Unreleased]` новые экраны и поведение: чистая позиция, фильтр, валюта по нажатию, онбординг, поиск контактов, шторки, «Погасить полностью», статус курса, смена цветов аватаров; проверить по `proposal.md`
 - [x] 10.4 Переснять `docs/assets/current-ui/` (390 и 1440 px, обе темы) и сверить с артбордами
 
+## 12. Иконка приложения
+
+- [x] 12.1 Новый `public/favicon.svg` из знака приложения (светлый и тёмный вариант), растровые `favicon-96x96.png` и `favicon.ico`, маскируемые иконки PWA 192/512 и `apple-touch-icon`; `theme_color` / `background_color` манифеста и `<meta name="theme-color">` по токену `background`; проверить вид в 16, 32, 96 px и под круглой маской
+
 ## 11. Итоговая проверка
 
 - [x] 11.1 Прогнать `npm run check`, `npm run knip`, `npm run build`, `npm run spec:validate`, `npm run tokens:contrast` — все проходят
