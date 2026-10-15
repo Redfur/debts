@@ -1,0 +1,38 @@
+schema: spec-driven
+
+context: |
+  Language: ru
+  All artifacts must be written in ru.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  Продукт: «Долги» — offline-first PWA для учёта личных долгов («кто кому должен»).
+  Один пользователь на профиль браузера, без бэкенда и аккаунтов; все данные в IndexedDB.
+  Единственный сетевой запрос — курс валют (не чаще раза в сутки, офлайн-фолбэк на кэш).
+  Интерфейс только на русском.
+
+  Стек: React 19, Vite 8, TypeScript, Zustand, react-router-dom, react-i18next,
+  Tailwind CSS 4, shadcn/ui (Radix), @ebay/nice-modal-react, idb, vite-plugin-pwa.
+  Архитектура — Feature-Sliced Design: app → pages → widgets → features → entities → shared.
+
+  Справочные документы (читать перед проектированием изменения):
+  - docs/architecture.md — слои FSD, стор useDebtStore, StorageAdapter/IndexedDB, курс валют, NFR
+  - docs/domain.md — термины и модель данных (Contact, Debt, DebtOperation, ExchangeRatesCache)
+  - docs/coding-standards.md — правила кода, FSD, i18n, модалки, UI-компоненты
+  - docs/design-brief.md — бриф на редизайн
+  - docs/roadmap.md — бэклог идей
+
+  Capabilities в openspec/specs: app-shell, contacts, dashboard, data-management, debts,
+  exchange-rates, repayments.
+
+rules:
+  proposal:
+    - Явно перечисляй, что вне скоупа изменения.
+    - Если меняется формат данных в IndexedDB или резервной копии — опиши миграцию и обратную совместимость импорта старых бэкапов.
+  specs:
+    - Описывай наблюдаемое поведение и тексты интерфейса, а не имена компонентов и функций.
+  design:
+    - Указывай, в какие слои и слайсы FSD попадает код.
+  tasks:
+    - Добавляй задачу на обновление CHANGELOG.md (раздел [Unreleased]) для пользовательских изменений.
+    - Добавляй задачу на обновление docs/architecture.md и docs/domain.md, если меняются структура кода или модель данных.
+    - Последняя задача — прогнать npm run check, npm run knip, npm run build и npm run spec:validate.

@@ -5,7 +5,7 @@ export type CurrencyCode = "RUB" | "USD" | "EUR" | "CNY";
 export type PersistedContact = {
 	id: string;
 	name: string;
-	/** Цвет аватара-инициала; детерминирован по `id` при создании. */
+	/** Цвет аватара-инициала; детерминирован по имени при создании. */
 	colorValue: string;
 	createdAt: string;
 	updatedAt: string;

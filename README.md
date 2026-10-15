@@ -24,6 +24,7 @@ npm install
 | `npm run check` | Biome: линт и форматирование |
 | `npm run check:fix` | То же с автоисправлением |
 | `npm run knip` | Поиск неиспользуемых экспортов и файлов (см. `knip.json`) |
+| `npm run spec:validate` | Проверка спецификаций и активных изменений OpenSpec (`openspec validate --all --strict`) |
 | `npm run release -- <версия>` | Проверки и создание тега релиза (см. `scripts/release.sh`) — требует git remote |
 
 ## Резервная копия данных
@@ -44,9 +45,29 @@ npm install
 
 Перед первым релизом включите Pages в репозитории: **Settings → Pages → Source: GitHub Actions**.
 
-## Документация
+## Документация и процесс разработки
 
-- **Спецификации (источник сценариев и домена):** [spec/README.md](spec/README.md)
-- **Правила кода и FSD:** [docs/coding-standards.md](docs/coding-standards.md)
+Изменения ведутся через [OpenSpec](https://github.com/Fission-AI/OpenSpec) (spec-driven development):
 
-При изменении поведения или структуры проекта обновляйте соответствующие файлы в `spec/`.
+- **[`openspec/specs/`](openspec/specs)** — источник истины о поведении продукта, по capability: `app-shell`, `contacts`, `dashboard`, `data-management`, `debts`, `exchange-rates`, `repayments`.
+- **[`openspec/changes/`](openspec/changes)** — предлагаемые и активные изменения (proposal → specs-дельта → design → tasks); после реализации архивируются в `changes/archive/`, а дельты вливаются в `specs/`.
+- **[`openspec/config.yaml`](openspec/config.yaml)** — контекст проекта и правила для артефактов.
+
+Цикл работы (Claude Code — `/opsx:…`, Cursor — `/opsx-…`):
+
+1. `/opsx:explore` — обсудить идею (по желанию).
+2. `/opsx:propose "<идея>"` — создать изменение со всеми артефактами; ревью.
+3. `/opsx:apply` — реализовать по `tasks.md`.
+4. `/opsx:archive` — после мержа влить дельты в `openspec/specs/` и архивировать изменение.
+
+CLI доступен локально: `npx openspec list`, `npx openspec show <spec>`, `npx openspec view`. Обновить сгенерированные скиллы/команды после обновления пакета: `npx openspec update`.
+
+Справочные документы:
+
+- [docs/architecture.md](docs/architecture.md) — как устроен код (FSD, стор, хранилище, курс валют, NFR)
+- [docs/domain.md](docs/domain.md) — термины и модель данных
+- [docs/coding-standards.md](docs/coding-standards.md) — правила кода и FSD
+- [docs/design-brief.md](docs/design-brief.md) — бриф на редизайн
+- [docs/roadmap.md](docs/roadmap.md) — бэклог идей
+
+Прежняя документация `spec/*.md` заменена на OpenSpec; её последняя версия доступна в истории git (коммит `bda79a7`).

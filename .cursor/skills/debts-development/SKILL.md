@@ -7,37 +7,25 @@ description: Разработка приложения «Долги» по сп�
 
 ## Перед началом
 
-1. **Прочитать релевантные спецификации** в `spec/`:
-   - spec/README.md — индекс документов (корень репозитория)
-   - spec/solution-overview.md — поток работы и сценарии
-   - spec/requirements.md — MVP, user stories, edge cases
-   - spec/concepts.md — термины (Contact, Debt, DebtOperation, направление, валюта отображения)
-   - spec/domain.md — доменные модели, примеры данных
-   - spec/ui.md — экраны и компоненты
-   - spec/architecture.md — FSD-слои, Zustand (`useDebtStore`), StorageAdapter, курс валют
-   - spec/non-functional.md — производительность, offline, точность денежных сумм
-
-2. **Проверить правила кода** в docs/coding-standards.md:
-   - FSD: app → pages → widgets → features → entities → shared
-   - Публичный API через index.ts
-   - Локализация: переводы внутри слайса, injectTranslation, useTranslation
+1. **Поведение продукта** — в OpenSpec: `openspec/specs/<capability>/spec.md` (`app-shell`, `contacts`, `dashboard`, `data-management`, `debts`, `exchange-rates`, `repayments`). Активные изменения — `openspec/changes/`.
+2. **Справка по коду**: `docs/architecture.md` (FSD, `useDebtStore`, StorageAdapter, курс валют, NFR), `docs/domain.md` (термины и модель данных), `docs/design-brief.md` (редизайн).
+3. **Правила кода**: `docs/coding-standards.md` — FSD (app → pages → widgets → features → entities → shared), публичный API через `index.ts`, колоцированные переводы (`translations.ts`, `injectTranslation`, `useTranslation`).
 
 ## Workflow
 
-1. Определить, в какой слой/слайс помещается код
-2. Создать структуру по FSD (ui, model, api и т.д.)
-3. Реализовать, сверяясь со спецификацией
-4. Добавить переводы в слайс (translations.ts, TRANS_NS)
-5. **Changelog** — заметные улучшения UX и поведения добавлять в `CHANGELOG.md` (раздел `[Unreleased]`) вместе с кодом
-6. **Актуализировать спецификацию** — при любых изменениях обновлять spec/
-7. Запустить `npm run check` перед завершением (при необходимости `npm run build` для проверки типов)
+1. Изменение поведения — через OpenSpec: `/opsx-propose` (создать change: proposal, specs-дельта, design, tasks) → ревью → `/opsx-apply` (реализация по `tasks.md`) → `/opsx-archive` (влить дельту в `openspec/specs/`). Мелкий фикс без изменения поведения — без change.
+2. Определить слой/слайс FSD, создать структуру (ui, model, api…), реализовать.
+3. Добавить переводы в слайс (translations.ts, TRANS_NS).
+4. **Changelog** — заметные изменения UX и поведения в `CHANGELOG.md` (`[Unreleased]`) вместе с кодом.
+5. Структура кода или модель данных поменялась — обновить `docs/architecture.md` / `docs/domain.md`.
+6. Перед завершением: `npm run check`, `npm run knip`, `npm run spec:validate`, при необходимости `npm run build`.
 
 ## Стек
 
 - shadcn + Tailwind — UI. Компоненты в `src/components/ui/`, импорт: `@/components/ui/...`
 - **Формы и контролы:** не использовать в слайсах голые `<input>`, `<select>`, `<textarea>`, нативные checkbox/radio, если есть shadcn-аналог. Порядок: (1) `src/components/ui/`, (2) `npx shadcn@latest add <component>` (если недоступен реестр — написать вручную по стилю существующих компонентов, как `dialog.tsx`/`command.tsx`/`textarea.tsx`), (3) только при отсутствии аналога — свой компонент.
 
-## Ключевые решения (из spec)
+## Ключевые решения (см. docs/architecture.md)
 
 - IndexedDB (через `idb`) + абстракция `StorageAdapter` в shared: сторы `contacts`, `debts`, `debtOperations`, `meta` (с `ratesCache`)
 - Zustand — `useDebtStore` в `src/entities/debt/model/debt-store.ts` (контакты + долги + операции + курс валют в одном сторе)

@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VITE_REPO_URL: https://github.com/${{ github.repository }}
+      OPENSPEC_TELEMETRY: "0"
     steps:
       - uses: actions/checkout@v4
 
@@ -27,4 +28,5 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run knip
+      - run: npm run spec:validate
       - run: npm run build
