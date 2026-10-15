@@ -92,6 +92,47 @@ export function CreateDebtRouteFallback() {
 	);
 }
 
+export function BillFormRouteFallback() {
+	const { t } = useTranslation(COMMON_NS);
+	return (
+		<ScreenBody
+			variant="skeleton"
+			className="mx-auto w-full max-w-xl gap-4 pt-[calc(env(safe-area-inset-top,0px)+8px)] lg:max-w-[1080px] lg:pt-9"
+		>
+			<span className="sr-only">{t("loadingBillForm")}</span>
+			<div className="flex h-11 items-center justify-center lg:justify-start">
+				<Skeleton className="h-4 w-32 rounded-full lg:h-8 lg:w-56" />
+			</div>
+			<div className="grid gap-5 lg:grid-cols-2">
+				<div className="flex flex-col gap-4">
+					<Skeleton className="h-32 w-full rounded-card" />
+					<div className="flex flex-wrap gap-2">
+						<Skeleton className="h-11 w-20 rounded-full" />
+						<Skeleton className="h-11 w-28 rounded-full" />
+						<Skeleton className="h-11 w-24 rounded-full" />
+					</div>
+					<Skeleton className="h-13 w-full rounded-control" />
+					<Skeleton className="h-16 w-full rounded-control" />
+				</div>
+				<Skeleton className="hidden h-80 rounded-card lg:block" />
+			</div>
+		</ScreenBody>
+	);
+}
+
+export function BillDetailRouteFallback() {
+	const { t } = useTranslation(COMMON_NS);
+	return (
+		<ScreenBody variant="skeleton" className="lg:max-w-[1080px]">
+			<span className="sr-only">{t("loadingBill")}</span>
+			<div className={HEADER} />
+			<Skeleton className="h-8 w-40 rounded-full" />
+			<Skeleton className="h-36 w-full rounded-card" />
+			<Skeleton className="h-48 w-full rounded-card" />
+		</ScreenBody>
+	);
+}
+
 export function ContactDetailRouteFallback() {
 	return (
 		<ScreenBody variant="skeleton">

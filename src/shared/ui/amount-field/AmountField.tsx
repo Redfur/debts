@@ -20,8 +20,8 @@ type Props = {
 	describedBy?: string;
 	disabled?: boolean;
 	autoFocus?: boolean;
-	/** `card` — белая карточка с тенью на фоне экрана; `sheet` — серое поле внутри шторки. */
-	surface?: "card" | "sheet";
+	/** `card` — белая карточка с тенью на фоне экрана; `sheet` — серое поле внутри шторки; `plain` — без фона (часть карточки). */
+	surface?: "card" | "sheet" | "plain";
 };
 
 /** Крупное поле суммы на карточке и кнопка валюты справа (форма нового долга, изменение долга). */
@@ -44,10 +44,11 @@ export function AmountField({
 		<div
 			className={cn(
 				"flex items-center gap-2.5 rounded-card py-3.5 pr-2.5 pl-5 transition-shadow focus-within:shadow-[inset_0_0_0_2px_var(--ring)]",
-				surface === "card" ? "bg-card shadow-card" : "bg-secondary",
+				surface === "card" && "bg-card shadow-card",
+				surface === "sheet" && "bg-secondary",
 				invalid &&
 					"shadow-[inset_0_0_0_2px_var(--destructive)] focus-within:shadow-[inset_0_0_0_2px_var(--destructive)]",
-				disabled && "bg-secondary shadow-none",
+				disabled && surface !== "plain" && "bg-secondary shadow-none",
 			)}
 		>
 			<label htmlFor={id} className="sr-only">

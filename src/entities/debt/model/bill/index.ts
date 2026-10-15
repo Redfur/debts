@@ -1,5 +1,6 @@
 export {
 	computeBillBalances,
+	computeBillMyTotals,
 	computeBillShares,
 	computeBillStatus,
 	computeBillTransfers,
@@ -23,3 +24,4 @@ export type {
 	MyBillDebt,
 } from "./types";
 export { ME_REF } from "./types";
+export { useBillDebts } from "./use-bill-debts";

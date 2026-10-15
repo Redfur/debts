@@ -15,6 +15,8 @@ import { cn } from "@/shared/lib/utils";
 
 type ConfirmActionModalProps = {
 	title: string;
+	/** Строка над описанием основным цветом (например, почему удалится больше, чем ожидается). */
+	lead?: string;
 	body: string;
 	confirmLabel: string;
 	cancelLabel: string;
@@ -35,7 +37,15 @@ function ConfirmIcon() {
 }
 
 const ConfirmActionModal = NiceModal.create(
-	({ title, body, confirmLabel, cancelLabel, onConfirm, confirmVariant = "default" }: ConfirmActionModalProps) => {
+	({
+		title,
+		lead,
+		body,
+		confirmLabel,
+		cancelLabel,
+		onConfirm,
+		confirmVariant = "default",
+	}: ConfirmActionModalProps) => {
 		const modal = useModal();
 
 		const closeModal = async () => {
@@ -60,6 +70,7 @@ const ConfirmActionModal = NiceModal.create(
 					{confirmVariant === "destructive" ? <ConfirmIcon /> : null}
 					<AlertDialogHeader>
 						<AlertDialogTitle>{title}</AlertDialogTitle>
+						{lead ? <p className="text-foreground text-[15px] leading-[22px]">{lead}</p> : null}
 						<AlertDialogDescription>{body}</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

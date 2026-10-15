@@ -14,6 +14,7 @@ export type {
 	MyBillDebt,
 } from "./model/bill";
 export {
+	computeBillMyTotals,
 	computeBillShares,
 	computeBillStatus,
 	computeBillTransfers,
@@ -23,6 +24,7 @@ export {
 	ME_REF,
 	spreadBillRemainder,
 	toCents,
+	useBillDebts,
 	validateBill,
 } from "./model/bill";
 export { computeContactSummary } from "./model/compute-contact-summary";
@@ -31,6 +33,7 @@ export { computeDebtBalance } from "./model/compute-debt-balance";
 export { computeNetPosition } from "./model/compute-net-position";
 export { computeGlobalTotals } from "./model/compute-totals";
 export { contactMatchesFilter, countContactsByDirection } from "./model/count-contacts-by-direction";
+export type { BillInput } from "./model/debt-store";
 export { useDebtStore } from "./model/debt-store";
 export type {
 	Contact,
@@ -41,6 +44,16 @@ export type {
 } from "./model/types";
 export { useDebtOperations } from "./model/use-debt-operations";
 export { AmountPill } from "./ui/AmountPill";
+export { ParticipantAvatar, useParticipantName } from "./ui/BillParticipant";
+export type { BillLinkState } from "./ui/BillParts";
+export {
+	BillLink,
+	BillMyPart,
+	BillRow,
+	BillStatusBadge,
+	TransferRow,
+	useBillAmountForPeople,
+} from "./ui/BillParts";
 export { ContactAvatar } from "./ui/ContactAvatar";
 export { ContactRow, ContactRowList } from "./ui/ContactRow";
 export { DebtStatusBadge } from "./ui/DebtStatusBadge";

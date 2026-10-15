@@ -13,5 +13,12 @@ export const selectContactTranslations = {
 		createHint: "Новый контакт сразу выберется",
 		emptyTitle: "Контактов пока нет",
 		emptyHint: "Введите имя — контакт создастся вместе с долгом",
+		participantsTitle: "Участники",
+		selectedCount: "Отмечены · {{count}}",
+		selectedMeHint: "· вы уже в счёте",
+		unselect: "Снять отметку: {{name}}",
+		participantsSearch: "Найти или создать контакт",
+		createHintMulti: "Новый контакт сразу отметится",
+		done: "Готово ({{count}})",
 	},
 } as const;

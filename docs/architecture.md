@@ -54,14 +54,16 @@ React 19, Vite 8, TypeScript, Zustand, react-router-dom, react-i18next, Tailwind
 
 ## State management: Zustand
 
-`src/entities/debt/model/debt-store.ts` (`useDebtStore`) — один стор на домен (контакты + долги + операции + курс), чтобы `features` не импортировали `app`.
+`src/entities/debt/model/debt-store.ts` (`useDebtStore`) — один стор на домен (контакты + долги + операции + счета + курс), чтобы `features` не импортировали `app`, а счёт и его долги менялись атомарно.
 
-**Состояние:** `contactsById`, `debtsById`, `operationsByDebtId` (по `createdAt`), `ratesCache`, `ratesFetchError` (мягкая ошибка курса, не путать с `lastError`), `hydrated`, `lastError`.
+**Состояние:** `contactsById`, `debtsById`, `operationsByDebtId` (по `createdAt`), `billsById`, `ratesCache`, `ratesFetchError` (мягкая ошибка курса, не путать с `lastError`), `hydrated`, `lastError`.
 
-**Actions:** `hydrate()`, `getOrCreateContact(name)`, `createDebt(input)`, `updateDebt(id, patch)`, `addRepayment(debtId, amount, note?)`, `deleteDebt(id)`, `refreshRatesIfStale(force?)`, `clearError()`.
+**Actions:** `hydrate()`, `getOrCreateContact(name)`, `createDebt(input)`, `updateDebt(id, patch)`, `addRepayment(debtId, amount, note?)`, `deleteDebt(id)`, `createBill(input)`, `updateBill(id, input)`, `deleteBill(id)`, `setBillManualClosed(id, closed)`, `refreshRatesIfStale(force?)`, `clearError()`.
 
 - Все записи — оптимистично: сначала память, затем IndexedDB, при ошибке — откат и `lastError`.
 - `updateDebt`: направление/сумма/валюта меняются, только пока нет операций `repayment`; при смене суммы обновляется и операция `initial`.
+- Счёт (`model/bill/`): доли, балансы и переводы — чистые функции в целых копейках (`computeBillShares`, `computeBillTransfers` поверх `shared/lib/settlement` → `minimizeTransfers`, `computeMyBillDebts`, `computeBillStatus`, `validateBill`, `spreadBillRemainder`). Статус и переводы не хранятся — выводятся из `participants` и связанных долгов.
+- `createBill` / `updateBill` пишут счёт и долги одной транзакцией (`putBillWithDebts`) и при ошибке откатывают только затронутые записи. `updateBill` до погашений пересчитывает долги, сопоставляя их по (`contactId`, `direction`): совпавшие сохраняют `id` и дату; после погашений меняет только описание (и заметки долгов), иначе отказ. `deleteBill` — `deleteBillCascade`. `setBillManualClosed` — только для счёта без долгов пользователя.
 - Агрегаты не хранятся в сторе — это чистые функции в `entities/debt/model/`.
 
 ## Персистентность

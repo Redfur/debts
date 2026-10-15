@@ -17,5 +17,13 @@ export const entityDebtTranslations = {
 		statusClosed: "Погашен",
 		statusSettled: "Всё погашено",
 		statusNoDebts: "Нет долгов",
+		me: "Я",
+		billUntitled: "Счёт",
+		billActive: "Активный",
+		billClosed: "Закрыт",
+		billWithoutMe: "без меня",
+		billAmountForPeople: "{{amount}} на {{people}}",
+		billLink: "Из счёта · {{amountForPeople}}",
+		transferTo: "переводит",
 	},
 } as const;

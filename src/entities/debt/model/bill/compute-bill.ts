@@ -23,9 +23,10 @@ export function fromCents(cents: number): number {
 	return roundAmount(cents / 100);
 }
 
-/** Делит ли участник счёт: «Долями» — по числу долей, иначе — по отметке. */
+/** Делит ли участник счёт: «Поровну» — по отметке, «Долями» и «Суммами» — по ненулевой доле. */
 export function isInBillSplit(participant: BillParticipant, mode: BillSplitMode): boolean {
-	return mode === "shares" ? (participant.shareInput ?? 0) > 0 : participant.inSplit;
+	if (mode === "equal") return participant.inSplit;
+	return mode === "shares" ? (participant.shareInput ?? 0) > 0 : toCents(participant.shareInput) > 0;
 }
 
 /** Раздаёт `total` копеек пропорционально весам; остаток — по копейке первым по порядку. */
@@ -122,15 +123,26 @@ export function computeBillStatus(bill: Bill, billDebts: Debt[]): BillStatus {
 	};
 }
 
-/** «Раскидать поровну»: остаток делится между участниками деления, копейки — первым по порядку. */
+/** «Раскидать поровну»: остаток делится между всеми участниками деления, копейки — первым по порядку. */
 export function spreadBillRemainder(draft: BillDraft): BillParticipant[] {
 	const { splitRemainingCents } = validateBill(draft);
 	if (draft.splitMode !== "amounts" || splitRemainingCents <= 0) return draft.participants;
 	const { cents } = distributeCents(
 		splitRemainingCents,
-		draft.participants.map((p) => (p.inSplit ? 1 : 0)),
+		draft.participants.map(() => 1),
 	);
 	return draft.participants.map((p, i) =>
 		cents[i] > 0 ? { ...p, shareInput: fromCents(toCents(p.shareInput) + cents[i]) } : p,
 	);
+}
+
+/** Плашка «моей части» счёта: сумма переводов мне и моих переводов (от возвратов не зависит). */
+export function computeBillMyTotals(transfers: BillTransfer[]): { owedToMe: number; iOwe: number } {
+	let owedToMeCents = 0;
+	let iOweCents = 0;
+	for (const t of transfers) {
+		if (t.to === ME_REF) owedToMeCents += toCents(t.amount);
+		if (t.from === ME_REF) iOweCents += toCents(t.amount);
+	}
+	return { owedToMe: fromCents(owedToMeCents), iOwe: fromCents(iOweCents) };
 }

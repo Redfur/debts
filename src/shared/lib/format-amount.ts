@@ -7,7 +7,7 @@ const formatter = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 });
 const NBSP = " ";
 
 /** Форматирует денежную сумму для отображения (разделители разрядов, до 2 знаков после запятой). */
-function formatAmount(value: number): string {
+export function formatAmount(value: number): string {
 	return formatter.format(value);
 }
 

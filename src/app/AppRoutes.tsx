@@ -5,6 +5,8 @@ import { HomePage } from "@/pages/home";
 import "@/widgets/home-screen";
 import "@/widgets/contact-detail";
 import {
+	BillDetailRouteFallback,
+	BillFormRouteFallback,
 	ContactDetailRouteFallback,
 	ContactsRouteFallback,
 	CreateDebtRouteFallback,
@@ -36,6 +38,21 @@ const CreateDebtPage = lazy(async () => {
 	return { default: m.CreateDebtPage };
 });
 
+const CreateBillPage = lazy(async () => {
+	const m = await import("@/pages/create-bill");
+	return { default: m.CreateBillPage };
+});
+
+const EditBillPage = lazy(async () => {
+	const m = await import("@/pages/edit-bill");
+	return { default: m.EditBillPage };
+});
+
+const BillDetailPage = lazy(async () => {
+	const m = await import("@/pages/bill-detail");
+	return { default: m.BillDetailPage };
+});
+
 export function AppRoutes() {
 	return (
 		<Routes>
@@ -45,6 +62,30 @@ export function AppRoutes() {
 				element={
 					<Suspense fallback={<CreateDebtRouteFallback />}>
 						<CreateDebtPage />
+					</Suspense>
+				}
+			/>
+			<Route
+				path="/bills/new"
+				element={
+					<Suspense fallback={<BillFormRouteFallback />}>
+						<CreateBillPage />
+					</Suspense>
+				}
+			/>
+			<Route
+				path="/bills/:billId"
+				element={
+					<Suspense fallback={<BillDetailRouteFallback />}>
+						<BillDetailPage />
+					</Suspense>
+				}
+			/>
+			<Route
+				path="/bills/:billId/edit"
+				element={
+					<Suspense fallback={<BillFormRouteFallback />}>
+						<EditBillPage />
 					</Suspense>
 				}
 			/>
