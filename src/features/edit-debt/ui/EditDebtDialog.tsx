@@ -1,16 +1,16 @@
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { Info } from "lucide-react";
+import { type FormEvent, type ReactNode, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { ENTITY_DEBT_NS, useDebtOperations, useDebtStore } from "@/entities/debt";
-import { CURRENCY_SYMBOL, SUPPORTED_CURRENCIES } from "@/shared/config/currencies";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { DirectionToggle, ENTITY_DEBT_NS, useDebtOperations, useDebtStore } from "@/entities/debt";
 import { COMMON_NS } from "@/shared/i18n";
+import { formatMoney } from "@/shared/lib/format-amount";
 import type { CurrencyCode, DebtDirection } from "@/shared/lib/storage";
+import { AmountField } from "@/shared/ui/amount-field";
+import { FieldError, FormAlert } from "@/shared/ui/form-message";
 import { useEditDebt } from "../model/use-edit-debt";
 import { EDIT_DEBT_NS } from "../translations";
 
@@ -18,14 +18,33 @@ type Props = {
 	debtId: string;
 };
 
+type Errors = { amount?: string; form?: string };
+
+/** Поле только для чтения (направление и сумма после погашений). */
+function ReadOnlyTile({ label, children }: { label: string; children: ReactNode }) {
+	return (
+		<div
+			aria-disabled="true"
+			className="flex flex-col gap-1 rounded-[16px] px-3.5 py-3 shadow-[inset_0_0_0_1px_var(--border)]"
+		>
+			<span className="text-muted-foreground text-xs">{label}</span>
+			<span className="text-muted-foreground text-[15px] leading-5 font-semibold">{children}</span>
+		</div>
+	);
+}
+
 const EditDebtDialogComponent = NiceModal.create(({ debtId }: Props) => {
 	const { t } = useTranslation(EDIT_DEBT_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
 	const { t: tDebt } = useTranslation(ENTITY_DEBT_NS);
 	const modal = useModal();
 	const { submit, pending } = useEditDebt();
+	const amountId = useId();
+	const amountErrorId = useId();
+	const noteId = useId();
 
 	const debt = useDebtStore((s) => s.debtsById[debtId]);
+	const contactName = useDebtStore((s) => (debt ? s.contactsById[debt.contactId]?.name : undefined));
 	const operations = useDebtOperations(debtId);
 	const locked = operations.some((op) => op.kind === "repayment");
 
@@ -33,7 +52,7 @@ const EditDebtDialogComponent = NiceModal.create(({ debtId }: Props) => {
 	const [currency, setCurrency] = useState<CurrencyCode>("RUB");
 	const [amount, setAmount] = useState("");
 	const [note, setNote] = useState("");
-	const [error, setError] = useState<string | null>(null);
+	const [errors, setErrors] = useState<Errors>({});
 
 	// NiceModal может держать компонент смонтированным между показами — сбрасываем форму при открытии.
 	// Читаем долг напрямую из стора (а не из реактивного `debt`), чтобы не сбрасывать
@@ -46,7 +65,7 @@ const EditDebtDialogComponent = NiceModal.create(({ debtId }: Props) => {
 		setCurrency(current.currency);
 		setAmount(String(current.principalAmount));
 		setNote(current.note ?? "");
-		setError(null);
+		setErrors({});
 	}, [modal.visible, debtId]);
 
 	const closeModal = async () => {
@@ -66,99 +85,90 @@ const EditDebtDialogComponent = NiceModal.create(({ debtId }: Props) => {
 		const patch: Parameters<typeof submit>[1] = { note: note.trim() || undefined };
 		if (!locked) {
 			const parsedAmount = Number(amount);
-			if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-				setError(t("errorAmountInvalid"));
+			if (amount === "" || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+				setErrors({ amount: t("errorAmountInvalid") });
 				return;
 			}
 			patch.amount = parsedAmount;
 			patch.direction = direction;
 			patch.currency = currency;
 		}
-		setError(null);
+		setErrors({});
 		const ok = await submit(debtId, patch);
-		if (ok) {
-			await closeModal();
-		} else {
-			setError(t("errorGeneric"));
-		}
+		if (ok) await closeModal();
+		else setErrors({ form: t("errorGeneric") });
 	};
 
 	return (
 		<Dialog open={modal.visible} onOpenChange={handleOpenChange}>
-			<DialogContent>
-				<DialogHeader>
+			<DialogContent className="gap-3.5">
+				<DialogHeader className="gap-0.5 px-1">
 					<DialogTitle>{t("title")}</DialogTitle>
+					<DialogDescription className="text-caption">{contactName}</DialogDescription>
 				</DialogHeader>
-				<form className="flex flex-col gap-4" onSubmit={(e) => void handleSubmit(e)}>
-					<div className="flex flex-col gap-1.5">
-						<Label>{t("directionLabel")}</Label>
-						<div className="flex gap-2">
-							<Button
-								type="button"
-								className="flex-1"
-								disabled={locked}
-								variant={direction === "owed_to_me" ? "default" : "outline"}
-								onClick={() => setDirection("owed_to_me")}
-							>
-								{tDebt("directionOwedToMe")}
-							</Button>
-							<Button
-								type="button"
-								className="flex-1"
-								disabled={locked}
-								variant={direction === "i_owe" ? "default" : "outline"}
-								onClick={() => setDirection("i_owe")}
-							>
-								{tDebt("directionIOwe")}
-							</Button>
-						</div>
-					</div>
-
-					<div className="grid grid-cols-[1fr_auto] gap-2">
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="edit-debt-amount">{t("amountLabel")}</Label>
-							<AmountInput
-								id="edit-debt-amount"
-								placeholder="0"
-								value={amount}
-								onValueChange={setAmount}
-								disabled={locked}
-							/>
-						</div>
-						<div className="flex flex-col gap-1.5">
-							<Label htmlFor="edit-debt-currency">{t("currencyLabel")}</Label>
-							<Select value={currency} onValueChange={(v) => setCurrency(v as CurrencyCode)} disabled={locked}>
-								<SelectTrigger id="edit-debt-currency" className="w-24">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									{SUPPORTED_CURRENCIES.map((code) => (
-										<SelectItem key={code} value={code}>
-											{CURRENCY_SYMBOL[code]} {code}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-					</div>
-
-					{locked ? <p className="text-muted-foreground text-xs">{t("lockedHint")}</p> : null}
+				<form noValidate className="flex flex-col gap-3.5" onSubmit={(e) => void handleSubmit(e)}>
+					{locked ? (
+						<>
+							<div className="bg-secondary text-muted-foreground flex gap-2.5 rounded-[16px] px-3.5 py-3">
+								<Info className="mt-px size-4 shrink-0" aria-hidden="true" />
+								<span className="text-caption">{t("lockedHint")}</span>
+							</div>
+							<div className="grid grid-cols-2 gap-2">
+								<ReadOnlyTile label={t("directionLabel")}>
+									{debt.direction === "owed_to_me" ? `+ ${tDebt("directionOwedToMe")}` : `− ${tDebt("directionIOwe")}`}
+								</ReadOnlyTile>
+								<ReadOnlyTile label={t("amountLabel")}>{formatMoney(debt.principalAmount, debt.currency)}</ReadOnlyTile>
+							</div>
+						</>
+					) : (
+						<>
+							<DirectionToggle value={direction} onChange={setDirection} label={t("directionLabel")} surface="sheet" />
+							<div className="flex flex-col gap-1.5">
+								<AmountField
+									id={amountId}
+									label={t("amountLabel")}
+									value={amount}
+									onValueChange={(raw) => {
+										setAmount(raw);
+										if (errors.amount) setErrors({});
+									}}
+									currency={currency}
+									onCurrencyChange={setCurrency}
+									currencyTitle={t("currencyTitle")}
+									currencyLabel={(name) => t("currencyLabel", { name })}
+									invalid={Boolean(errors.amount)}
+									describedBy={errors.amount ? amountErrorId : undefined}
+									surface="sheet"
+								/>
+								{errors.amount ? <FieldError id={amountErrorId}>{errors.amount}</FieldError> : null}
+							</div>
+						</>
+					)}
 
 					<div className="flex flex-col gap-1.5">
-						<Label htmlFor="edit-debt-note">{t("noteLabel")}</Label>
-						<Textarea id="edit-debt-note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
+						<label htmlFor={noteId} className="text-caption text-muted-foreground pl-1">
+							{t("noteLabel")}
+						</label>
+						<Input
+							id={noteId}
+							value={note}
+							onChange={(e) => setNote(e.target.value)}
+							placeholder={t("notePlaceholder")}
+							enterKeyHint="done"
+							className="min-h-13 rounded-[16px] px-4"
+						/>
 					</div>
 
-					{error ? <p className="text-destructive text-sm">{error}</p> : null}
+					{errors.form ? <FormAlert>{errors.form}</FormAlert> : null}
 
-					<DialogFooter>
-						<Button type="button" variant="outline" onClick={() => void closeModal()}>
+					<div className="mt-1 flex gap-2">
+						<Button type="button" variant="secondary" size="lg" className="flex-1" onClick={() => void closeModal()}>
 							{tCommon("cancel")}
 						</Button>
-						<Button type="submit" disabled={pending}>
+						<Button type="submit" variant="accent" size="lg" className="flex-[2]" disabled={pending}>
 							{tCommon("save")}
 						</Button>
-					</DialogFooter>
+					</div>
 				</form>
 			</DialogContent>
 		</Dialog>

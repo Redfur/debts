@@ -11,12 +11,14 @@ type Props = {
 	/** Подпись группы для экранного диктора. */
 	label: string;
 	disabled?: boolean;
+	/** `card` — на фоне экрана; `sheet` — внутри шторки (невыбранный вариант серый). */
+	surface?: "card" | "sheet";
 };
 
 const OPTIONS: DebtDirection[] = ["owed_to_me", "i_owe"];
 
 /** Выбор направления долга двумя крупными кнопками «+ Мне должны» / «− Я должен» (нативные radio). */
-export function DirectionToggle({ value, onChange, label, disabled }: Props) {
+export function DirectionToggle({ value, onChange, label, disabled, surface = "card" }: Props) {
 	const { t } = useTranslation(ENTITY_DEBT_NS);
 	const name = useId();
 
@@ -35,7 +37,10 @@ export function DirectionToggle({ value, onChange, label, disabled }: Props) {
 								? owedToMe
 									? "border-owed-to-me bg-owed-to-me-muted text-owed-to-me-strong font-semibold"
 									: "border-i-owe bg-i-owe-muted text-i-owe-strong font-semibold"
-								: "bg-card shadow-card text-foreground border-transparent font-medium",
+								: cn(
+										"text-foreground border-transparent font-medium",
+										surface === "card" ? "bg-card shadow-card" : "bg-secondary",
+									),
 						)}
 					>
 						<input

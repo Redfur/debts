@@ -20,6 +20,8 @@ type Props = {
 	describedBy?: string;
 	disabled?: boolean;
 	autoFocus?: boolean;
+	/** `card` — белая карточка с тенью на фоне экрана; `sheet` — серое поле внутри шторки. */
+	surface?: "card" | "sheet";
 };
 
 /** Крупное поле суммы на карточке и кнопка валюты справа (форма нового долга, изменение долга). */
@@ -36,11 +38,13 @@ export function AmountField({
 	describedBy,
 	disabled,
 	autoFocus,
+	surface = "card",
 }: Props) {
 	return (
 		<div
 			className={cn(
-				"bg-card shadow-card flex items-center gap-2.5 rounded-card py-3.5 pr-2.5 pl-5 transition-shadow focus-within:shadow-[inset_0_0_0_2px_var(--ring)]",
+				"flex items-center gap-2.5 rounded-card py-3.5 pr-2.5 pl-5 transition-shadow focus-within:shadow-[inset_0_0_0_2px_var(--ring)]",
+				surface === "card" ? "bg-card shadow-card" : "bg-secondary",
 				invalid &&
 					"shadow-[inset_0_0_0_2px_var(--destructive)] focus-within:shadow-[inset_0_0_0_2px_var(--destructive)]",
 				disabled && "bg-secondary shadow-none",
@@ -67,6 +71,7 @@ export function AmountField({
 				title={currencyTitle}
 				triggerLabel={currencyLabel(CURRENCY_SHORT_LABEL[currency].toLowerCase())}
 				disabled={disabled}
+				triggerClassName={surface === "sheet" ? "bg-card" : undefined}
 			/>
 		</div>
 	);
