@@ -1,6 +1,7 @@
 import { XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import * as React from "react";
+import { useKeyboardInset } from "@/shared/lib/use-keyboard-inset";
 import { cn } from "@/shared/lib/utils";
 
 /**
@@ -12,8 +13,8 @@ export const modalOverlayClass =
 
 export const modalContentClass = cn(
 	"fixed z-50 flex flex-col gap-4 bg-card text-card-foreground outline-none",
-	// Шторка (мобильный)
-	"inset-x-0 bottom-0 max-h-[92svh] overflow-y-auto rounded-t-sheet px-4 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+16px)]",
+	// Шторка (мобильный); --keyboard-inset поднимает её над клавиатурой iOS (см. DialogContent)
+	"[--keyboard-inset:0px] inset-x-0 bottom-(--keyboard-inset) max-h-[calc(92svh-var(--keyboard-inset))] overflow-y-auto rounded-t-sheet px-4 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+16px)]",
 	"data-open:animate-in data-open:slide-in-from-bottom data-closed:animate-out data-closed:slide-out-to-bottom duration-200",
 	// Диалог (десктоп)
 	"lg:inset-x-auto lg:bottom-auto lg:top-1/2 lg:left-1/2 lg:w-full lg:max-w-md lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-card lg:p-6 lg:shadow-raised",
@@ -52,9 +53,12 @@ function DialogContent({
 	children,
 	showCloseButton = false,
 	onPointerDownOutside,
+	style,
 	...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & { showCloseButton?: boolean }) {
 	const contentRef = React.useRef<HTMLDivElement>(null);
+	// Над клавиатурой: Chrome сжимает layout (interactive-widget), iOS — отступ по visualViewport.
+	const keyboardInset = useKeyboardInset();
 
 	return (
 		<DialogPortal>
@@ -83,6 +87,7 @@ function DialogContent({
 					onPointerDownOutside?.(event);
 				}}
 				className={cn(modalContentClass, className)}
+				style={{ "--keyboard-inset": `${keyboardInset}px`, ...style } as React.CSSProperties}
 				{...props}
 			>
 				<ModalHandle />
