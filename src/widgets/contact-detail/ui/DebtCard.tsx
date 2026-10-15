@@ -1,123 +1,97 @@
-import { format } from "date-fns";
-import { ru } from "date-fns/locale";
-import { Pencil, Trash2 } from "lucide-react";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Progress } from "@/components/ui/progress";
-import { computeDebtBalance, type Debt, type DebtOperation, ENTITY_DEBT_NS } from "@/entities/debt";
+import { computeDebtBalance, type Debt, type DebtOperation, DirectionChip } from "@/entities/debt";
 import { showAddRepaymentDialog } from "@/features/add-repayment";
 import { showEditDebtDialog } from "@/features/edit-debt";
-import { CURRENCY_SYMBOL } from "@/shared/config/currencies";
 import { COMMON_NS } from "@/shared/i18n";
-import { formatAmount } from "@/shared/lib/format-amount";
+import { formatMoney } from "@/shared/lib/format-amount";
+import { formatShortDate } from "@/shared/lib/format-date";
+import { cn } from "@/shared/lib/utils";
 import { CONTACT_DETAIL_NS } from "../translations";
+import { DebtHistory } from "./DebtHistory";
 
 type Props = {
 	debt: Debt;
 	operations: DebtOperation[];
-	onDelete: (debtId: string) => void;
+	onDelete: (debt: Debt) => void;
 };
 
+/** Карточка активного долга: метка направления и дата, заголовок-заметка, остаток с полосой, действия, история. */
 export function DebtCard({ debt, operations, onDelete }: Props) {
 	const { t } = useTranslation(CONTACT_DETAIL_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
-	const { t: tDebt } = useTranslation(ENTITY_DEBT_NS);
-	const [historyOpen, setHistoryOpen] = useState(false);
 
 	const balance = computeDebtBalance(debt, operations);
-	const progress = debt.principalAmount > 0 ? ((debt.principalAmount - balance) / debt.principalAmount) * 100 : 0;
-	const directionLabel = debt.direction === "owed_to_me" ? tDebt("directionOwedToMe") : tDebt("directionIOwe");
+	const repaid = debt.principalAmount - balance;
+	const percent = debt.principalAmount > 0 ? (repaid / debt.principalAmount) * 100 : 0;
+	const owedToMe = debt.direction === "owed_to_me";
 
 	return (
-		<Card>
-			<CardContent className="flex flex-col gap-3 py-4">
-				<div className="flex items-start justify-between gap-2">
-					<div className="min-w-0">
-						<p className="text-sm font-medium">
-							{directionLabel} · {formatAmount(debt.principalAmount)} {CURRENCY_SYMBOL[debt.currency]}
-						</p>
-						{debt.note ? <p className="text-muted-foreground text-xs">{debt.note}</p> : null}
-					</div>
-					<div className="flex shrink-0 items-center gap-1">
-						{debt.status === "closed" ? (
-							<span className="text-muted-foreground text-xs">{tDebt("statusClosed")}</span>
-						) : null}
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon"
-							aria-label={tCommon("edit")}
-							onClick={() => void showEditDebtDialog({ debtId: debt.id })}
-						>
-							<Pencil className="size-4" />
-						</Button>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon"
-							aria-label={tCommon("delete")}
-							onClick={() => onDelete(debt.id)}
-						>
-							<Trash2 className="size-4" />
-						</Button>
-					</div>
+		<article className="bg-card shadow-card flex flex-col gap-3 rounded-card p-4">
+			<div className="flex items-center justify-between gap-2">
+				<DirectionChip direction={debt.direction} />
+				<span className="text-caption text-muted-foreground">{formatShortDate(debt.createdAt)}</span>
+			</div>
+			<h3 className="text-heading break-words">{debt.note || t("untitledDebt")}</h3>
+			<div className="flex flex-col gap-2">
+				<div className="flex items-baseline justify-between gap-2">
+					<span className="text-caption text-muted-foreground">{t("balance")}</span>
+					<span className="text-right">
+						<b className="text-[20px] leading-[26px] font-bold whitespace-nowrap">
+							{formatMoney(balance, debt.currency)}
+						</b>
+						<span className="text-caption text-muted-foreground">
+							{" "}
+							{t("ofPrincipal", { amount: formatMoney(debt.principalAmount, debt.currency) })}
+						</span>
+					</span>
 				</div>
-
-				{debt.status === "active" ? (
-					<>
-						<Progress value={progress} />
-						<div className="flex items-center justify-between gap-2">
-							<p className="text-muted-foreground text-xs">
-								{t("balanceLine", {
-									amount: `${formatAmount(balance)} ${CURRENCY_SYMBOL[debt.currency]}`,
-									principal: `${formatAmount(debt.principalAmount)} ${CURRENCY_SYMBOL[debt.currency]}`,
-								})}
-							</p>
-							<Button
-								type="button"
-								size="sm"
-								variant="outline"
-								onClick={() => void showAddRepaymentDialog({ debtId: debt.id })}
-							>
-								{t("repayAction")}
-							</Button>
-						</div>
-					</>
-				) : null}
-
-				<Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
-					<CollapsibleTrigger asChild>
-						<Button
-							type="button"
-							variant="ghost"
-							size="sm"
-							className="h-auto w-fit justify-start px-0 text-muted-foreground text-xs font-medium hover:bg-transparent"
-						>
-							{historyOpen ? t("historyHide") : t("historyShow", { count: operations.length })}
-						</Button>
-					</CollapsibleTrigger>
-					<CollapsibleContent className="flex flex-col gap-2 border-t pt-2">
-						{operations.map((op) => (
-							<div key={op.id} className="flex flex-col gap-0.5">
-								<div className="flex items-center justify-between text-xs">
-									<span className="text-muted-foreground">
-										{op.kind === "initial" ? t("operationInitial") : t("operationRepayment")}
-										{" · "}
-										{format(new Date(op.createdAt), "d MMM yyyy", { locale: ru })}
-									</span>
-									<span>
-										{formatAmount(op.amount)} {CURRENCY_SYMBOL[debt.currency]}
-									</span>
-								</div>
-								{op.note ? <p className="text-muted-foreground text-xs italic">{op.note}</p> : null}
-							</div>
-						))}
-					</CollapsibleContent>
-				</Collapsible>
-			</CardContent>
-		</Card>
+				<div
+					role="img"
+					aria-label={
+						repaid > 0
+							? t("progressA11y", {
+									repaid: formatMoney(repaid, debt.currency),
+									principal: formatMoney(debt.principalAmount, debt.currency),
+								})
+							: t("progressNoneA11y")
+					}
+					className="bg-border flex h-1.5 overflow-hidden rounded-full"
+				>
+					{percent > 0 ? (
+						<span
+							className={cn("rounded-full", owedToMe ? "bg-owed-to-me" : "bg-i-owe")}
+							style={{ width: `${percent}%` }}
+						/>
+					) : null}
+				</div>
+			</div>
+			<div className="flex gap-1.5">
+				<Button
+					type="button"
+					className="flex-1 text-[15px]"
+					onClick={() => void showAddRepaymentDialog({ debtId: debt.id })}
+				>
+					{t("repayAction")}
+				</Button>
+				<Button
+					type="button"
+					variant="secondary"
+					className="bg-background px-3.5 font-normal"
+					onClick={() => void showEditDebtDialog({ debtId: debt.id })}
+				>
+					{tCommon("edit")}
+				</Button>
+				<Button
+					type="button"
+					variant="secondary"
+					className="bg-i-owe-muted text-i-owe-strong hover:bg-i-owe-muted/80 px-3.5 font-normal"
+					onClick={() => onDelete(debt)}
+				>
+					{tCommon("delete")}
+				</Button>
+			</div>
+			<DebtHistory debt={debt} operations={operations} />
+		</article>
 	);
 }

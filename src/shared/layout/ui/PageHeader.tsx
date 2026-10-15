@@ -11,6 +11,8 @@ export const PageHeaderAfterSlot = createContext<ReactNode>(null);
 type Props = {
 	/** Кнопка «назад» и т.п. слева от заголовка (в строке над ним). */
 	leading?: ReactNode;
+	/** Классы строки с `leading` (например, скрыть «назад» на десктопе). */
+	leadingClassName?: string;
 	/** Иконка или медиа перед заголовком */
 	media?: ReactNode;
 	/** Заголовок страницы */
@@ -23,13 +25,22 @@ type Props = {
 	className?: string;
 };
 
-export function PageHeader({ leading, media, title, titleAside, description, actions, className }: Props) {
+export function PageHeader({
+	leading,
+	leadingClassName,
+	media,
+	title,
+	titleAside,
+	description,
+	actions,
+	className,
+}: Props) {
 	const after = useContext(PageHeaderAfterSlot);
 
 	return (
 		<>
 			<header className={cn("flex flex-col gap-1 pt-[calc(env(safe-area-inset-top,0px)+20px)] lg:pt-9", className)}>
-				{leading ? <div className="-ml-2.5 flex min-h-11 items-center">{leading}</div> : null}
+				{leading ? <div className={cn("-ml-2.5 flex min-h-11 items-center", leadingClassName)}>{leading}</div> : null}
 				<div className="flex min-h-11 items-center gap-3.5">
 					{media ? <div className="shrink-0">{media}</div> : null}
 					<div className="min-w-0 flex-1">
