@@ -12,10 +12,7 @@ export function BottomNav({ active }: { active: NavSection }) {
 
 	return (
 		<div className="fixed inset-x-4 bottom-[calc(24px+env(safe-area-inset-bottom,0px))] z-40 flex items-center gap-2.5 lg:hidden">
-			<nav
-				aria-label={t("navLabel")}
-				className="bg-card supports-[backdrop-filter]:bg-nav-glass shadow-nav flex h-15 flex-1 gap-1 rounded-full p-1.5 supports-[backdrop-filter]:backdrop-blur-[20px] supports-[backdrop-filter]:backdrop-saturate-[1.8]"
-			>
+			<nav aria-label={t("navLabel")} className="nav-glass shadow-nav flex h-15 flex-1 gap-1 rounded-full p-1.5">
 				{NAV_ITEMS.map(({ to, section, labelKey, icon: Icon }) => {
 					const isActive = active === section;
 					return (
