@@ -114,7 +114,7 @@
   Построена на `computeContactSummary` + `convertAmount`. Используется сводкой карточки контакта и статусом строки.
 - `computeNetPosition(owedToMe, owedByMe)` → `{ kind: "owed-to-me" | "i-owe" | "balanced" | "none", diff }`. При `null` любой стороны — `none`.
 - `countContactsByDirection(...)` → числа для фильтра «Все / Мне должны / Я должен».
-- `computeGlobalTotals` не меняется. Пересчёт в другую валюту по нажатию — это повторный вызов с другой `displayCurrency`.
+- `computeGlobalTotals` не меняется. После нажатия на итог пересчёт идёт с новой `displayCurrency` из настройки.
 
 ### 5. Каркас, маршруты и раскладки (`src/app`)
 
@@ -137,7 +137,7 @@
 
 ### 6. Главная (`widgets/home-screen`)
 
-- **Валюта по нажатию.** Состояние «валюта показа итогов» хранится в маленьком сторе `widgets/home-screen/model/totals-currency.ts` (Zustand, без persist): сбрасывается при перезапуске и переживает переходы между экранами. Начальное значение — валюта итогов из настроек.
+- **Валюта по нажатию.** Отдельного состояния нет. Нажатие на итог вызывает `setDisplayCurrency(next(current))` из `shared/lib/currency-preference`: это та же настройка в `localStorage`, что и «Валюта итогов» в настройках. Через существующее событие смены валюты пересчитываются итоги на главной, сводка контакта и строка в настройках. Хелпер `nextSupportedCurrency()` живёт рядом с `SUPPORTED_CURRENCIES` в `shared/config/currencies.ts`.
 - **Фильтр** — `segmented-control` с числами. Ширина больше 1024 px — таблица [DeskHome]: «Контакт / Мне должны / Я должен / Открытых долгов» и третья карточка «Разница».
 - **Онбординг** — `EmptyState` + кнопки. «Восстановить из резервной копии» вызывает фичу `features/import-backup` (решение 8).
 - **Нет курса** — плашка `warning-muted` с текстом и кнопкой «Повторить» → `refreshRatesIfStale(true)`.
