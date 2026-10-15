@@ -2,9 +2,12 @@ export const REFRESH_RATES_NS = "refresh-exchange-rates";
 
 export const refreshExchangeRatesTranslations = {
 	ru: {
-		statusUpdated: "Обновлён {{date}}",
+		label: "Курс валют",
+		statusUpdated: "Обновлён {{moment}}",
 		statusMissing: "Ещё не загружен",
-		statusError: "Не удалось обновить курс. Используется последний известный.",
-		refreshAction: "Обновить курс",
+		statusOffline: "Нет сети · курс от {{date}}",
+		statusFailed: "Не удалось обновить",
+		refresh: "Обновить",
+		retry: "Повторить",
 	},
 } as const;

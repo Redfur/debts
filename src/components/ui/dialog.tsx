@@ -3,6 +3,30 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 import * as React from "react";
 import { cn } from "@/shared/lib/utils";
 
+/**
+ * Модальное окно по дизайн-системе: на ширине < 1024 px — шторка снизу (радиус 28 сверху, ручка 36×5,
+ * отступ под системную полосу), на десктопе — диалог по центру. Общие классы переиспользует `alert-dialog`.
+ */
+export const modalOverlayClass =
+	"fixed inset-0 z-50 bg-scrim data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0";
+
+export const modalContentClass = cn(
+	"fixed z-50 flex flex-col gap-4 bg-card text-card-foreground outline-none",
+	// Шторка (мобильный)
+	"inset-x-0 bottom-0 max-h-[92svh] overflow-y-auto rounded-t-sheet px-4 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+16px)]",
+	"data-open:animate-in data-open:slide-in-from-bottom data-closed:animate-out data-closed:slide-out-to-bottom duration-200",
+	// Диалог (десктоп)
+	"lg:inset-x-auto lg:bottom-auto lg:top-1/2 lg:left-1/2 lg:w-full lg:max-w-md lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-card lg:p-6 lg:shadow-raised",
+	"lg:data-open:slide-in-from-bottom-0 lg:data-open:zoom-in-95 lg:data-open:fade-in-0 lg:data-closed:slide-out-to-bottom-0 lg:data-closed:zoom-out-95 lg:data-closed:fade-out-0",
+);
+
+/** Ручка шторки — только на мобильном. */
+export function ModalHandle() {
+	return (
+		<span aria-hidden="true" className="mx-auto h-[5px] w-9 shrink-0 rounded-full bg-muted-foreground/30 lg:hidden" />
+	);
+}
+
 function Dialog({ ...props }: React.ComponentProps<typeof DialogPrimitive.Root>) {
 	return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
@@ -20,22 +44,13 @@ function DialogClose({ ...props }: React.ComponentProps<typeof DialogPrimitive.C
 }
 
 function DialogOverlay({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
-	return (
-		<DialogPrimitive.Overlay
-			data-slot="dialog-overlay"
-			className={cn(
-				"fixed inset-0 z-50 bg-black/40 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
-				className,
-			)}
-			{...props}
-		/>
-	);
+	return <DialogPrimitive.Overlay data-slot="dialog-overlay" className={cn(modalOverlayClass, className)} {...props} />;
 }
 
 function DialogContent({
 	className,
 	children,
-	showCloseButton = true,
+	showCloseButton = false,
 	onPointerDownOutside,
 	...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & { showCloseButton?: boolean }) {
@@ -67,17 +82,15 @@ function DialogContent({
 					}
 					onPointerDownOutside?.(event);
 				}}
-				className={cn(
-					"bg-background border-border fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border p-6 shadow-lg duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-					className,
-				)}
+				className={cn(modalContentClass, className)}
 				{...props}
 			>
+				<ModalHandle />
 				{children}
 				{showCloseButton ? (
 					<DialogPrimitive.Close
 						data-slot="dialog-close"
-						className="ring-offset-background focus:ring-ring absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+						className="ring-offset-background focus:ring-ring touch-target absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
 					>
 						<XIcon />
 						<span className="sr-only">Закрыть</span>
@@ -89,28 +102,20 @@ function DialogContent({
 }
 
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
-	return (
-		<div
-			data-slot="dialog-header"
-			className={cn("flex flex-col gap-1.5 text-center sm:text-left", className)}
-			{...props}
-		/>
-	);
+	return <div data-slot="dialog-header" className={cn("flex flex-col gap-1", className)} {...props} />;
 }
 
 function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
-	return (
-		<div
-			data-slot="dialog-footer"
-			className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)}
-			{...props}
-		/>
-	);
+	return <div data-slot="dialog-footer" className={cn("mt-1 flex gap-2 *:flex-1", className)} {...props} />;
 }
 
 function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
 	return (
-		<DialogPrimitive.Title data-slot="dialog-title" className={cn("text-lg font-semibold", className)} {...props} />
+		<DialogPrimitive.Title
+			data-slot="dialog-title"
+			className={cn("text-[20px] leading-[26px] font-bold", className)}
+			{...props}
+		/>
 	);
 }
 
@@ -118,7 +123,7 @@ function DialogDescription({ className, ...props }: React.ComponentProps<typeof 
 	return (
 		<DialogPrimitive.Description
 			data-slot="dialog-description"
-			className={cn("text-muted-foreground text-sm", className)}
+			className={cn("text-muted-foreground text-body-s", className)}
 			{...props}
 		/>
 	);

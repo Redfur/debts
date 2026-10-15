@@ -1,23 +1,23 @@
-import { useLocation } from "react-router-dom";
+import { matchPath, useLocation } from "react-router-dom";
 
 export type NavSection = "home" | "contacts" | "settings" | null;
 
-type ContactDetailOrigin = "home" | "contacts";
-
 /**
- * `/contacts/:id` обслуживает и «Главную», и «Контакты» — какая вкладка подсвечена,
- * зависит от того, откуда пришли (передаётся через `location.state.from` в `<Link>`).
- * Без состояния (прямой переход по ссылке) считаем «Контакты» — это соответствует префиксу URL.
+ * Режим каркаса: `section` — разделы с меню и кнопкой «+»;
+ * `fullscreen` — вложенные экраны (новый долг, карточка контакта) на мобильном открываются без меню.
  */
-export function useActiveNavSection(): NavSection {
-	const { pathname, state } = useLocation();
+export type ShellMode = "section" | "fullscreen";
 
+export function useShellMode(): ShellMode {
+	const { pathname } = useLocation();
+	return matchPath("/new", pathname) || matchPath("/contacts/:contactId", pathname) ? "fullscreen" : "section";
+}
+
+/** Раздел для бокового меню (десктоп): карточка контакта всегда в «Контактах». */
+export function useSideNavSection(): NavSection {
+	const { pathname } = useLocation();
 	if (pathname === "/settings") return "settings";
 	if (pathname === "/" || pathname === "/new") return "home";
-	if (pathname === "/contacts") return "contacts";
-	if (pathname.startsWith("/contacts/")) {
-		const from = (state as { from?: ContactDetailOrigin } | null)?.from;
-		return from === "home" ? "home" : "contacts";
-	}
+	if (pathname === "/contacts" || pathname.startsWith("/contacts/")) return "contacts";
 	return null;
 }

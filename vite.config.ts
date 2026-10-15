@@ -56,8 +56,9 @@ export default defineConfig({
 				short_name: "Долги",
 				lang: "ru",
 				display: "standalone",
-				theme_color: "#ffffff",
-				background_color: "#ffffff",
+				// Фон экрана из токена `--background` (светлая тема) — цвет заставки и строки состояния.
+				theme_color: "#f4f5f7",
+				background_color: "#f4f5f7",
 				icons: [
 					{
 						src: "web-app-manifest-192x192.png",
@@ -73,7 +74,7 @@ export default defineConfig({
 					},
 				],
 			},
-			includeAssets: ["favicon.ico", "apple-touch-icon.png"],
+			includeAssets: ["favicon.ico", "favicon.svg", "favicon-96x96.png", "apple-touch-icon.png"],
 			workbox: {
 				globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
 				navigateFallback: `${base}index.html`,

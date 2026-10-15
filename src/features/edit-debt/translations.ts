@@ -4,12 +4,13 @@ export const editDebtTranslations = {
 	ru: {
 		title: "Изменить долг",
 		directionLabel: "Направление",
-		directionOwedToMe: "Мне должны",
-		directionIOwe: "Я должен",
 		amountLabel: "Сумма",
-		currencyLabel: "Валюта",
-		noteLabel: "Заметка (необязательно)",
-		lockedHint: "Сумму, направление и валюту нельзя изменить — по долгу уже есть погашения.",
+		currencyTitle: "Валюта",
+		currencyLabel: "Валюта: {{name}}",
+		noteLabel: "Заметка",
+		notePlaceholder: "Например, такси из аэропорта",
+		lockedHint:
+			"По долгу уже есть погашения, поэтому направление, сумма и валюта не меняются. Чтобы исправить их, удалите долг и запишите заново.",
 		errorAmountInvalid: "Введите сумму больше нуля",
 		errorGeneric: "Не удалось сохранить. Попробуйте ещё раз.",
 	},

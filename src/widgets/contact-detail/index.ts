@@ -4,4 +4,5 @@ import { CONTACT_DETAIL_NS, contactDetailTranslations } from "./translations";
 injectTranslation(CONTACT_DETAIL_NS, contactDetailTranslations as Record<string, Record<string, string>>);
 
 export { ContactDetailScreen } from "./ui/ContactDetailScreen";
+export { ContactDetailSkeleton } from "./ui/ContactDetailSkeleton";
 export { ContactNotFound } from "./ui/ContactNotFound";

@@ -1,4 +1,5 @@
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
+import { Trash2 } from "lucide-react";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -20,6 +21,18 @@ type ConfirmActionModalProps = {
 	onConfirm: () => void | Promise<void>;
 	confirmVariant?: "default" | "destructive";
 };
+
+/** Иконка в круге над заголовком; для необратимых действий — корзина на красной подложке. */
+function ConfirmIcon() {
+	return (
+		<span
+			aria-hidden="true"
+			className="bg-destructive-muted text-destructive mt-1.5 flex size-14 items-center justify-center rounded-full"
+		>
+			<Trash2 className="size-[26px]" />
+		</span>
+	);
+}
 
 const ConfirmActionModal = NiceModal.create(
 	({ title, body, confirmLabel, cancelLabel, onConfirm, confirmVariant = "default" }: ConfirmActionModalProps) => {
@@ -44,18 +57,19 @@ const ConfirmActionModal = NiceModal.create(
 		return (
 			<AlertDialog open={modal.visible} onOpenChange={handleOpenChange}>
 				<AlertDialogContent>
+					{confirmVariant === "destructive" ? <ConfirmIcon /> : null}
 					<AlertDialogHeader>
 						<AlertDialogTitle>{title}</AlertDialogTitle>
 						<AlertDialogDescription>{body}</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
 						<AlertDialogAction
-							className={cn(buttonVariants({ variant: confirmVariant }))}
+							className={cn(buttonVariants({ variant: confirmVariant, size: "lg" }), "w-full")}
 							onClick={() => void handleConfirm()}
 						>
 							{confirmLabel}
 						</AlertDialogAction>
+						<AlertDialogCancel>{cancelLabel}</AlertDialogCancel>
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>

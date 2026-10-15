@@ -16,6 +16,20 @@ export const CURRENCY_LABEL: Record<CurrencyCode, string> = {
 	CNY: "Китайский юань",
 };
 
+/** Короткие названия для строк настроек и выбора валюты («₽ Рубль»). */
+export const CURRENCY_SHORT_LABEL: Record<CurrencyCode, string> = {
+	RUB: "Рубль",
+	USD: "Доллар",
+	EUR: "Евро",
+	CNY: "Юань",
+};
+
 export function isSupportedCurrency(value: string): value is CurrencyCode {
 	return (SUPPORTED_CURRENCIES as readonly string[]).includes(value);
+}
+
+/** Следующая поддерживаемая валюта по кругу (₽ → $ → € → ¥ → ₽). */
+export function nextSupportedCurrency(current: CurrencyCode): CurrencyCode {
+	const index = SUPPORTED_CURRENCIES.indexOf(current);
+	return SUPPORTED_CURRENCIES[(index + 1) % SUPPORTED_CURRENCIES.length];
 }

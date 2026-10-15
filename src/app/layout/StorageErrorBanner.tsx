@@ -1,8 +1,10 @@
+import { TriangleAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { useDebtStore } from "@/entities/debt";
 import { COMMON_NS } from "@/shared/i18n";
 
+/** Баннер ошибки хранилища — под заголовком экрана (через `PageHeaderAfterSlot`). */
 export function StorageErrorBanner() {
 	const { t } = useTranslation(COMMON_NS);
 	const lastError = useDebtStore((s) => s.lastError);
@@ -13,10 +15,11 @@ export function StorageErrorBanner() {
 	return (
 		<div
 			role="alert"
-			className="bg-destructive text-destructive-foreground fixed top-0 right-0 left-0 z-50 flex items-center justify-between gap-2 px-3 py-2 text-sm lg:left-64 min-h-16 lg:top-auto lg:bottom-0"
+			className="bg-destructive-muted text-destructive-strong mt-2 flex items-center gap-3 rounded-[16px] py-2 pr-2 pl-3.5 text-sm font-medium"
 		>
-			<span className="min-w-0 flex-1 truncate">{t("storageError", { message: lastError })}</span>
-			<Button type="button" size="sm" variant="secondary" onClick={() => clearError()}>
+			<TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
+			<span className="min-w-0 flex-1">{t("storageError", { message: lastError })}</span>
+			<Button type="button" size="sm" variant="secondary" className="bg-card" onClick={() => clearError()}>
 				{t("ok")}
 			</Button>
 		</div>

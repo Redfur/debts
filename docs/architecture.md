@@ -1,22 +1,22 @@
 # Архитектура
 
-Справочник по устройству кода. Поведение продукта (что система должна делать) описано в [`openspec/specs/`](../openspec/specs); здесь — как это реализовано. Термины и модель данных — в [domain.md](./domain.md), правила кода — в [coding-standards.md](./coding-standards.md).
+Справочник по устройству кода. Поведение продукта (что система должна делать) описано в [`openspec/specs/`](../openspec/specs); здесь — как это реализовано. Термины и модель данных — в [domain.md](./domain.md), правила кода — в [coding-standards.md](./coding-standards.md), токены и компоненты интерфейса — в [design-system.md](./design-system.md).
 
 ## Стек
 
-React 19, Vite 8, TypeScript, Zustand, react-router-dom, react-i18next, Tailwind CSS 4, shadcn/ui (Radix), `@ebay/nice-modal-react`, IndexedDB через `idb`, PWA (`vite-plugin-pwa`), date-fns, Sonner (toasts). Бэкенда нет.
+React 19, Vite 8, TypeScript, Zustand, react-router-dom, react-i18next, Tailwind CSS 4 (токены дизайн-системы в `src/index.css`, шрифт Onest), shadcn/ui (Radix), `@ebay/nice-modal-react`, IndexedDB через `idb`, PWA (`vite-plugin-pwa`), date-fns, Sonner (toasts). Бэкенда нет.
 
 ## Feature-Sliced Design (привязка к репозиторию)
 
 | Слой | Папка | Роль |
 |------|--------|------|
-| App | `src/app/` | Провайдеры (i18n, NiceModal, Tooltip, гидрация стора, Toaster), роутинг (`AppRoutes`, lazy-страницы + `route-fallbacks`), каркас (`AppShell`, `AppNavLink`, `useActiveNavSection`, `StorageErrorBanner`), `RouteErrorBoundary` |
-| Pages | `src/pages/` | `home` (`/`), `create-debt` (`/new`), `contacts` (`/contacts`), `contact-detail` (`/contacts/:contactId`), `settings` (`/settings`) |
+| App | `src/app/` | Провайдеры (i18n, NiceModal, Tooltip, гидрация стора, Toaster), роутинг (`AppRoutes`, lazy-страницы + `route-fallbacks` со скелетонами), каркас `app/layout` (`AppShell`, `BottomNav`, `CreateFab`, `SideNav`, `StorageErrorBanner`, `useShellMode` / `useSideNavSection`), `RouteErrorBoundary` |
+| Pages | `src/pages/` | `home` (`/`), `create-debt` (`/new`), `contacts` (`/contacts`, раскладка «список + карточка» с `Outlet`), `contact-detail` (`/contacts/:contactId`), `settings` (`/settings`) |
 | Widgets | `src/widgets/` | `home-screen`, `contacts-screen`, `contact-detail`, `settings-screen` |
-| Features | `src/features/` | `select-contact`, `create-debt`, `edit-debt`, `add-repayment`, `set-display-currency`, `refresh-exchange-rates`, `pwa-app-update` |
-| Entities | `src/entities/` | `debt`: типы, Zustand-стор `useDebtStore`, хук `useDebtOperations`, агрегаты `computeDebtBalance` / `computeContactSummary` / `computeGlobalTotals`, UI `ContactAvatar`, `ContactListItem` |
-| Shared | `src/shared/` | `lib/` (storage, exchange-rate, theme, currency-preference, format-amount, round-amount, id, i18n, first-grapheme), `config/` (currencies, contact-colors), `i18n/` (`common`), `layout/` (`PageHeader`, `PageHeaderBackLink`, `ScreenBody`), `ui/modals/` (`ConfirmActionModal`) |
-| UI-kit | `src/components/ui/` | shadcn без бизнес-логики; добавлены вручную: `dialog`, `command`, `textarea`, `amount-input` (маска суммы) |
+| Features | `src/features/` | `select-contact` (`ContactPicker`), `create-debt`, `edit-debt`, `add-repayment`, `set-display-currency`, `refresh-exchange-rates`, `export-backup`, `import-backup`, `pwa-app-update` |
+| Entities | `src/entities/` | `debt`: типы, Zustand-стор `useDebtStore`, хук `useDebtOperations`, агрегаты `computeDebtBalance` / `computeContactSummary` / `computeContactTotals` / `computeGlobalTotals` / `computeNetPosition` / `countContactsByDirection`, UI `ContactAvatar`, `ContactRow`, `AmountPill`, `DirectionChip`, `DirectionToggle`, `DebtStatusBadge`, `NetPositionLine` |
+| Shared | `src/shared/` | `lib/` (storage, exchange-rate, theme, currency-preference, format-amount, format-date, round-amount, id, i18n, first-grapheme, use-online-status, use-keyboard-inset), `config/` (currencies, contact-colors), `i18n/` (`common`), `layout/` (`PageHeader`, `PageHeaderBackLink`, `ScreenBody`), `ui/` (`AmountField`, `CurrencyPicker`, `SearchField`, `HighlightMatch`, `EmptyState`, `form-message`, `money`, `modals/ConfirmActionModal`) |
+| UI-kit | `src/components/ui/` | shadcn без бизнес-логики, перестроенный под дизайн-систему (кнопки-пилюли, `dialog` / `alert-dialog` как шторка на мобильном); добавлены вручную: `textarea`, `amount-input` (маска суммы), `badge`, `segmented-control` |
 
 Импорт — только сверху вниз: `app → pages → widgets → features → entities → shared`; `app` и `shared` могут импортировать друг друга. Публичный API слайса — только `index.ts`.
 
@@ -26,16 +26,28 @@ React 19, Vite 8, TypeScript, Zustand, react-router-dom, react-i18next, Tailwind
 |------|----------|----------|
 | `/` | `pages/home` → `widgets/home-screen` | eager |
 | `/new[?contactId=]` | `pages/create-debt` → `features/create-debt` (`CreateDebtForm`) | lazy |
-| `/contacts` | `pages/contacts` → `widgets/contacts-screen` | lazy |
-| `/contacts/:contactId` | `pages/contact-detail` → `widgets/contact-detail` | lazy |
+| `/contacts` | `pages/contacts` (index → `ContactsIndexPage`) → `widgets/contacts-screen` | lazy |
+| `/contacts/:contactId` | вложен в `/contacts`: `pages/contact-detail` → `widgets/contact-detail` | lazy |
 | `/settings` | `pages/settings` → `widgets/settings-screen` | lazy |
 | `*` | редирект на `/` | — |
 
-Откуда открыта карточка контакта, передаётся через `location.state.from` (`"home" | "contacts"`, проп `linkState` у `ContactListItem`); от него зависят активная вкладка (`useActiveNavSection`) и цель кнопки «назад».
+Откуда открыта карточка контакта, передаётся через `location.state.from` (`"home" | "contacts"`, проп `linkState` у `ContactRow`); от него зависят активный раздел бокового меню (`useSideNavSection`) и цель кнопки «назад».
+
+## Каркас и режимы
+
+`AppShell` выбирает режим по пути (`useShellMode`, через `matchPath`):
+
+- `section` — `/`, `/contacts`, `/settings`: на мобильном плавающее нижнее меню `BottomNav` и круглая кнопка «+» (`CreateFab`, ведёт на `/new`);
+- `fullscreen` — `/new` и `/contacts/:id` на мобильном: без нижнего меню, со своей шапкой.
+
+От 1024 px всегда показывается боковое меню `SideNav` и «+» в правом нижнем углу. Раскладка «список + карточка» на `/contacts` — CSS-сетка в `ContactsPage`: на мобильном видна только одна колонка (`max-lg:hidden`), на десктопе обе. Баннер ошибки хранилища каркас подставляет под заголовок любого экрана через контекст `PageHeaderAfterSlot`.
+
+Форма нового долга держит кнопку «Создать» над клавиатурой: `interactive-widget=resizes-content` в `index.html` (Chrome/Android сжимает layout) и отступ по `visualViewport` из `useKeyboardInset` (iOS Safari).
 
 ## Модальные окна
 
-- Утилитарная модалка подтверждения — `shared/ui/modals/ConfirmActionModal` (`AlertDialog`): удаление долга, импорт, сброс данных.
+- `Dialog` и `AlertDialog` на ширине меньше 1024 px — шторка снизу, шире — диалог по центру (только CSS, общие классы в `components/ui/dialog.tsx`).
+- Утилитарная модалка подтверждения — `shared/ui/modals/ConfirmActionModal` (`AlertDialog`): удаление долга, сброс данных. Подтверждение импорта со сводкой — `features/import-backup/ui/ImportBackupConfirm`.
 - Модалки с доменной логикой — в фичах: `features/edit-debt/ui/EditDebtDialog.tsx`, `features/add-repayment/ui/AddRepaymentDialog.tsx` (`NiceModal.create` + shadcn `Dialog`). Открываются хелперами `showEditDebtDialog` / `showAddRepaymentDialog`.
 - Создание долга — не модалка, а страница `/new`.
 - `components/ui/dialog.tsx`: `DialogContent` игнорирует «клик наружу», если координаты события внутри рамки диалога — обход бага Radix с вложенными слоями (`Select`/`Popover`), которые временно отключают `pointer-events` у диалога.
@@ -55,13 +67,15 @@ React 19, Vite 8, TypeScript, Zustand, react-router-dom, react-i18next, Tailwind
 ## Персистентность
 
 - **IndexedDB** (`src/shared/lib/storage/`, БД `debts`, версия 1): сторы `contacts`, `debts` (индекс `by-contactId`), `debtOperations` (индекс `by-debtId`), `meta` (одна запись: `schemaVersion` + `ratesCache`). Доступ — через интерфейс `StorageAdapter` (`contract.ts`), реализация `indexed-db-adapter.ts`. `deleteDebt` каскадно удаляет операции в одной транзакции. Миграций пока нет (`schemaVersion = 1`).
-- **localStorage** (не дублирует доменные данные): тема, валюта отображения; ключи — `shared/lib/client-storage-keys.ts`, сброс — `clear-client-storage.ts`.
+- **localStorage** (не дублирует доменные данные): тема, валюта итогов (меняется и в настройках, и нажатием на итог на главной; подписчики `useDisplayCurrency` узнают о смене через событие `app-display-currency-change`); ключи — `shared/lib/client-storage-keys.ts`, сброс — `clear-client-storage.ts`.
 - **sessionStorage**: флаг однократной автоперезагрузки при ошибке загрузки чанка (`RouteErrorBoundary`).
-- **Backup/restore:** `storage/backup.ts` — `createDebtsBackup` / `parseDebtsBackup` / `restoreDebtsFromBackup`; формат `{ version: 1, exportedAt, meta, contacts, debts, debtOperations }`; восстановление = `wipeAppIndexedDatabase()` + запись всех записей + перезагрузка страницы.
+- **Backup/restore:** UI — `features/export-backup` (`useExportBackup`) и `features/import-backup` (`useImportBackup`: выбор файла → `parseDebtsBackup` → подтверждение), используются в настройках и на пустой главной; логика — `storage/backup.ts` — `createDebtsBackup` / `parseDebtsBackup` / `restoreDebtsFromBackup`; формат `{ version: 1, exportedAt, meta, contacts, debts, debtOperations }`; восстановление = `wipeAppIndexedDatabase()` + запись всех записей + перезагрузка страницы.
 
 ## Курс валют
 
 `src/shared/lib/exchange-rate/`: `fetchExchangeRates()` (база USD, источник `@fawazahmed0/currency-api` на jsDelivr, зеркало на `currency-api.pages.dev`), `convertAmount()`, `isRatesCacheStale()`. Кэш — `meta.ratesCache`.
+
+Строка статуса в настройках — `features/refresh-exchange-rates` (`ExchangeRateStatusRow`): «Обновлён <`fetchedAt`>», «Нет сети · курс от <дата курса>» (по `useOnlineStatus`), «Не удалось обновить» + «Повторить» (по `ratesFetchError`).
 
 ```
 hydrate() → refreshRatesIfStale() (fire-and-forget)
@@ -87,11 +101,12 @@ UI (pages/widgets)
 - **Offline-first:** всё, кроме обновления курса, работает без сети.
 - **Надёжность:** доменные данные только в IndexedDB; ошибки записи откатываются; ошибка курса не выглядит как сбой хранилища.
 - **Приватность:** данные не покидают устройство; запрос курса не содержит персональных данных.
-- **Точность денег:** суммы округляются до 2 знаков (`roundAmount`) на каждой операции; отображение — `formatAmount` (ru-RU).
+- **Точность денег:** суммы округляются до 2 знаков (`roundAmount`) на каждой операции; отображение — `formatMoney` / `formatMoneyBreakdown` (`shared/lib/format-amount`).
+- **Даты:** `shared/lib/format-date` — «12 сен», «15 октября», «15 октября в 12:40», «12 октября 2026, 18:05».
 - **Расширяемость под backend:** `StorageAdapter` — единая точка обмена данными; UUID совместимы с серверными. Выбор адаптера — в `app` (сейчас всегда IndexedDB).
 
 ## Качество и CI
 
-- `npm run check` (Biome), `npm run knip`, `npm run build` (`tsc -b` + Vite), `npm run spec:validate` (OpenSpec) — в `.github/workflows/ci.yml` на каждый push.
+- `npm run check` (Biome), `npm run knip`, `npm run spec:validate` (OpenSpec), `npm run tokens:contrast` (контраст пар токенов, `scripts/check-contrast.mjs`), `npm run build` (`tsc -b` + Vite) — в `.github/workflows/ci.yml` на каждый push.
 - Автотестов пока нет. Кандидаты на unit-тесты без React: `computeDebtBalance`, `computeContactSummary`, `computeGlobalTotals`, `convertAmount`, `parseDebtsBackup`, маска `AmountInput`; стор — с моком `StorageAdapter`.
 - Релизы: `scripts/release.sh` + `.github/workflows/release.yml` (тег → GitHub Release → GitHub Pages), см. README.

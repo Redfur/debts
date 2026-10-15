@@ -1,8 +1,21 @@
 export const ENTITY_DEBT_NS = "entity-debt";
 
+/** Единый источник подписей направлений и фраз чистой позиции (дизайн-система: «Мне должны» / «Я должен»). */
 export const entityDebtTranslations = {
 	ru: {
-		owedToMeLine: "Вам должны: {{amount}}",
-		owedByMeLine: "Вы должны: {{amount}}",
+		directionOwedToMe: "Мне должны",
+		directionIOwe: "Я должен",
+		directionOwedToMeLower: "мне должны",
+		directionIOweLower: "я должен",
+		amountOwedToMeA11y: "Мне должны {{amount}}",
+		amountIOweA11y: "Я должен {{amount}}",
+		netOwedToMe: "Вам должны на <b>{{amount}}</b> больше",
+		netIOwe: "Вы должны на <b>{{amount}}</b> больше",
+		netBalanced: "Долги уравновешены",
+		zeroOwedToMe: "Вам никто не должен",
+		zeroIOwe: "Вы никому не должны",
+		statusClosed: "Погашен",
+		statusSettled: "Всё погашено",
+		statusNoDebts: "Нет долгов",
 	},
 } as const;

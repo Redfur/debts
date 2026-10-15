@@ -67,6 +67,7 @@ CLI доступен локально: `npx openspec list`, `npx openspec show <
 - [docs/architecture.md](docs/architecture.md) — как устроен код (FSD, стор, хранилище, курс валют, NFR)
 - [docs/domain.md](docs/domain.md) — термины и модель данных
 - [docs/coding-standards.md](docs/coding-standards.md) — правила кода и FSD
+- [docs/design-system.md](docs/design-system.md) — дизайн-система: токены, типографика, компоненты, иконка
 - [docs/design-brief.md](docs/design-brief.md) — бриф на редизайн
 - [docs/roadmap.md](docs/roadmap.md) — бэклог идей
 

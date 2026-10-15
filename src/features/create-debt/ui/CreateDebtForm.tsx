@@ -1,14 +1,15 @@
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { ContactCombobox } from "@/features/select-contact";
-import { CURRENCY_SYMBOL, SUPPORTED_CURRENCIES } from "@/shared/config/currencies";
+import { Input } from "@/components/ui/input";
+import { DirectionToggle, useDebtStore } from "@/entities/debt";
+import { ContactPicker } from "@/features/select-contact";
 import { COMMON_NS } from "@/shared/i18n";
 import type { CurrencyCode, DebtDirection } from "@/shared/lib/storage";
+import { useKeyboardInset } from "@/shared/lib/use-keyboard-inset";
+import { cn } from "@/shared/lib/utils";
+import { AmountField } from "@/shared/ui/amount-field";
+import { FieldError, FormAlert } from "@/shared/ui/form-message";
 import { useCreateDebt } from "../model/use-create-debt";
 import { CREATE_DEBT_NS } from "../translations";
 
@@ -18,107 +19,137 @@ type Props = {
 	onCancel: () => void;
 };
 
+type Errors = { contact?: string; amount?: string; form?: string };
+
+/**
+ * Экран нового долга на весь экран: шапка «Отмена» / «Новый долг», контакт, направление с подсказкой,
+ * крупная сумма с валютой, заметка и «Создать», закреплённая над клавиатурой.
+ */
 export function CreateDebtForm({ initialContactId, onSuccess, onCancel }: Props) {
 	const { t } = useTranslation(CREATE_DEBT_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
 	const { submit, pending } = useCreateDebt();
+	const contactsById = useDebtStore((s) => s.contactsById);
+	const keyboardInset = useKeyboardInset();
+	const amountId = useId();
+	const amountErrorId = useId();
+	const noteId = useId();
 
 	const [contactId, setContactId] = useState<string | undefined>(initialContactId);
+	const [picking, setPicking] = useState(false);
 	const [direction, setDirection] = useState<DebtDirection>("owed_to_me");
 	const [currency, setCurrency] = useState<CurrencyCode>("RUB");
 	const [amount, setAmount] = useState("");
 	const [note, setNote] = useState("");
-	const [error, setError] = useState<string | null>(null);
+	const [errors, setErrors] = useState<Errors>({});
+
+	const contact = contactId ? contactsById[contactId] : undefined;
 
 	const handleSubmit = async (e: FormEvent) => {
 		e.preventDefault();
-		if (!contactId) {
-			setError(t("errorContactRequired"));
-			return;
-		}
 		const parsedAmount = Number(amount);
-		if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-			setError(t("errorAmountInvalid"));
-			return;
-		}
-		setError(null);
+		const next: Errors = {};
+		if (!contact) next.contact = t("errorContactRequired");
+		if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) next.amount = t("errorAmountInvalid");
+		setErrors(next);
+		if (!contact || next.amount) return;
+
 		const debtId = await submit({
-			contactId,
+			contactId: contact.id,
 			direction,
 			currency,
 			amount: parsedAmount,
 			note: note.trim() || undefined,
 		});
-		if (debtId) {
-			onSuccess(debtId);
-		} else {
-			setError(t("errorGeneric"));
-		}
+		if (debtId) onSuccess(debtId);
+		else setErrors({ form: t("errorGeneric") });
 	};
 
 	return (
-		<form className="flex flex-col gap-4" onSubmit={(e) => void handleSubmit(e)}>
-			<div className="flex flex-col gap-1.5">
-				<Label>{t("contactLabel")}</Label>
-				<ContactCombobox value={contactId} onChange={setContactId} />
-			</div>
-
-			<div className="flex flex-col gap-1.5">
-				<Label>{t("directionLabel")}</Label>
-				<div className="flex gap-2">
-					<Button
+		<form noValidate className="mx-auto flex w-full max-w-xl flex-1 flex-col" onSubmit={(e) => void handleSubmit(e)}>
+			<div className="flex flex-col gap-3.5 pt-[env(safe-area-inset-top,0px)] lg:pt-6">
+				<header className="grid min-h-11 grid-cols-[1fr_auto_1fr] items-center pt-2">
+					<button
 						type="button"
-						className="flex-1"
-						variant={direction === "owed_to_me" ? "default" : "outline"}
-						onClick={() => setDirection("owed_to_me")}
+						onClick={onCancel}
+						className="text-body -ml-1 flex min-h-11 items-center justify-self-start rounded-md px-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
 					>
-						{t("directionOwedToMe")}
-					</Button>
-					<Button
-						type="button"
-						className="flex-1"
-						variant={direction === "i_owe" ? "default" : "outline"}
-						onClick={() => setDirection("i_owe")}
-					>
-						{t("directionIOwe")}
-					</Button>
+						{tCommon("cancel")}
+					</button>
+					<h1 className="text-heading">{t("title")}</h1>
+					<span />
+				</header>
+
+				<ContactPicker
+					value={contact?.id}
+					onChange={(id) => {
+						setContactId(id);
+						setErrors((prev) => ({ ...prev, contact: undefined }));
+					}}
+					onExpandedChange={setPicking}
+					error={errors.contact}
+				/>
+
+				<div className={cn("flex flex-col gap-3.5", picking && "hidden")}>
+					<div className="flex flex-col gap-1.5">
+						<DirectionToggle value={direction} onChange={setDirection} label={t("directionLabel")} />
+						{contact ? (
+							<p
+								className={cn(
+									"text-caption pl-1 font-medium",
+									direction === "owed_to_me" ? "text-owed-to-me-strong" : "text-i-owe-strong",
+								)}
+							>
+								{t(direction === "owed_to_me" ? "hintOwedToMe" : "hintIOwe", { name: contact.name })}
+							</p>
+						) : null}
+					</div>
+
+					<div className="flex flex-col gap-1.5">
+						<AmountField
+							id={amountId}
+							label={t("amountLabel")}
+							value={amount}
+							onValueChange={(raw) => {
+								setAmount(raw);
+								if (errors.amount) setErrors((prev) => ({ ...prev, amount: undefined }));
+							}}
+							currency={currency}
+							onCurrencyChange={setCurrency}
+							currencyTitle={t("currencyTitle")}
+							currencyLabel={(name) => t("currencyLabel", { name })}
+							invalid={Boolean(errors.amount)}
+							describedBy={errors.amount ? amountErrorId : undefined}
+						/>
+						{errors.amount ? <FieldError id={amountErrorId}>{errors.amount}</FieldError> : null}
+					</div>
+
+					<div className="flex flex-col gap-1.5">
+						<label htmlFor={noteId} className="text-caption text-muted-foreground pl-1">
+							{t("noteLabel")}
+						</label>
+						<Input
+							id={noteId}
+							value={note}
+							onChange={(e) => setNote(e.target.value)}
+							placeholder={t("notePlaceholder")}
+							enterKeyHint="done"
+							className="bg-card shadow-card min-h-13 rounded-control px-4"
+						/>
+					</div>
 				</div>
 			</div>
 
-			<div className="grid grid-cols-[1fr_auto] gap-2">
-				<div className="flex flex-col gap-1.5">
-					<Label htmlFor="debt-amount">{t("amountLabel")}</Label>
-					<AmountInput id="debt-amount" placeholder="0" value={amount} onValueChange={setAmount} />
-				</div>
-				<div className="flex flex-col gap-1.5">
-					<Label htmlFor="debt-currency">{t("currencyLabel")}</Label>
-					<Select value={currency} onValueChange={(v) => setCurrency(v as CurrencyCode)}>
-						<SelectTrigger id="debt-currency" className="w-24">
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							{SUPPORTED_CURRENCIES.map((code) => (
-								<SelectItem key={code} value={code}>
-									{CURRENCY_SYMBOL[code]} {code}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</div>
-			</div>
-
-			<div className="flex flex-col gap-1.5">
-				<Label htmlFor="debt-note">{t("noteLabel")}</Label>
-				<Textarea id="debt-note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
-			</div>
-
-			{error ? <p className="text-destructive text-sm">{error}</p> : null}
-
-			<div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-				<Button type="button" variant="outline" onClick={onCancel}>
-					{tCommon("cancel")}
-				</Button>
-				<Button type="submit" disabled={pending}>
+			{/* Над клавиатурой: Chrome сжимает layout (interactive-widget), iOS — отступ по visualViewport. */}
+			<div
+				className={cn(
+					"bg-background sticky z-10 mt-auto -mx-4 flex flex-col gap-2.5 px-4 pt-2.5 pb-3 lg:static lg:mx-0 lg:mt-0 lg:px-0 lg:pt-6",
+					picking && "hidden",
+				)}
+				style={{ bottom: keyboardInset }}
+			>
+				{errors.form ? <FormAlert>{errors.form}</FormAlert> : null}
+				<Button type="submit" variant="accent" size="lg" className="w-full" disabled={pending}>
 					{tCommon("create")}
 				</Button>
 			</div>

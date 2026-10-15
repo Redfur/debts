@@ -8,6 +8,9 @@ export const commonTranslations = {
 		back: "Назад",
 		ok: "Понятно",
 		storageError: "Ошибка хранилища: {{message}}",
+		appName: "Долги",
+		navLabel: "Разделы",
+		localOnly: "Данные хранятся только на этом устройстве",
 		navHome: "Главная",
 		navContacts: "Контакты",
 		navSettings: "Настройки",
@@ -15,7 +18,9 @@ export const commonTranslations = {
 		loadingContacts: "Загрузка контактов",
 		loadingCreateDebt: "Загрузка формы",
 		routeErrorTitle: "Не удалось открыть экран",
-		routeErrorHint: "Возможно, вышла новая версия приложения или прервалась сеть. Обновите страницу.",
+		routeErrorHint:
+			"Ваши данные на месте — что-то пошло не так при показе этого экрана. Обычно помогает обновить страницу.",
 		reloadPage: "Обновить страницу",
+		toHome: "На главную",
 	},
 } as const;
