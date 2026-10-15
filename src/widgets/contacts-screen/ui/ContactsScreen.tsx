@@ -5,7 +5,12 @@ import { ContactRow, ContactRowList, useDebtStore } from "@/entities/debt";
 import { PageHeader, ScreenBody } from "@/shared/layout";
 import { CONTACTS_SCREEN_NS } from "../translations";
 
-export function ContactsScreen() {
+type Props = {
+	/** Выбранный контакт (раскладка «список + карточка» на десктопе). */
+	selectedId?: string;
+};
+
+export function ContactsScreen({ selectedId }: Props) {
 	const { t } = useTranslation(CONTACTS_SCREEN_NS);
 	const hydrated = useDebtStore((s) => s.hydrated);
 	const contactsById = useDebtStore((s) => s.contactsById);
@@ -37,7 +42,7 @@ export function ContactsScreen() {
 				<ContactRowList>
 					{contacts.map((c) => (
 						<li key={c.id}>
-							<ContactRow contact={c} linkState="contacts" />
+							<ContactRow contact={c} linkState="contacts" selected={c.id === selectedId} />
 						</li>
 					))}
 				</ContactRowList>

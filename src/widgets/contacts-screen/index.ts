@@ -4,3 +4,4 @@ import { CONTACTS_SCREEN_NS, contactsScreenTranslations } from "./translations";
 injectTranslation(CONTACTS_SCREEN_NS, contactsScreenTranslations as Record<string, Record<string, string>>);
 
 export { ContactsScreen } from "./ui/ContactsScreen";
+export { ContactsSelectionPlaceholder } from "./ui/ContactsSelectionPlaceholder";

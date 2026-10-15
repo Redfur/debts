@@ -26,6 +26,11 @@ const ContactsPage = lazy(async () => {
 	return { default: m.ContactsPage };
 });
 
+const ContactsIndexPage = lazy(async () => {
+	const m = await import("@/pages/contacts");
+	return { default: m.ContactsIndexPage };
+});
+
 const CreateDebtPage = lazy(async () => {
 	const m = await import("@/pages/create-debt");
 	return { default: m.CreateDebtPage };
@@ -50,15 +55,17 @@ export function AppRoutes() {
 						<ContactsPage />
 					</Suspense>
 				}
-			/>
-			<Route
-				path="/contacts/:contactId"
-				element={
-					<Suspense fallback={<ContactDetailRouteFallback />}>
-						<ContactDetailPage />
-					</Suspense>
-				}
-			/>
+			>
+				<Route index element={<ContactsIndexPage />} />
+				<Route
+					path=":contactId"
+					element={
+						<Suspense fallback={<ContactDetailRouteFallback />}>
+							<ContactDetailPage />
+						</Suspense>
+					}
+				/>
+			</Route>
 			<Route
 				path="/settings"
 				element={

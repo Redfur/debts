@@ -1,47 +1,52 @@
-import type { ReactNode } from "react";
+import { createContext, type ReactNode, useContext } from "react";
 
 import { cn } from "@/shared/lib/utils";
 
-import { STICKY_PAGE_HEADER_SURFACE } from "../lib/sticky-header-surface";
+/**
+ * Содержимое, которое каркас приложения показывает сразу под заголовком любого экрана
+ * (баннер ошибки хранилища). Задаётся в `app`, чтобы `shared` не зависел от сущностей.
+ */
+export const PageHeaderAfterSlot = createContext<ReactNode>(null);
 
 type Props = {
-	/** Кнопка «назад» и т.п. слева */
+	/** Кнопка «назад» и т.п. слева от заголовка (в строке над ним). */
 	leading?: ReactNode;
 	/** Иконка или медиа перед заголовком */
 	media?: ReactNode;
-	/** Заголовок страницы (не используется вместе с `centerContent`) */
+	/** Заголовок страницы */
 	title?: ReactNode;
+	/** Мелкий текст рядом с заголовком (счётчик). */
+	titleAside?: ReactNode;
 	description?: ReactNode;
-	/**
-	 * Центральная зона вместо media + title + description (например **DayNavigation**).
-	 * Заголовок страницы для a11y остаётся отдельно (например `sr-only` `h1` на экране дня).
-	 */
-	centerContent?: ReactNode;
 	/** Кнопки справа */
 	actions?: ReactNode;
 	className?: string;
 };
 
-export function PageHeader({ leading, media, title, description, centerContent, actions, className }: Props) {
-	const useCenter = centerContent != null;
+export function PageHeader({ leading, media, title, titleAside, description, actions, className }: Props) {
+	const after = useContext(PageHeaderAfterSlot);
 
 	return (
-		<div className={cn(STICKY_PAGE_HEADER_SURFACE, "flex flex-wrap gap-2 sm:gap-3 items-center", className)}>
-			{leading ? <div className={cn("flex shrink-0", !useCenter && "items-start pt-0.5")}>{leading}</div> : null}
-			{useCenter ? (
-				<div className="min-w-0 flex-1">{centerContent}</div>
-			) : (
-				<div className="flex min-w-0 flex-1 items-start gap-3">
+		<>
+			<header className={cn("flex flex-col gap-1 pt-[calc(env(safe-area-inset-top,0px)+20px)] lg:pt-9", className)}>
+				{leading ? <div className="-ml-2.5 flex min-h-11 items-center">{leading}</div> : null}
+				<div className="flex min-h-11 items-center gap-3.5">
 					{media ? <div className="shrink-0">{media}</div> : null}
 					<div className="min-w-0 flex-1">
-						<h1 className="text-xl font-semibold wrap-break-word">{title}</h1>
-						{description ? <div className="text-muted-foreground mt-0.5 text-xs">{description}</div> : null}
+						<h1 className="text-title lg:text-title-desktop flex items-baseline gap-2 break-words">
+							<span className="min-w-0">{title}</span>
+							{titleAside ? (
+								<span className="text-muted-foreground text-[17px] leading-6 font-medium tracking-normal">
+									{titleAside}
+								</span>
+							) : null}
+						</h1>
+						{description ? <div className="text-muted-foreground text-caption mt-0.5">{description}</div> : null}
 					</div>
+					{actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
 				</div>
-			)}
-			{actions ? (
-				<div className={cn("flex shrink-0 flex-wrap items-center gap-2", !useCenter && "pt-0.5")}>{actions}</div>
-			) : null}
-		</div>
+			</header>
+			{after}
+		</>
 	);
 }

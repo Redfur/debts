@@ -1,7 +1,6 @@
 import { ChevronLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { Button } from "@/components/ui/button";
 import { cn } from "@/shared/lib/utils";
 
 type Props = {
@@ -11,23 +10,19 @@ type Props = {
 	className?: string;
 };
 
-/** Стиль «системной» кнопки назад: без рамки (в отличие от outline у навигации по дням). */
+/** Кнопка «назад» 44×44 без фона. */
 export function PageHeaderBackLink({ to, ariaLabel, replace, className }: Props) {
 	return (
-		<Button
-			type="button"
-			variant="ghost"
-			size="icon"
+		<Link
+			to={to}
+			replace={replace}
+			aria-label={ariaLabel}
 			className={cn(
-				"text-muted-foreground hover:bg-transparent hover:text-foreground active:bg-transparent",
-				"-ml-2 sm:-ml-1",
+				"text-foreground flex size-11 items-center justify-center rounded-full outline-none hover:bg-secondary focus-visible:ring-2 focus-visible:ring-ring",
 				className,
 			)}
-			asChild
 		>
-			<Link to={to} replace={replace} aria-label={ariaLabel}>
-				<ChevronLeft className="size-6" strokeWidth={2.25} />
-			</Link>
-		</Button>
+			<ChevronLeft className="size-6" strokeWidth={2.2} aria-hidden="true" />
+		</Link>
 	);
 }
