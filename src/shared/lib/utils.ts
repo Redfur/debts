@@ -3,7 +3,8 @@ import { extendTailwindMerge } from "tailwind-merge";
 
 /**
  * tailwind-merge с утилитами дизайн-системы из `src/index.css`: без этого `text-amount-xl` и т.п.
- * считались бы цветом текста и выбрасывались рядом с `text-muted-foreground`.
+ * считались бы цветом текста и выбрасывались рядом с `text-muted-foreground`,
+ * а `rounded-control` не заменял бы `rounded-full` из базовых классов компонента.
  */
 const twMerge = extendTailwindMerge({
 	extend: {
@@ -24,6 +25,7 @@ const twMerge = extendTailwindMerge({
 					],
 				},
 			],
+			rounded: [{ rounded: ["chip", "field", "control", "card", "sheet"] }],
 		},
 	},
 });

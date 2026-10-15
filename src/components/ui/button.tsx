@@ -24,6 +24,9 @@ const buttonVariants = cva(
 				outline: "bg-secondary text-secondary-foreground hover:bg-muted active:bg-muted aria-expanded:bg-muted",
 				/** Необратимые действия («Удалить», «Заменить данные»). */
 				destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80",
+				/** Мягкая опасная кнопка в строках сброса на десктопе («Удалить данные»). */
+				"destructive-soft":
+					"bg-destructive-muted text-destructive-strong hover:bg-destructive-muted/80 active:bg-destructive-muted/70",
 				/** Текстовое опасное действие внутри строк. */
 				"destructive-ghost": "bg-transparent text-destructive hover:bg-destructive-muted active:bg-destructive-muted",
 				ghost: "bg-transparent hover:bg-secondary hover:text-foreground aria-expanded:bg-secondary",

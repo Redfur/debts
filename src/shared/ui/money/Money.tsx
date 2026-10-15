@@ -1,17 +1,6 @@
-import { formatMoney, formatMoneyBreakdown } from "@/shared/lib/format-amount";
+import { formatMoneyBreakdown } from "@/shared/lib/format-amount";
 import type { CurrencyCode } from "@/shared/lib/storage";
 import { cn } from "@/shared/lib/utils";
-
-type MoneyProps = {
-	amount: number;
-	currency: CurrencyCode;
-	className?: string;
-};
-
-/** Сумма с символом валюты: табличные цифры, без переноса между числом и символом. */
-export function Money({ amount, currency, className }: MoneyProps) {
-	return <span className={cn("whitespace-nowrap tabular-nums", className)}>{formatMoney(amount, currency)}</span>;
-}
 
 type CurrencyBreakdownProps = {
 	byCurrency: Partial<Record<CurrencyCode, number>>;

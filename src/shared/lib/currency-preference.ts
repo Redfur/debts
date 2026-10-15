@@ -35,6 +35,16 @@ export function setDisplayCurrency(currency: CurrencyCode): void {
 	}
 }
 
+/** Сообщает подписчикам, что сохранённая валюта сброшена к значению по умолчанию. */
+export function notifyDisplayCurrencyReset(): void {
+	if (typeof window === "undefined") return;
+	window.dispatchEvent(
+		new CustomEvent<DisplayCurrencyChangeDetail>(DISPLAY_CURRENCY_CHANGE_EVENT, {
+			detail: { currency: DEFAULT_DISPLAY_CURRENCY },
+		}),
+	);
+}
+
 /** Валюта отображения агрегатов с подпиской на изменение в других частях приложения. */
 export function useDisplayCurrency(): CurrencyCode {
 	const [currency, setCurrency] = useState<CurrencyCode>(() => getDisplayCurrency());

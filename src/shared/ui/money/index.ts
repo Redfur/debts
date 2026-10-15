@@ -1,1 +1,1 @@
-export { CurrencyBreakdown, Money } from "./Money";
+export { CurrencyBreakdown } from "./Money";

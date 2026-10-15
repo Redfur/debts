@@ -16,7 +16,6 @@ export type {
 	ContactTotals,
 	Debt,
 	DebtOperation,
-	NetPosition,
 } from "./model/types";
 export { useDebtOperations } from "./model/use-debt-operations";
 export { AmountPill } from "./ui/AmountPill";
