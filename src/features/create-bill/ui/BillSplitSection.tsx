@@ -10,7 +10,7 @@ import {
 	fromCents,
 	ME_REF,
 	ParticipantAvatar,
-	TransferRow,
+	TransferList,
 	toCents,
 	useParticipantName,
 } from "@/entities/debt";
@@ -211,19 +211,9 @@ export function BillSplitSection({ form }: { form: BillFormApi }) {
 							{t("transfers")} <span className="text-muted-foreground font-medium">{transfers.length || null}</span>
 						</h2>
 						{transfers.length > 0 ? (
-							<ul>
-								{transfers.map((tr, index) => (
-									<TransferRow
-										key={`${tr.from}-${tr.to}`}
-										from={nameOf(tr.from)}
-										to={nameOf(tr.to)}
-										amount={tr.amount}
-										currency={currency}
-										mine={tr.to === ME_REF ? "in" : tr.from === ME_REF ? "out" : null}
-										className={cn("min-h-11", index > 0 && "border-t")}
-									/>
-								))}
-							</ul>
+							<div className="pt-1.5">
+								<TransferList transfers={transfers} currency={currency} compact />
+							</div>
 						) : (
 							<p className="text-caption text-muted-foreground pb-2.5">{t("noTransfers")}</p>
 						)}

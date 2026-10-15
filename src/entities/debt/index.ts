@@ -39,7 +39,7 @@ export {
 	BillLink,
 	BillRow,
 	BillStatusBadge,
-	TransferRow,
+	TransferList,
 } from "./ui/BillParts";
 export { ContactAvatar } from "./ui/ContactAvatar";
 export { ContactRow, ContactRowList } from "./ui/ContactRow";

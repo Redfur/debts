@@ -9,6 +9,8 @@ import {
 	type BillSplitMode,
 	type BillStatus,
 	type BillTransfer,
+	type BillTransferGroup,
+	type BillTransferGrouping,
 	type BillValidation,
 	type BillValidationError,
 	ME_REF,
@@ -92,6 +94,22 @@ export function computeBillTransfers(draft: BillDraft): BillTransfer[] | null {
 		to: t.to,
 		amount: fromCents(t.cents),
 	}));
+}
+
+/** Группы «Кто кому переводит»: по отправителю или получателю; «Я» — первая группа, остальные — в порядке переводов. */
+export function groupBillTransfers(transfers: BillTransfer[], by: BillTransferGrouping): BillTransferGroup[] {
+	const groups: BillTransferGroup[] = [];
+	for (const t of transfers) {
+		const ref = by === "from" ? t.from : t.to;
+		let group = groups.find((g) => g.ref === ref);
+		if (!group) {
+			group = { ref, transfers: [], total: 0 };
+			groups.push(group);
+		}
+		group.transfers.push(t);
+		group.total = fromCents(toCents(group.total) + toCents(t.amount));
+	}
+	return groups.sort((a, b) => Number(b.ref === ME_REF) - Number(a.ref === ME_REF));
 }
 
 /** Переводы с «Я» → долги пользователя. */

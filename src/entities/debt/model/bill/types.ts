@@ -27,6 +27,16 @@ export type BillTransfer = {
 	amount: number;
 };
 
+/** Как группировать «Кто кому переводит»: по отправителю или по получателю. */
+export type BillTransferGrouping = "from" | "to";
+
+export type BillTransferGroup = {
+	/** `ref` отправителя или получателя — общий для переводов группы. */
+	ref: string;
+	transfers: BillTransfer[];
+	total: number;
+};
+
 /** Долг пользователя, который даёт перевод с «Я». */
 export type MyBillDebt = {
 	contactId: string;

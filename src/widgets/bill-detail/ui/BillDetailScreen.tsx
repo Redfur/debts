@@ -14,7 +14,7 @@ import {
 	type Debt,
 	ME_REF,
 	ParticipantAvatar,
-	TransferRow,
+	TransferList,
 	useBillDebts,
 	useDebtStore,
 	useParticipantName,
@@ -45,8 +45,9 @@ function findDebt(transfer: BillTransfer, debts: Debt[]): Debt | undefined {
 }
 
 /**
- * Экран счёта — он же «скриншот для чата»: итог, «Кто кому переводит» (мои переводы — с ролью направления
- * и «✓ погашен»), участники с оплатой и долей, пояснение о статусе, «Закрыть / Открыть счёт» и «Удалить счёт».
+ * Экран счёта — он же «скриншот для чата»: итог, «Кто кому переводит» (группы по отправителю или получателю,
+ * мои переводы — с ролью направления и «✓ погашен»), участники с оплатой и долей, пояснение о статусе,
+ * «Закрыть / Открыть счёт» и «Удалить счёт».
  */
 export function BillDetailScreen({ bill, backTo }: Props) {
 	const { t } = useTranslation(BILL_DETAIL_NS);
@@ -177,41 +178,13 @@ export function BillDetailScreen({ bill, backTo }: Props) {
 								<span className="text-caption text-muted-foreground">{t("noTransfersBody")}</span>
 							</p>
 						) : (
-							<ul>
-								{transfers.map((tr, index) => {
-									const mine = tr.to === ME_REF ? "in" : tr.from === ME_REF ? "out" : null;
-									const debt = mine ? findDebt(tr, debts) : undefined;
-									const repaid = debt?.status === "closed";
-									return (
-										<TransferRow
-											key={`${tr.from}-${tr.to}`}
-											from={nameOf(tr.from)}
-											to={nameOf(tr.to)}
-											amount={tr.amount}
-											currency={bill.currency}
-											mine={mine}
-											repaid={repaid}
-											caption={
-												mine ? (
-													<span
-														className={cn(
-															"font-medium",
-															repaid
-																? "text-muted-foreground"
-																: mine === "in"
-																	? "text-owed-to-me-strong"
-																	: "text-i-owe-strong",
-														)}
-													>
-														{repaid ? t("transferRepaid") : t(mine === "in" ? "transferToMe" : "transferFromMe")}
-													</span>
-												) : undefined
-											}
-											className={cn("min-h-15", index > 0 && "border-t")}
-										/>
-									);
-								})}
-							</ul>
+							<div className="pt-1">
+								<TransferList
+									transfers={transfers}
+									currency={bill.currency}
+									isRepaid={(tr) => findDebt(tr, debts)?.status === "closed"}
+								/>
+							</div>
 						)}
 					</section>
 				</div>

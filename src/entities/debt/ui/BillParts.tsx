@@ -1,16 +1,19 @@
-import { ArrowRight, Check, ChevronRight, ReceiptText } from "lucide-react";
-import type { ReactNode } from "react";
+import { Check, ChevronRight, ReceiptText } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import { formatMoney } from "@/shared/lib/format-amount";
 import { formatShortDate } from "@/shared/lib/format-date";
 import { formatPeopleCount } from "@/shared/lib/format-people-count";
 import type { CurrencyCode } from "@/shared/lib/storage";
 import { cn } from "@/shared/lib/utils";
-import type { Bill } from "../model/bill/types";
+import { groupBillTransfers } from "../model/bill/compute-bill";
+import { type Bill, type BillTransfer, type BillTransferGrouping, ME_REF } from "../model/bill/types";
 import { ENTITY_DEBT_NS } from "../translations";
 import { AmountPill } from "./AmountPill";
+import { ParticipantAvatar, useParticipantName } from "./BillParticipant";
 
 /** Откуда открыт экран счёта — определяет «назад». */
 export type BillLinkState = { from: "home" } | { from: "contact"; contactId: string };
@@ -95,50 +98,127 @@ export function BillRow({ bill, totals, currency, closed }: RowProps) {
 	);
 }
 
-type TransferRowProps = {
-	from: string;
-	to: string;
-	amount: number;
+type TransferListProps = {
+	transfers: BillTransfer[];
 	currency: CurrencyCode;
-	/** Перевод с «Я»: `in` — мне, `out` — от меня; `null` — между другими участниками. */
-	mine: "in" | "out" | null;
-	/** Подпись под строкой («✓ погашен», «переведёт вам»). */
-	caption?: ReactNode;
-	/** Связанный долг погашен: сумма приглушена, без знака. */
-	repaid?: boolean;
-	className?: string;
+	/** Связанный с моим переводом долг погашен: сумма приглушена, без знака, подпись «✓ погашен». */
+	isRepaid?: (transfer: BillTransfer) => boolean;
+	/** Плотнее — для формы счёта. */
+	compact?: boolean;
 };
 
-/** Строка «<кто> → <кому>» и сумма: мои переводы — со знаком и цветом направления, чужие — нейтрально. */
-export function TransferRow({ from, to, amount, currency, mine, caption, repaid, className }: TransferRowProps) {
+/**
+ * «Кто кому переводит»: переключатель «Кто переводит / Кто получает» и группы по отправителю («кому:», «всего» —
+ * если переводов больше одного) или по получателю («от:», «<имя> получит»). Мои переводы — со знаком и цветом
+ * направления, чужие — нейтрально.
+ */
+export function TransferList({ transfers, currency, isRepaid, compact }: TransferListProps) {
 	const { t } = useTranslation(ENTITY_DEBT_NS);
+	const nameOf = useParticipantName();
+	const [by, setBy] = useState<BillTransferGrouping>("from");
+	const groups = groupBillTransfers(transfers, by);
+
+	const groupTitle = (ref: string) => {
+		if (by === "from") return ref === ME_REF ? t("transferGroupFromMe") : nameOf(ref);
+		return ref === ME_REF ? t("transferGroupToMe") : t("transferGroupTo", { name: nameOf(ref) });
+	};
+	const counterpart = (tr: BillTransfer) => {
+		const ref = by === "from" ? tr.to : tr.from;
+		if (ref !== ME_REF) return nameOf(ref);
+		return by === "from" ? t("transferWhoToMe") : t("transferWhoFromMe");
+	};
+
 	return (
-		<li className={cn("flex min-h-13 items-center gap-3 py-2", className)}>
-			<span className="flex min-w-0 flex-1 flex-col gap-0.5">
-				<span className="text-body flex flex-wrap items-center gap-x-1.5 font-medium">
-					<span className="break-words">{from}</span>
-					<ArrowRight
-						className="text-muted-foreground size-4 shrink-0"
-						strokeWidth={2.2}
-						aria-label={t("transferTo")}
-					/>
-					<span className="break-words">{to}</span>
-				</span>
-				{caption ? <span className="text-caption text-muted-foreground">{caption}</span> : null}
-			</span>
-			{mine && !repaid ? (
-				<AmountPill amount={amount} currency={currency} direction={mine === "in" ? "owed_to_me" : "i_owe"} />
-			) : (
-				<span
-					className={cn(
-						"text-body shrink-0 font-semibold whitespace-nowrap tabular-nums",
-						repaid && "text-muted-foreground",
-					)}
-				>
-					{formatMoney(amount, currency)}
-				</span>
-			)}
-		</li>
+		<div className="flex flex-col">
+			<SegmentedControl
+				aria-label={t("transferGroupingLabel")}
+				value={by}
+				onValueChange={(next) => setBy(next === "to" ? "to" : "from")}
+				className="mb-1 rounded-2xl"
+			>
+				<SegmentedControlItem value="from" className={cn("rounded-xl", compact ? "min-h-9 text-[13px]" : "min-h-10")}>
+					{t("transferGroupingFrom")}
+				</SegmentedControlItem>
+				<SegmentedControlItem value="to" className={cn("rounded-xl", compact ? "min-h-9 text-[13px]" : "min-h-10")}>
+					{t("transferGroupingTo")}
+				</SegmentedControlItem>
+			</SegmentedControl>
+			<ul>
+				{groups.map((group, index) => {
+					const showTotal = by === "to" || group.transfers.length > 1;
+					return (
+						<li key={group.ref} className={cn(compact ? "py-2" : "py-2.5", index > 0 && "border-t")}>
+							<div className={cn("flex items-center gap-2.5", compact ? "min-h-7" : "min-h-8")}>
+								<ParticipantAvatar
+									participantRef={group.ref}
+									className={compact ? "size-6 text-[11px]" : "size-7 text-xs"}
+								/>
+								<span
+									className={cn(
+										"min-w-0 flex-1 font-semibold break-words",
+										compact ? "text-sm leading-5" : "text-[15px] leading-5",
+									)}
+								>
+									{groupTitle(group.ref)}
+								</span>
+								{showTotal ? (
+									<span
+										className={cn(
+											"shrink-0 whitespace-nowrap tabular-nums",
+											by === "from"
+												? "text-caption text-muted-foreground"
+												: cn("font-semibold", compact ? "text-sm" : "text-[15px]"),
+										)}
+									>
+										{by === "from"
+											? t("transferGroupTotal", { amount: formatMoney(group.total, currency) })
+											: formatMoney(group.total, currency)}
+									</span>
+								) : null}
+							</div>
+							<ul className={compact ? "pl-[34px]" : "pl-[38px]"}>
+								{group.transfers.map((tr) => {
+									const mine = tr.to === ME_REF ? "owed_to_me" : tr.from === ME_REF ? "i_owe" : null;
+									const repaid = mine !== null && (isRepaid?.(tr) ?? false);
+									return (
+										<li
+											key={`${tr.from}-${tr.to}`}
+											className={cn("flex items-center gap-2 py-0.5", compact ? "min-h-8" : "min-h-9")}
+										>
+											<span className="flex min-w-0 flex-1 flex-col">
+												<span className="text-muted-foreground text-sm leading-5 break-words">
+													{t(by === "from" ? "transferToLabel" : "transferFromLabel")}{" "}
+													<span className="text-foreground font-medium">{counterpart(tr)}</span>
+												</span>
+												{repaid ? (
+													<span className="text-caption text-muted-foreground inline-flex items-center gap-1">
+														<Check className="size-3" strokeWidth={2.8} aria-hidden="true" />
+														{t("transferRepaid")}
+													</span>
+												) : null}
+											</span>
+											{mine && !repaid ? (
+												<AmountPill amount={tr.amount} currency={currency} direction={mine} />
+											) : (
+												<span
+													className={cn(
+														"shrink-0 font-semibold whitespace-nowrap tabular-nums",
+														compact ? "text-sm" : "text-[15px]",
+														repaid && "text-muted-foreground",
+													)}
+												>
+													{formatMoney(tr.amount, currency)}
+												</span>
+											)}
+										</li>
+									);
+								})}
+							</ul>
+						</li>
+					);
+				})}
+			</ul>
+		</div>
 	);
 }
 
