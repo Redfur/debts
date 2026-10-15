@@ -8,7 +8,7 @@
 - IndexedDB `debts` версии 1 (`src/shared/lib/storage/indexed-db-adapter.ts`), `meta.schemaVersion = 1`, миграций ещё не было. `StorageAdapter` (`contract.ts`) пишет по одной записи, атомарен только `replaceAll` и каскадный `deleteDebt`.
 - Резервная копия `version: 1` (`backup.ts`), восстановление — `wipeAppIndexedDatabase()` + запись всего.
 - FSD: `app → pages → widgets → features → entities → shared`, импорт только через `index.ts` слайса.
-- Макеты счёта — концепт; экраны строятся по `design-brief.md` этого change после макетов.
+- Экраны — по макетам холста «Долги — макеты», нарисованным по `design-brief.md` этого change; компоненты счёта — на артборде «Компоненты счёта», новых токенов нет.
 
 ## Goals / Non-Goals
 
@@ -74,7 +74,7 @@ Contact (1) --< (N) Debt (1) --< (N) DebtOperation
 | `shared/lib/storage` | `schema.ts` (`PersistedBill`, `billId`), `indexed-db-adapter.ts` (v2), `contract.ts` (`getAllBills`, `putBillWithDebts`, `deleteBillCascade`, `replaceAll` с `bills`), `backup.ts` (v2, чтение v1) |
 | `shared/lib/settlement` | `minimizeTransfers` |
 | `entities/debt` | `model/bill/*`; в сторе `billsById` и actions `createBill`, `updateBill`, `deleteBill`, `setBillManualClosed`; UI `BillRow`, `BillMyPart` (плашка «+X / −X / без меня»), `BillLink` (метка «Из счёта») |
-| `features/create-bill` | двухшаговая форма (`BillForm`), режим создания и изменения; переиспользует `select-contact` (мультивыбор — новый проп `ContactPicker`), `shared/ui/AmountField`, `CurrencyPicker`, `components/ui/segmented-control` |
+| `features/create-bill` | форма (`BillForm`) в режимах создания, изменения и изменения после погашений: одно состояние формы, раскладка по ширине — два шага на мобильном (шаг в state, не в маршруте), две колонки от 1024 px; шторка «Кто заплатил» (`PayerSheet`, `Dialog`); «Раскидать поровну» хранит предыдущие суммы для «Отменить» в тосте Sonner; переиспользует `select-contact` (мультивыбор — новый режим `ContactPicker` с экраном «Участники»), `shared/ui/AmountField`, `CurrencyPicker`, `components/ui/segmented-control` |
 | `features/delete-bill` | `showDeleteBillConfirm` поверх `ConfirmActionModal` |
 | `features/toggle-bill-closed` | кнопка «Закрыть / Открыть счёт» |
 | `widgets/bill-detail` | экран счёта |
@@ -120,14 +120,9 @@ Contact (1) --< (N) Debt (1) --< (N) DebtOperation
 - [Старые версии приложения не прочитают копию v2] → указано в CHANGELOG как изменение формата; актуальная версия обновляется через PWA-уведомление.
 - [Удаление долга удаляет весь счёт — неожиданно для пользователя] → отдельный текст подтверждения с названием счёта и числом долгов; альтернатива (отвязать долг) ломает итог «Кто кому переводит».
 - [Контакты-участники без долгов засоряют «Контакты»] → осознанно: экран показывает «Нет долгов»; управление контактами — отдельный пункт roadmap.
-- [Тексты интерфейса в specs — до макетов] → первая UI-задача сверяет specs с макетами по брифу и правит их через `/opsx:update`.
+- [Макеты склоняют имена контактов («Заплатила», «рассчитается с Анной», «Вы должны Анне»), а пол и падежные формы имени не хранятся] → нужна формулировка без склонения имени; выбор за пользователем, до него UI-задачи с этими подписями не начинаются. Собирательные числительные («на четверых») от имён не зависят: до 10 — словом, дальше «на N человек» (`shared/lib/format-people-count`).
 
 ## Migration Plan
 
 1. Выпуск с `DB_VERSION = 2`: при первом открытии IndexedDB выполняет `upgrade`, данные не переписываются.
 2. Откат на версию без счетов невозможен на том же профиле: IndexedDB v2 не откроется кодом с `DB_VERSION = 1` (VersionError). Путь отката — экспорт копии и импорт в новую версию. В CHANGELOG — заметка о формате.
-
-## Open Questions
-
-- Меню «+» на десктопе: всплывающее у кнопки в углу или пунктами в боковом меню — решается в макетах, на модель и задачи не влияет.
-- Один экран формы вместо двух шагов — вопрос брифа; если макеты предложат один экран, меняются только тексты шагов в spec `bills`.
