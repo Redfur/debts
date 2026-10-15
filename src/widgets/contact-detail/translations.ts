@@ -4,7 +4,8 @@ export const contactDetailTranslations = {
 	ru: {
 		backToHome: "На главную",
 		notFoundTitle: "Контакт не найден",
-		notFoundBody: "Возможно, он был удалён вместе с последним долгом.",
+		notFoundBody:
+			"Такого контакта нет на этом устройстве. Возможно, ссылка устарела или данные были очищены либо заменены резервной копией.",
 		owedToMeTitle: "Должен вам",
 		owedByMeTitle: "Вы должны",
 		addDebtAction: "Добавить долг",
@@ -15,7 +16,6 @@ export const contactDetailTranslations = {
 		repayAction: "Погасить",
 		deleteDebtConfirmTitle: "Удалить долг?",
 		deleteDebtConfirmBody: "Долг и вся история операций по нему будут удалены без возможности восстановления.",
-		historyTitle: "История",
 		historyShow: "Показать историю ({{count}})",
 		historyHide: "Скрыть историю",
 		operationInitial: "Создание долга",

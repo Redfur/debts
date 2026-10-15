@@ -1,6 +1,7 @@
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +24,7 @@ type Props = {
 export function DebtCard({ debt, operations, onDelete }: Props) {
 	const { t } = useTranslation(CONTACT_DETAIL_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
+	const [historyOpen, setHistoryOpen] = useState(false);
 
 	const balance = computeDebtBalance(debt, operations);
 	const progress = debt.principalAmount > 0 ? ((debt.principalAmount - balance) / debt.principalAmount) * 100 : 0;
@@ -85,7 +87,7 @@ export function DebtCard({ debt, operations, onDelete }: Props) {
 					</>
 				) : null}
 
-				<Collapsible>
+				<Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
 					<CollapsibleTrigger asChild>
 						<Button
 							type="button"
@@ -93,7 +95,7 @@ export function DebtCard({ debt, operations, onDelete }: Props) {
 							size="sm"
 							className="h-auto w-fit justify-start px-0 text-muted-foreground text-xs font-medium hover:bg-transparent"
 						>
-							{t("historyShow", { count: operations.length })}
+							{historyOpen ? t("historyHide") : t("historyShow", { count: operations.length })}
 						</Button>
 					</CollapsibleTrigger>
 					<CollapsibleContent className="flex flex-col gap-2 border-t pt-2">
