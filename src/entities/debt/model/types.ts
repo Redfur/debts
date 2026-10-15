@@ -22,3 +22,27 @@ export type GlobalTotals = {
 	owedToMeByCurrency: Partial<Record<Debt["currency"], number>>;
 	owedByMeByCurrency: Partial<Record<Debt["currency"], number>>;
 };
+
+/** Остаток одного направления: в валюте итогов (`null` — нет курса) и по исходным валютам. */
+export type DirectionTotal = {
+	converted: number | null;
+	byCurrency: Partial<Record<Debt["currency"], number>>;
+};
+
+export type ContactTotals = {
+	owedToMe: DirectionTotal;
+	owedByMe: DirectionTotal;
+	/** Есть хотя бы один активный долг. */
+	hasActive: boolean;
+	/** Есть хотя бы один погашенный долг. */
+	hasClosed: boolean;
+};
+
+export type NetPosition = {
+	kind: "owed-to-me" | "i-owe" | "balanced" | "none";
+	/** Разница по модулю в валюте итогов. */
+	diff: number;
+};
+
+/** Вкладка фильтра на главной. */
+export type ContactDirectionFilter = "all" | "owed-to-me" | "i-owe";

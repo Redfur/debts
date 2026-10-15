@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Progress } from "@/components/ui/progress";
-import { computeDebtBalance, type Debt, type DebtOperation } from "@/entities/debt";
+import { computeDebtBalance, type Debt, type DebtOperation, ENTITY_DEBT_NS } from "@/entities/debt";
 import { showAddRepaymentDialog } from "@/features/add-repayment";
 import { showEditDebtDialog } from "@/features/edit-debt";
 import { CURRENCY_SYMBOL } from "@/shared/config/currencies";
@@ -24,11 +24,12 @@ type Props = {
 export function DebtCard({ debt, operations, onDelete }: Props) {
 	const { t } = useTranslation(CONTACT_DETAIL_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
+	const { t: tDebt } = useTranslation(ENTITY_DEBT_NS);
 	const [historyOpen, setHistoryOpen] = useState(false);
 
 	const balance = computeDebtBalance(debt, operations);
 	const progress = debt.principalAmount > 0 ? ((debt.principalAmount - balance) / debt.principalAmount) * 100 : 0;
-	const directionLabel = debt.direction === "owed_to_me" ? t("owedToMeTitle") : t("owedByMeTitle");
+	const directionLabel = debt.direction === "owed_to_me" ? tDebt("directionOwedToMe") : tDebt("directionIOwe");
 
 	return (
 		<Card>
@@ -42,7 +43,7 @@ export function DebtCard({ debt, operations, onDelete }: Props) {
 					</div>
 					<div className="flex shrink-0 items-center gap-1">
 						{debt.status === "closed" ? (
-							<span className="text-muted-foreground text-xs">{t("statusClosed")}</span>
+							<span className="text-muted-foreground text-xs">{tDebt("statusClosed")}</span>
 						) : null}
 						<Button
 							type="button"

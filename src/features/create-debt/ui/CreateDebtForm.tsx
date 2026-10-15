@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ENTITY_DEBT_NS } from "@/entities/debt";
 import { ContactCombobox } from "@/features/select-contact";
 import { CURRENCY_SYMBOL, SUPPORTED_CURRENCIES } from "@/shared/config/currencies";
 import { COMMON_NS } from "@/shared/i18n";
@@ -21,6 +22,7 @@ type Props = {
 export function CreateDebtForm({ initialContactId, onSuccess, onCancel }: Props) {
 	const { t } = useTranslation(CREATE_DEBT_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
+	const { t: tDebt } = useTranslation(ENTITY_DEBT_NS);
 	const { submit, pending } = useCreateDebt();
 
 	const [contactId, setContactId] = useState<string | undefined>(initialContactId);
@@ -72,7 +74,7 @@ export function CreateDebtForm({ initialContactId, onSuccess, onCancel }: Props)
 						variant={direction === "owed_to_me" ? "default" : "outline"}
 						onClick={() => setDirection("owed_to_me")}
 					>
-						{t("directionOwedToMe")}
+						{tDebt("directionOwedToMe")}
 					</Button>
 					<Button
 						type="button"
@@ -80,7 +82,7 @@ export function CreateDebtForm({ initialContactId, onSuccess, onCancel }: Props)
 						variant={direction === "i_owe" ? "default" : "outline"}
 						onClick={() => setDirection("i_owe")}
 					>
-						{t("directionIOwe")}
+						{tDebt("directionIOwe")}
 					</Button>
 				</div>
 			</div>

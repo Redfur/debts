@@ -1,6 +1,6 @@
-import { convertAmount } from "@/shared/lib/exchange-rate";
 import { roundAmount } from "@/shared/lib/round-amount";
 import type { CurrencyCode, ExchangeRatesCache } from "@/shared/lib/storage";
+import { convertByCurrency } from "./compute-contact-totals";
 import { computeDebtBalance } from "./compute-debt-balance";
 import type { Debt, DebtOperation, GlobalTotals } from "./types";
 
@@ -22,19 +22,9 @@ export function computeGlobalTotals(
 		bucket[debt.currency] = roundAmount((bucket[debt.currency] ?? 0) + balance);
 	}
 
-	const sumConverted = (byCurrency: Partial<Record<CurrencyCode, number>>): number | null => {
-		let total = 0;
-		for (const [currency, amount] of Object.entries(byCurrency) as [CurrencyCode, number][]) {
-			const converted = convertAmount(amount, currency, displayCurrency, ratesCache);
-			if (converted === null) return null;
-			total += converted;
-		}
-		return roundAmount(total);
-	};
-
 	return {
-		totalOwedToMeConverted: sumConverted(owedToMeByCurrency),
-		totalOwedByMeConverted: sumConverted(owedByMeByCurrency),
+		totalOwedToMeConverted: convertByCurrency(owedToMeByCurrency, ratesCache, displayCurrency),
+		totalOwedByMeConverted: convertByCurrency(owedByMeByCurrency, ratesCache, displayCurrency),
 		owedToMeByCurrency,
 		owedByMeByCurrency,
 	};

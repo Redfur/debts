@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useDebtOperations, useDebtStore } from "@/entities/debt";
+import { ENTITY_DEBT_NS, useDebtOperations, useDebtStore } from "@/entities/debt";
 import { CURRENCY_SYMBOL, SUPPORTED_CURRENCIES } from "@/shared/config/currencies";
 import { COMMON_NS } from "@/shared/i18n";
 import type { CurrencyCode, DebtDirection } from "@/shared/lib/storage";
@@ -21,6 +21,7 @@ type Props = {
 const EditDebtDialogComponent = NiceModal.create(({ debtId }: Props) => {
 	const { t } = useTranslation(EDIT_DEBT_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
+	const { t: tDebt } = useTranslation(ENTITY_DEBT_NS);
 	const modal = useModal();
 	const { submit, pending } = useEditDebt();
 
@@ -99,7 +100,7 @@ const EditDebtDialogComponent = NiceModal.create(({ debtId }: Props) => {
 								variant={direction === "owed_to_me" ? "default" : "outline"}
 								onClick={() => setDirection("owed_to_me")}
 							>
-								{t("directionOwedToMe")}
+								{tDebt("directionOwedToMe")}
 							</Button>
 							<Button
 								type="button"
@@ -108,7 +109,7 @@ const EditDebtDialogComponent = NiceModal.create(({ debtId }: Props) => {
 								variant={direction === "i_owe" ? "default" : "outline"}
 								onClick={() => setDirection("i_owe")}
 							>
-								{t("directionIOwe")}
+								{tDebt("directionIOwe")}
 							</Button>
 						</div>
 					</div>

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { type Contact, ContactAvatar, computeContactSummary, useDebtStore } from "@/entities/debt";
+import { type Contact, ContactAvatar, computeContactSummary, ENTITY_DEBT_NS, useDebtStore } from "@/entities/debt";
 import { CURRENCY_SYMBOL, type SUPPORTED_CURRENCIES } from "@/shared/config/currencies";
 import { COMMON_NS } from "@/shared/i18n";
 import { PageHeader, PageHeaderBackLink, ScreenBody } from "@/shared/layout";
@@ -26,6 +26,7 @@ function formatBreakdown(byCurrency: Partial<Record<(typeof SUPPORTED_CURRENCIES
 export function ContactDetailScreen({ contact }: Props) {
 	const { t } = useTranslation(CONTACT_DETAIL_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
+	const { t: tDebt } = useTranslation(ENTITY_DEBT_NS);
 	const location = useLocation();
 	const debtsById = useDebtStore((s) => s.debtsById);
 	const operationsByDebtId = useDebtStore((s) => s.operationsByDebtId);
@@ -74,7 +75,7 @@ export function ContactDetailScreen({ contact }: Props) {
 			<div className="grid gap-3 sm:grid-cols-2">
 				<Card>
 					<CardHeader className="pb-2">
-						<CardTitle className="text-sm font-medium">{t("owedToMeTitle")}</CardTitle>
+						<CardTitle className="text-sm font-medium">{tDebt("directionOwedToMe")}</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<p className="text-xl font-semibold">{formatBreakdown(summary.owedToMeByCurrency)}</p>
@@ -82,7 +83,7 @@ export function ContactDetailScreen({ contact }: Props) {
 				</Card>
 				<Card>
 					<CardHeader className="pb-2">
-						<CardTitle className="text-sm font-medium">{t("owedByMeTitle")}</CardTitle>
+						<CardTitle className="text-sm font-medium">{tDebt("directionIOwe")}</CardTitle>
 					</CardHeader>
 					<CardContent>
 						<p className="text-xl font-semibold">{formatBreakdown(summary.owedByMeByCurrency)}</p>

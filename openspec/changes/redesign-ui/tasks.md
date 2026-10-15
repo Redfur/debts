@@ -16,10 +16,10 @@
 
 ## 2. Сущность `debt`
 
-- [ ] 2.1 Добавить `computeContactTotals`, `computeNetPosition`, `countContactsByDirection` в `entities/debt/model` и экспортировать их через `index.ts`; проверить в карточке Димы (1 500 ¥ и 380 €) при курсе из кэша, что суммы сходятся с ручным пересчётом
-- [ ] 2.2 Перенести подписи направлений и фразы чистой позиции («Вам должны на {{amount}} больше», «Вы должны на {{amount}} больше», «Долги уравновешены», «Вам никто не должен», «Вы никому не должны») в `entities/debt/translations.ts`; удалить дубли из слайсов; проверить `grep -rnE "Вам должны:|Вы должны:|Должен вам" src` — пусто
-- [ ] 2.3 Создать `AmountPill`, `DirectionChip`, `DebtStatusBadge`, `RatioBar`, `NetPositionLine` в `entities/debt/ui`; проверить на главной: экранный диктор (VoiceOver / NVDA или Accessibility tree в DevTools) читает «Мне должны 10 000 ₽»
-- [ ] 2.4 Перевести `ContactAvatar` на `avatar-N` (hex → индекс, неизвестный hex → `avatar-6`) и заменить `ContactListItem` на `ContactRow` (плашки / «Всё погашено» / «Нет долгов»); проверить на `/contacts` по [Contacts]; в тёмной теме — тёмные пары аватаров
+- [x] 2.1 Добавить `computeContactTotals`, `computeNetPosition`, `countContactsByDirection` в `entities/debt/model` и экспортировать их через `index.ts`; проверить в карточке Димы (1 500 ¥ и 380 €) при курсе из кэша, что суммы сходятся с ручным пересчётом
+- [x] 2.2 Перенести подписи направлений и фразы чистой позиции («Вам должны на {{amount}} больше», «Вы должны на {{amount}} больше», «Долги уравновешены», «Вам никто не должен», «Вы никому не должны») в `entities/debt/translations.ts`; удалить дубли из слайсов; проверить `grep -rnE "Вам должны:|Вы должны:|Должен вам" src` — пусто
+- [x] 2.3 Создать `AmountPill`, `DirectionChip`, `DebtStatusBadge`, `RatioBar`, `NetPositionLine` в `entities/debt/ui`; проверить на главной: экранный диктор (VoiceOver / NVDA или Accessibility tree в DevTools) читает «Мне должны 10 000 ₽»
+- [x] 2.4 Перевести `ContactAvatar` на `avatar-N` (hex → индекс, неизвестный hex → `avatar-6`) и заменить `ContactListItem` на `ContactRow` (плашки / «Всё погашено» / «Нет долгов»); проверить на `/contacts` по [Contacts]; в тёмной теме — тёмные пары аватаров
 
 ## 3. Каркас приложения
 

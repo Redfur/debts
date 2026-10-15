@@ -1,10 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { computeGlobalTotals, useDebtStore } from "@/entities/debt";
+import { computeGlobalTotals, ENTITY_DEBT_NS, useDebtStore } from "@/entities/debt";
 import { CURRENCY_SYMBOL, type SUPPORTED_CURRENCIES } from "@/shared/config/currencies";
 import { useDisplayCurrency } from "@/shared/lib/currency-preference";
 import { formatAmount } from "@/shared/lib/format-amount";
-import { HOME_SCREEN_NS } from "../translations";
 
 type CurrencyBreakdown = Partial<Record<(typeof SUPPORTED_CURRENCIES)[number], number>>;
 
@@ -15,7 +14,7 @@ function formatBreakdown(byCurrency: CurrencyBreakdown): string | null {
 }
 
 export function HomeTotalsCards() {
-	const { t } = useTranslation(HOME_SCREEN_NS);
+	const { t: tDebt } = useTranslation(ENTITY_DEBT_NS);
 	const debtsById = useDebtStore((s) => s.debtsById);
 	const operationsByDebtId = useDebtStore((s) => s.operationsByDebtId);
 	const ratesCache = useDebtStore((s) => s.ratesCache);
@@ -29,7 +28,7 @@ export function HomeTotalsCards() {
 		<div className="grid gap-3 sm:grid-cols-2">
 			<Card>
 				<CardHeader className="pb-2">
-					<CardTitle className="text-sm font-medium">{t("owedToMeTitle")}</CardTitle>
+					<CardTitle className="text-sm font-medium">{tDebt("directionOwedToMe")}</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<p className="text-2xl font-semibold">
@@ -42,7 +41,7 @@ export function HomeTotalsCards() {
 			</Card>
 			<Card>
 				<CardHeader className="pb-2">
-					<CardTitle className="text-sm font-medium">{t("owedByMeTitle")}</CardTitle>
+					<CardTitle className="text-sm font-medium">{tDebt("directionIOwe")}</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<p className="text-2xl font-semibold">

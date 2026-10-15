@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ContactListItem, computeContactSummary, useDebtStore } from "@/entities/debt";
+import { ContactRow, ContactRowList, computeContactSummary, useDebtStore } from "@/entities/debt";
 import { HOME_SCREEN_NS } from "../translations";
 
 function hasOutstandingDebt(summary: ReturnType<typeof computeContactSummary>): boolean {
@@ -27,10 +27,12 @@ export function ContactList() {
 	}
 
 	return (
-		<div className="flex flex-col gap-2">
+		<ContactRowList>
 			{contacts.map((c) => (
-				<ContactListItem key={c.id} contact={c} linkState="home" />
+				<li key={c.id}>
+					<ContactRow contact={c} linkState="home" />
+				</li>
 			))}
-		</div>
+		</ContactRowList>
 	);
 }

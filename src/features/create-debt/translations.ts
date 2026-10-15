@@ -5,8 +5,6 @@ export const createDebtTranslations = {
 		title: "Новый долг",
 		contactLabel: "Контакт",
 		directionLabel: "Направление",
-		directionOwedToMe: "Мне должны",
-		directionIOwe: "Я должен",
 		amountLabel: "Сумма",
 		currencyLabel: "Валюта",
 		noteLabel: "Заметка (необязательно)",

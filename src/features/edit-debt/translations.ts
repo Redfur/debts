@@ -4,8 +4,6 @@ export const editDebtTranslations = {
 	ru: {
 		title: "Изменить долг",
 		directionLabel: "Направление",
-		directionOwedToMe: "Мне должны",
-		directionIOwe: "Я должен",
 		amountLabel: "Сумма",
 		currencyLabel: "Валюта",
 		noteLabel: "Заметка (необязательно)",

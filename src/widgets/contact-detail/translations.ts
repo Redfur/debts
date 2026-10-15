@@ -6,12 +6,9 @@ export const contactDetailTranslations = {
 		notFoundTitle: "Контакт не найден",
 		notFoundBody:
 			"Такого контакта нет на этом устройстве. Возможно, ссылка устарела или данные были очищены либо заменены резервной копией.",
-		owedToMeTitle: "Должен вам",
-		owedByMeTitle: "Вы должны",
 		addDebtAction: "Добавить долг",
 		debtsSectionTitle: "Долги",
 		emptyDebts: "У этого контакта пока нет долгов.",
-		statusClosed: "Погашен",
 		balanceLine: "Остаток: {{amount}} из {{principal}}",
 		repayAction: "Погасить",
 		deleteDebtConfirmTitle: "Удалить долг?",

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ContactListItem, useDebtStore } from "@/entities/debt";
+import { ContactRow, ContactRowList, useDebtStore } from "@/entities/debt";
 import { PageHeader, ScreenBody } from "@/shared/layout";
 import { CONTACTS_SCREEN_NS } from "../translations";
 
@@ -34,11 +34,13 @@ export function ContactsScreen() {
 			{contacts.length === 0 ? (
 				<p className="text-muted-foreground text-sm">{t("empty")}</p>
 			) : (
-				<div className="flex flex-col gap-2">
+				<ContactRowList>
 					{contacts.map((c) => (
-						<ContactListItem key={c.id} contact={c} linkState="contacts" />
+						<li key={c.id}>
+							<ContactRow contact={c} linkState="contacts" />
+						</li>
 					))}
-				</div>
+				</ContactRowList>
 			)}
 		</ScreenBody>
 	);
