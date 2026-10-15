@@ -1,4 +1,4 @@
-import { getStorageAdapter, wipeAppIndexedDatabase } from "./indexed-db-adapter";
+import { getStorageAdapter } from "./indexed-db-adapter";
 import type { PersistedContact, PersistedDebt, PersistedDebtOperation, PersistedMeta } from "./schema";
 
 export type DebtsBackupPayload = {
@@ -64,18 +64,7 @@ export function parseDebtsBackup(raw: string): DebtsBackupPayload {
 	return candidate;
 }
 
-/** Полная замена данных в IndexedDB содержимым резервной копии. */
+/** Полная замена данных в IndexedDB содержимым резервной копии (одной транзакцией). */
 export async function restoreDebtsFromBackup(payload: DebtsBackupPayload): Promise<void> {
-	await wipeAppIndexedDatabase();
-	const storage = getStorageAdapter();
-	for (const contact of payload.contacts) {
-		await storage.putContact(contact);
-	}
-	for (const debt of payload.debts) {
-		await storage.putDebt(debt);
-	}
-	for (const operation of payload.debtOperations) {
-		await storage.putDebtOperation(operation);
-	}
-	await storage.setMeta(payload.meta);
+	await getStorageAdapter().replaceAll(payload);
 }

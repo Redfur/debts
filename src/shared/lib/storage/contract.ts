@@ -11,4 +11,11 @@ export interface StorageAdapter {
 	putDebtOperation(operation: PersistedDebtOperation): Promise<void>;
 	getMeta(): Promise<PersistedMeta>;
 	setMeta(meta: PersistedMeta): Promise<void>;
+	/** Атомарно заменяет все данные: при ошибке прежние данные остаются нетронутыми. */
+	replaceAll(data: {
+		contacts: PersistedContact[];
+		debts: PersistedDebt[];
+		debtOperations: PersistedDebtOperation[];
+		meta: PersistedMeta;
+	}): Promise<void>;
 }

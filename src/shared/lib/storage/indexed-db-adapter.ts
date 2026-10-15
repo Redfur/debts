@@ -50,9 +50,20 @@ function getDb(): Promise<IDBPDatabase<DebtsDBSchema>> {
 					database.createObjectStore("meta", { keyPath: "key" });
 				}
 			},
+			blocking() {
+				// Другой клиент удаляет или обновляет БД — отпускаем соединение, чтобы не держать его.
+				void closeDb();
+			},
 		});
 	}
 	return dbPromise;
+}
+
+async function closeDb(): Promise<void> {
+	const pending = dbPromise;
+	dbPromise = null;
+	const db = await pending?.catch(() => null);
+	db?.close();
 }
 
 const META_KEY = "app";
@@ -114,6 +125,26 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 			const db = await getDb();
 			await db.put("meta", { key: META_KEY, ...meta });
 		},
+
+		async replaceAll({ contacts, debts, debtOperations, meta }) {
+			const db = await getDb();
+			const tx = db.transaction(["contacts", "debts", "debtOperations", "meta"], "readwrite");
+			const contactsStore = tx.objectStore("contacts");
+			const debtsStore = tx.objectStore("debts");
+			const operationsStore = tx.objectStore("debtOperations");
+			const metaStore = tx.objectStore("meta");
+			await Promise.all([
+				contactsStore.clear(),
+				debtsStore.clear(),
+				operationsStore.clear(),
+				metaStore.clear(),
+				...contacts.map((contact) => contactsStore.put(contact)),
+				...debts.map((debt) => debtsStore.put(debt)),
+				...debtOperations.map((operation) => operationsStore.put(operation)),
+				metaStore.put({ key: META_KEY, ...meta }),
+				tx.done,
+			]);
+		},
 	};
 }
 
@@ -128,7 +159,8 @@ export function getStorageAdapter(): StorageAdapter {
 
 /** Полное удаление БД на устройстве; следующее обращение к адаптеру создаст пустую БД. */
 export async function wipeAppIndexedDatabase(): Promise<void> {
-	dbPromise = null;
+	// Открытое соединение блокирует deleteDB до выхода из приложения — закрываем его заранее.
+	await closeDb();
 	singleton = null;
 	await deleteDB(DB_NAME);
 }
