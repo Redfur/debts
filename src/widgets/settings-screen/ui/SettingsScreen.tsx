@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import { useExportBackup } from "@/features/export-backup";
 import { useImportBackup } from "@/features/import-backup";
+import { InstallSettingsRows } from "@/features/install-app";
 import { ExchangeRateStatusRow } from "@/features/refresh-exchange-rates";
 import { DisplayCurrencySetting } from "@/features/set-display-currency";
 import { COMMON_NS } from "@/shared/i18n";
 import { PageHeader, ScreenBody } from "@/shared/layout";
-import { clearClientStoragePreferences } from "@/shared/lib/clear-client-storage";
+import { clearAllClientStorage, clearClientStoragePreferences } from "@/shared/lib/clear-client-storage";
 import { wipeAppIndexedDatabase } from "@/shared/lib/storage";
 import {
 	getThemePreference,
@@ -154,7 +155,7 @@ export function SettingsScreen() {
 			onClick: () =>
 				confirm(t("clearAllConfirmTitle"), t("clearAllConfirmBody"), t("clearAll"), async () => {
 					await wipeAppIndexedDatabase();
-					clearClientStoragePreferences();
+					clearAllClientStorage();
 					window.location.reload();
 				}),
 		},
@@ -194,7 +195,15 @@ export function SettingsScreen() {
 					</div>
 				</SettingsSection>
 
-				<SettingsSection title={t("languageSection")} className="order-3 lg:order-4">
+				<SettingsSection title={t("appSection")} className="order-3 lg:col-span-full">
+					<InstallSettingsRows
+						onSaveBackup={exporter.exportBackup}
+						listClassName={LIST_CLASS}
+						hintClassName={cn(HINT_CLASS, "lg:text-body-s")}
+					/>
+				</SettingsSection>
+
+				<SettingsSection title={t("languageSection")} className="order-4 lg:order-5">
 					<div aria-disabled="true" className={cn(LIST_CLASS, "min-h-13 flex-row items-center gap-3 px-4 lg:hidden")}>
 						<span className="text-body flex-1">{t("languageLabel")}</span>
 						<span className="text-muted-foreground text-[15px]">{t("languageCurrent")}</span>
@@ -209,7 +218,7 @@ export function SettingsScreen() {
 					<p className={HINT_CLASS}>{t("languageHint")}</p>
 				</SettingsSection>
 
-				<SettingsSection title={t("backupSection")} className="order-4 lg:order-3">
+				<SettingsSection title={t("backupSection")} className="order-5 lg:order-4">
 					<div className={cn(LIST_CLASS, "order-1 lg:hidden")}>
 						<button
 							type="button"
@@ -256,7 +265,7 @@ export function SettingsScreen() {
 					</div>
 				</SettingsSection>
 
-				<SettingsSection title={t("resetSection")} danger className="order-5 lg:col-span-full">
+				<SettingsSection title={t("resetSection")} danger className="order-6 lg:col-span-full">
 					<div className={cn(LIST_CLASS, "lg:hidden")}>
 						{resetActions.map((item, index) => (
 							<div key={item.id}>

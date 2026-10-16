@@ -39,6 +39,13 @@ export function SettingsRouteFallback() {
 				</div>
 			</div>
 			<div className="flex flex-col gap-2">
+				<Skeleton className="mx-1 h-3 w-20 rounded-full" />
+				<div className="bg-card shadow-card flex flex-col rounded-[20px] py-1">
+					<SkeletonRow />
+					<SkeletonRow />
+				</div>
+			</div>
+			<div className="flex flex-col gap-2">
 				<Skeleton className="mx-1 h-3 w-12 rounded-full" />
 				<div className="bg-card shadow-card rounded-[20px] py-1">
 					<SkeletonRow />

@@ -52,14 +52,29 @@ export default defineConfig({
 			registerType: "prompt",
 			manifestFilename: "site.webmanifest",
 			manifest: {
+				// Равен `start_url`, который браузеры раньше брали за id: уже установленные копии остаются тем же приложением.
+				id: base,
 				name: "Долги",
 				short_name: "Долги",
+				description: "Учёт долгов между людьми: кто кому должен. Работает без сети, данные только на устройстве.",
 				lang: "ru",
 				display: "standalone",
 				// Фон экрана из токена `--background` (светлая тема) — цвет заставки и строки состояния.
 				theme_color: "#f4f5f7",
 				background_color: "#f4f5f7",
 				icons: [
+					{
+						src: "pwa-192x192.png",
+						sizes: "192x192",
+						type: "image/png",
+						purpose: "any",
+					},
+					{
+						src: "pwa-512x512.png",
+						sizes: "512x512",
+						type: "image/png",
+						purpose: "any",
+					},
 					{
 						src: "web-app-manifest-192x192.png",
 						sizes: "192x192",
@@ -73,10 +88,31 @@ export default defineConfig({
 						purpose: "maskable",
 					},
 				],
+				shortcuts: [
+					{
+						name: "Новый долг",
+						url: `${base}new`,
+						icons: [{ src: "shortcut-new-debt.png", sizes: "96x96", type: "image/png" }],
+					},
+					{
+						name: "Разделить счёт",
+						url: `${base}bills/new`,
+						icons: [{ src: "shortcut-split.png", sizes: "96x96", type: "image/png" }],
+					},
+				],
+				// Для подробного диалога установки; переснимать при заметных изменениях главной (см. docs/architecture.md).
+				screenshots: [
+					{ src: "screenshots/home.png", sizes: "1080x2340", type: "image/png", form_factor: "narrow" },
+					{ src: "screenshots/contact.png", sizes: "1080x2340", type: "image/png", form_factor: "narrow" },
+					{ src: "screenshots/bill.png", sizes: "1080x2340", type: "image/png", form_factor: "narrow" },
+					{ src: "screenshots/desktop.png", sizes: "1440x900", type: "image/png", form_factor: "wide" },
+				],
 			},
 			includeAssets: ["favicon.ico", "favicon.svg", "favicon-96x96.png", "apple-touch-icon.png"],
 			workbox: {
 				globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+				// Скриншоты нужны только диалогу установки — браузер скачивает их сам, в офлайн-кэш не кладём.
+				globIgnores: ["**/screenshots/**"],
 				navigateFallback: `${base}index.html`,
 			},
 			devOptions: {

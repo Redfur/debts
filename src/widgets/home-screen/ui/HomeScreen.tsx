@@ -1,6 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { Skeleton } from "@/components/ui/skeleton";
 import { computeGlobalTotals, useDebtStore } from "@/entities/debt";
+import { useExportBackup } from "@/features/export-backup";
+import { InstallBanner } from "@/features/install-app";
 import { PageHeader, ScreenBody } from "@/shared/layout";
 import { useDisplayCurrency } from "@/shared/lib/currency-preference";
 import { HOME_SCREEN_NS } from "../translations";
@@ -18,6 +20,7 @@ export function HomeScreen() {
 	const operationsByDebtId = useDebtStore((s) => s.operationsByDebtId);
 	const ratesCache = useDebtStore((s) => s.ratesCache);
 	const displayCurrency = useDisplayCurrency();
+	const { exportBackup } = useExportBackup();
 
 	if (!hydrated) return <HomeSkeleton />;
 
@@ -36,6 +39,7 @@ export function HomeScreen() {
 	return (
 		<ScreenBody gap="compact">
 			<PageHeader title={t("title")} className="mb-2" />
+			<InstallBanner onSaveBackup={exportBackup} />
 			<div className="grid gap-2 lg:grid-cols-[repeat(auto-fit,minmax(260px,1fr))] lg:gap-4">
 				<TotalCard
 					direction="owed_to_me"
