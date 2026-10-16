@@ -132,6 +132,7 @@
 | `NetPositionLine`, `RatioBar` | `entities/debt/ui` | Чистая позиция |
 | `ContactPicker` | `features/select-contact` | Выбор контакта в форме долга |
 | `DisplayCurrencySetting`, `ExchangeRateStatusRow` | `features/set-display-currency`, `features/refresh-exchange-rates` | Строки настроек «Валюта итогов» и «Курс валют» |
+| `InstallOnboardingCard`, `InstallBanner`, `InstallSettingsRows` | `features/install-app` | Приглашение установить (карточка `card` со знаком приложения, у плашки — «Закрыть»); строки «Установка» / «Хранение данных» со статусом `success` / `warning` / `muted-foreground` и иконкой |
 | `BottomNav`, `CreateFab`, `SideNav`, `StorageErrorBanner` | `app/layout` | Каркас: стеклянное нижнее меню, «+», боковое меню, баннер ошибки хранилища |
 
 ## Контраст
@@ -139,7 +140,8 @@
 `npm run tokens:contrast` (`scripts/check-contrast.mjs`, шаг CI) проверяет пары токенов в обеих темах по WCAG 2.1 AA: 4,5:1 для текста, 3:1 для крупного текста и графики. Полупрозрачные цвета смешиваются с фоном пары.
 
 - Текст: `foreground` и `muted-foreground` на `background` / `card` / `nav-glass`; `*-foreground` на заливках `primary`, `secondary`, `accent`, `destructive`, `owed-to-me`, `i-owe`; `*-strong` на `*-muted` для `accent`, `destructive`, `owed-to-me`, `i-owe`; `foreground` на `owed-to-me-muted` и `i-owe-muted` (итоги на главной); `warning` на `warning-muted`; `destructive` на `card`; `avatar-N-foreground` на `avatar-N`.
-- Графика (3:1): `accent`, `owed-to-me`, `i-owe`, `success` на `card`.
+- Текст статусов: `success` и `warning` на `card`.
+- Графика (3:1): `accent` на `card` и `secondary`, `owed-to-me`, `i-owe` на `card`.
 
 Новая пара цветов, которой показывается текст, добавляется в `PAIRS` скрипта.
 
@@ -152,6 +154,8 @@
 | `favicon.svg` | вкладка браузера | карточка с рамкой; тёмный вариант через `prefers-color-scheme` внутри SVG |
 | `favicon-96x96.png`, `favicon.ico` (16/32/48) | старые браузеры, закладки | растр из `favicon.svg` (светлый) |
 | `web-app-manifest-192x192.png`, `web-app-manifest-512x512.png` | установленное PWA (maskable) | белый фон на весь квадрат, полосы в безопасной зоне (центральные 80 %) |
+| `pwa-192x192.png`, `pwa-512x512.png` | диалог установки, окно на десктопе (`any`) | карточка 432 на 512 с рамкой 22 px и прозрачными углами |
+| `shortcut-new-debt.png`, `shortcut-split.png` (96) | ярлыки на иконке | квадрат `accent` с белым глифом Lucide `ArrowLeftRight` / `Split` |
 | `apple-touch-icon.png` (180) | ярлык iOS | как maskable |
 
 `theme_color` и `background_color` манифеста (`vite.config.ts`) и `<meta name="theme-color">` в `index.html` — токен `background` (`#f4f5f7`, в тёмной теме `#0f1115`). При смене знака растровые файлы перерисовываются из SVG.

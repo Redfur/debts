@@ -8,6 +8,7 @@ export const settingsScreenTranslations = {
 		themeLight: "Светлая",
 		themeDark: "Тёмная",
 		currencySection: "Валюты",
+		appSection: "Приложение",
 		languageSection: "Язык",
 		languageLabel: "Язык интерфейса",
 		languageCurrent: "Русский",
