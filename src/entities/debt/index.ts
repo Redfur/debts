@@ -8,13 +8,14 @@ export {
 	computeBillShares,
 	computeBillStatus,
 	computeBillTransfers,
+	computeItemsTotalCents,
 	fromCents,
 	spreadBillRemainder,
 	toCents,
 	validateBill,
 } from "./model/bill/compute-bill";
-export type { Bill, BillDraft, BillSplitMode, BillTransfer } from "./model/bill/types";
-export { ME_REF } from "./model/bill/types";
+export type { Bill, BillDraft, BillItem, BillSplitMode, BillTransfer } from "./model/bill/types";
+export { MAX_EXTRA_PEOPLE, ME_REF } from "./model/bill/types";
 export { useBillDebts } from "./model/bill/use-bill-debts";
 export { computeContactSummary } from "./model/compute-contact-summary";
 export { computeContactTotals } from "./model/compute-contact-totals";

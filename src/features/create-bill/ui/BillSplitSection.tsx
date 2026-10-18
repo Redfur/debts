@@ -18,11 +18,15 @@ import { formatAmount, formatMoney } from "@/shared/lib/format-amount";
 import { formatPeopleCount } from "@/shared/lib/format-people-count";
 import type { CurrencyCode } from "@/shared/lib/storage";
 import { cn } from "@/shared/lib/utils";
-import { describeConsequences, describeParticipant, type ParticipantOutcome } from "../model/describe-bill";
+import { describeParticipant } from "../model/describe-bill";
 import type { BillFormApi } from "../model/use-bill-form";
 import { CREATE_BILL_NS } from "../translations";
+import { BillConsequencesBox, useOutcomeText } from "./BillOutcome";
 
-const MODES: readonly { mode: BillSplitMode; labelKey: "splitEqual" | "splitShares" | "splitAmounts" }[] = [
+const MODES: readonly {
+	mode: Exclude<BillSplitMode, "items">;
+	labelKey: "splitEqual" | "splitShares" | "splitAmounts";
+}[] = [
 	{ mode: "equal", labelKey: "splitEqual" },
 	{ mode: "shares", labelKey: "splitShares" },
 	{ mode: "amounts", labelKey: "splitAmounts" },
@@ -33,6 +37,7 @@ export function BillSplitSection({ form }: { form: BillFormApi }) {
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const fieldId = useId();
 	const nameOf = useParticipantName();
+	const outcomeText = useOutcomeText();
 	const { state, draft, shares, transfers, validation } = form;
 	const currency = state.currency;
 	const money = (cents: number) => formatMoney(fromCents(cents), currency);
@@ -49,21 +54,6 @@ export function BillSplitSection({ form }: { form: BillFormApi }) {
 		const text = parts.map((part) => outcomeText(part)).join(" · ");
 		const first = parts[0].kind;
 		return { text, tone: first === "toMe" ? "in" : first === "fromMe" ? "out" : "muted" };
-	};
-
-	const outcomeText = (part: ParticipantOutcome): string => {
-		switch (part.kind) {
-			case "toMe":
-				return t("captionToMe");
-			case "fromMe":
-				return t("captionFromMe");
-			case "with":
-				return t("captionWith", { names: part.refs.map(nameOf).join(", ") });
-			case "settled":
-				return t("captionSettled");
-			case "myShare":
-				return t("captionMyShare");
-		}
 	};
 
 	const totalShares = state.participants.reduce((acc, p) => acc + p.shares, 0);
@@ -297,50 +287,6 @@ function DistributionStatus({ form, currency, leftoverNote }: StatusProps) {
 				</span>
 			) : null}
 			{leftoverNote ? <span className="text-caption text-muted-foreground mt-0.5">{leftoverNote}</span> : null}
-		</div>
-	);
-}
-
-/** Сводка последствий: «Появятся N долгов» с перечнем или «Ваши долги не изменятся». */
-function BillConsequencesBox({ form }: { form: BillFormApi }) {
-	const { t } = useTranslation(CREATE_BILL_NS);
-	const nameOf = useParticipantName();
-	const { transfers, draft, shares, state } = form;
-	if (!transfers) return null;
-	const { owedToMe, iOwe, hasOthers } = describeConsequences(transfers);
-	const count = owedToMe.length + iOwe.length;
-	const money = (amount: number) => formatMoney(amount, state.currency);
-
-	const describe = (items: { ref: string; amount: number }[], sameKey: "summaryOwedToMeSame" | "summaryIOweSame") => {
-		const same = items.length > 1 && items.every((item) => item.amount === items[0].amount);
-		if (same) return t(sameKey, { names: items.map((i) => nameOf(i.ref)).join(", "), amount: money(items[0].amount) });
-		const list = items.map((i) => t("summaryItem", { name: nameOf(i.ref), amount: money(i.amount) })).join(", ");
-		return t(sameKey === "summaryOwedToMeSame" ? "summaryOwedToMe" : "summaryIOwe", { list });
-	};
-
-	if (count === 0) {
-		const meIndex = draft.participants.findIndex((p) => p.ref === ME_REF);
-		const meActive = meIndex >= 0 && (draft.participants[meIndex].paid > 0 || shares.inSplit[meIndex]);
-		return (
-			<div className="flex flex-col gap-0.5 rounded-[18px] px-4 py-3.5 shadow-[inset_0_0_0_1px_var(--border)]">
-				<b className="text-[15px] leading-5 font-semibold">{t("summaryNone")}</b>
-				<span className="text-sm">{t(meActive ? "summaryNoneInside" : "summaryNoneOutside")}</span>
-			</div>
-		);
-	}
-
-	const lines = [
-		owedToMe.length > 0 ? describe(owedToMe, "summaryOwedToMeSame") : null,
-		iOwe.length > 0 ? describe(iOwe, "summaryIOweSame") : null,
-		hasOthers ? t("summaryOthers") : null,
-	].filter((line) => line !== null);
-
-	return (
-		<div className="bg-accent-muted text-accent-strong flex flex-col gap-0.5 rounded-[18px] px-4 py-3.5">
-			<b className="text-[15px] leading-5 font-semibold">
-				{count === 1 ? t("summaryOneDebt") : t("summaryDebts", { count })}
-			</b>
-			<span className="text-sm">{lines.join(" ")}</span>
 		</div>
 	);
 }

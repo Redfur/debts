@@ -1,9 +1,9 @@
 import { getStorageAdapter } from "./indexed-db-adapter";
 import type { PersistedBill, PersistedContact, PersistedDebt, PersistedDebtOperation, PersistedMeta } from "./schema";
 
-/** Версия 1 — без счетов; читается при импорте, но не пишется. */
+/** Версия 1 — без счетов, 2 — счета без позиций чека; обе читаются при импорте, но не пишутся. */
 export type DebtsBackupPayload = {
-	version: 2;
+	version: 3;
 	exportedAt: string;
 	meta: PersistedMeta;
 	contacts: PersistedContact[];
@@ -22,13 +22,13 @@ export async function createDebtsBackup(): Promise<DebtsBackupPayload> {
 		storage.getMeta(),
 	]);
 	return {
-		version: 2,
+		version: 3,
 		exportedAt: new Date().toISOString(),
 		meta,
 		contacts,
 		debts: debts.map((debt) => ({ ...debt, billId: debt.billId ?? null })),
 		debtOperations,
-		bills,
+		bills: bills.map(normalizeBill),
 	};
 }
 
@@ -39,6 +39,11 @@ export function serializeDebtsBackup(payload: DebtsBackupPayload): string {
 export function buildDebtsBackupFilename(date: Date): string {
 	const iso = date.toISOString().slice(0, 10);
 	return `debts-backup-${iso}.json`;
+}
+
+/** Счета, записанные до деления по чеку, не имеют поля `items`. */
+function normalizeBill(bill: PersistedBill): PersistedBill {
+	return { ...bill, items: bill.items ?? [] };
 }
 
 function isPersistedMeta(value: unknown): value is PersistedMeta {
@@ -59,20 +64,25 @@ export function parseDebtsBackup(raw: string): DebtsBackupPayload {
 	const candidate = parsed as Partial<Omit<DebtsBackupPayload, "version">> & { version?: unknown };
 	const version = candidate.version;
 	if (
-		(version !== 1 && version !== 2) ||
+		(version !== 1 && version !== 2 && version !== 3) ||
 		typeof candidate.exportedAt !== "string" ||
 		!Array.isArray(candidate.contacts) ||
 		!Array.isArray(candidate.debts) ||
 		!Array.isArray(candidate.debtOperations) ||
 		!isPersistedMeta(candidate.meta) ||
-		(version === 2 && !Array.isArray(candidate.bills))
+		(version !== 1 && !Array.isArray(candidate.bills))
 	) {
 		throw new Error("Неверный формат резервной копии.");
 	}
-	const bills = version === 2 ? (candidate.bills ?? []) : [];
+	const rawBills = version === 1 ? [] : (candidate.bills ?? []);
+	// Счёт по чеку без позиций не посчитать; у копий версии 2 позиций нет ни у одного счёта.
+	if (version === 3 && rawBills.some((bill) => bill.splitMode === "items" && !Array.isArray(bill.items))) {
+		throw new Error("Неверный формат резервной копии.");
+	}
+	const bills = rawBills.map(normalizeBill);
 	const billIds = new Set(bills.map((bill) => bill.id));
 	return {
-		version: 2,
+		version: 3,
 		exportedAt: candidate.exportedAt,
 		meta: candidate.meta,
 		contacts: candidate.contacts,

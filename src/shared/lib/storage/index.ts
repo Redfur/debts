@@ -8,6 +8,7 @@ export {
 } from "./backup";
 export { getStorageAdapter, wipeAppIndexedDatabase } from "./indexed-db-adapter";
 export type {
+	BillItem,
 	BillParticipant,
 	BillSplitMode,
 	CurrencyCode,

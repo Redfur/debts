@@ -2,6 +2,7 @@ import { ChevronLeft, Lock } from "lucide-react";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import { type Bill, ME_REF, useDebtStore } from "@/entities/debt";
 import { ParticipantsPicker } from "@/features/select-contact";
 import { COMMON_NS } from "@/shared/i18n";
@@ -9,9 +10,18 @@ import { formatMoney } from "@/shared/lib/format-amount";
 import { useKeyboardInset } from "@/shared/lib/use-keyboard-inset";
 import { cn } from "@/shared/lib/utils";
 import { FormAlert } from "@/shared/ui/form-message";
-import { billToFormState, createEmptyBillForm, toBillInput, useBillForm } from "../model/use-bill-form";
+import {
+	type BillEntry,
+	billToFormState,
+	createEmptyBillForm,
+	itemIssue,
+	toBillInput,
+	useBillForm,
+} from "../model/use-bill-form";
 import { CREATE_BILL_NS } from "../translations";
 import { BillBasicsSection } from "./BillBasicsSection";
+import { BillItemsSection } from "./BillItemsSection";
+import { BillReceiptShares } from "./BillReceiptShares";
 import { BillSplitSection } from "./BillSplitSection";
 import { PayerSheet } from "./PayerSheet";
 
@@ -25,9 +35,10 @@ type Props = {
 };
 
 /**
- * Форма счёта: на телефоне два шага («1 из 2» — сумма, участники, кто заплатил; «2 из 2» — как делим и итог),
- * от 1024 px — один экран в две колонки с «Отмена» и «Сохранить счёт» в шапке. После погашений — один экран,
- * где меняется только «За что».
+ * Форма счёта. Первым — переключатель «Одной суммой / По чеку». Одной суммой на телефоне два шага («1 из 2» — сумма,
+ * участники, кто заплатил; «2 из 2» — как делим и итог); «По чеку» — один экран: участники, плательщик, позиции, доли.
+ * От 1024 px — две колонки с «Отмена» и «Сохранить счёт» в шапке. После погашений — один экран, где меняется только
+ * «За что».
  */
 export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 	const { t } = useTranslation(CREATE_BILL_NS);
@@ -46,12 +57,17 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 
 	const { state, validation } = form;
 	const errors = validation.errors;
+	const receipt = state.entry === "receipt";
 	const title = state.title.trim() || t("untitled");
-	const total = Number(state.amount) || 0;
+	const total = receipt ? form.draft.totalAmount : Number(state.amount) || 0;
 	const totalText = formatMoney(total, state.currency);
 	const paidMismatch = errors.includes("paid_mismatch");
 	const splitMismatch = errors.includes("split_mismatch");
 	const step1Invalid = errors.includes("amount_required") || errors.includes("participants_min");
+	// «По чеку»: сохранить нельзя, пока есть незаполненная позиция или нет ни одной.
+	const firstBadItem = state.items.findIndex((item) => itemIssue(item) !== null);
+	const receiptBlocked = receipt && (firstBadItem >= 0 || form.draft.items.length === 0);
+	const receiptHint = firstBadItem >= 0 ? t("itemsHintInvalid", { n: firstBadItem + 1 }) : t("itemsHintEmpty");
 
 	const goToStep = (next: 1 | 2) => {
 		setStep(next);
@@ -66,7 +82,10 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 
 	const save = async () => {
 		if (pending) return;
-		if (!locked) {
+		if (!locked && receipt) {
+			setShowErrors(true);
+			if (receiptBlocked || errors.includes("participants_min")) return;
+		} else if (!locked) {
 			setShowErrors(true);
 			if (step1Invalid) {
 				goToStep(1);
@@ -95,7 +114,7 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 
 	const handleSubmit = (event: FormEvent) => {
 		event.preventDefault();
-		if (!locked && step === 1) {
+		if (!locked && !receipt && step === 1) {
 			// Enter на первом шаге телефона — «Далее»; на десктопе кнопки «Далее» нет, но Enter тоже не сохраняет.
 			if (window.matchMedia("(min-width: 1024px)").matches) void save();
 			else handleNext();
@@ -119,7 +138,17 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 
 	const heading = bill ? t("titleEdit") : t("titleCreate");
 	const saveLabel = locked ? t("saveLocked") : t("save");
-	const saveDisabled = pending || (!locked && (paidMismatch || splitMismatch));
+	const saveDisabled = pending || (!locked && (receipt ? receiptBlocked : paidMismatch || splitMismatch));
+	const stepped = !locked && !receipt;
+	const saveHint = locked
+		? null
+		: receipt
+			? receiptBlocked
+				? receiptHint
+				: null
+			: splitMismatch
+				? t("saveHint")
+				: null;
 	const nameOfCount = t("participantsCount", { count: state.participants.length });
 
 	return (
@@ -127,7 +156,7 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 			<div className="flex flex-col gap-4 pt-[env(safe-area-inset-top,0px)] lg:gap-6 lg:pt-9">
 				{/* Шапка телефона: «Отмена» или «назад» к шагу 1, заголовок, номер шага. */}
 				<header className="grid min-h-11 grid-cols-[1fr_auto_1fr] items-center pt-2 lg:hidden">
-					{step === 2 && !locked ? (
+					{step === 2 && stepped ? (
 						<button
 							type="button"
 							aria-label={tCommon("back")}
@@ -146,17 +175,20 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 						</button>
 					)}
 					<h1 className="text-heading max-w-[240px] truncate text-center">
-						{step === 2 && !locked ? t("headerStep2", { title, amount: totalText }) : heading}
+						{step === 2 && stepped ? t("headerStep2", { title, amount: totalText }) : heading}
 					</h1>
 					<span className="text-caption text-muted-foreground justify-self-end">
-						{locked ? null : step === 1 ? t("step1") : t("step2")}
+						{stepped ? (step === 1 ? t("step1") : t("step2")) : null}
 					</span>
 				</header>
 
 				{/* Шапка десктопа: заголовок, «Отмена» и «Сохранить». */}
 				<header className="hidden flex-wrap items-center justify-between gap-3 lg:flex">
 					<h1 className="text-title-desktop">{heading}</h1>
-					<div className="flex gap-2">
+					<div className="flex items-center gap-2">
+						{receiptBlocked && !locked ? (
+							<span className="text-caption text-muted-foreground mr-2">{receiptHint}</span>
+						) : null}
 						<Button type="button" variant="secondary" className="bg-card shadow-card" onClick={onCancel}>
 							{tCommon("cancel")}
 						</Button>
@@ -176,22 +208,65 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 					</div>
 				) : null}
 
-				<div className="grid gap-5 lg:grid-cols-2 lg:items-start">
-					<DesktopColumn title={t("column1")} hidden={step === 2 && !locked}>
-						<BillBasicsSection
-							form={form}
-							locked={locked}
-							showErrors={showErrors}
-							onAddParticipants={() => setPicking(true)}
-							onChangePayer={() => setPayerSheetOpen(true)}
-						/>
-					</DesktopColumn>
-					{locked ? null : (
-						<DesktopColumn title={t("column2")} hidden={step === 1}>
-							<BillSplitSection form={form} />
+				<SegmentedControl
+					aria-label={t("entryLabel")}
+					value={state.entry}
+					onValueChange={(entry) => {
+						form.setEntry(entry as BillEntry);
+						setStep(1);
+					}}
+					disabled={locked}
+					className="rounded-[18px] lg:w-full lg:max-w-[380px]"
+				>
+					{(["sum", "receipt"] satisfies BillEntry[]).map((entry) => (
+						<SegmentedControlItem key={entry} value={entry} className="min-h-11 rounded-[14px] text-[15px]">
+							{t(entry === "sum" ? "entrySum" : "entryReceipt")}
+						</SegmentedControlItem>
+					))}
+				</SegmentedControl>
+
+				{receipt ? (
+					<div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+						<DesktopColumn title={t("column1Receipt")} hidden={false} className="lg:col-start-1 lg:row-start-1">
+							<BillBasicsSection
+								form={form}
+								locked={locked}
+								showErrors={showErrors}
+								onAddParticipants={() => setPicking(true)}
+								onChangePayer={() => setPayerSheetOpen(true)}
+							/>
 						</DesktopColumn>
-					)}
-				</div>
+						<DesktopColumn
+							title={t("column2Receipt", { count: state.items.length })}
+							hidden={false}
+							className="lg:col-start-2 lg:row-span-2 lg:row-start-1"
+						>
+							<BillItemsSection form={form} locked={locked} hideLabelOnDesktop />
+						</DesktopColumn>
+						{locked ? null : (
+							<div className="flex flex-col gap-4 lg:col-start-1 lg:row-start-2">
+								<BillReceiptShares form={form} />
+							</div>
+						)}
+					</div>
+				) : (
+					<div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+						<DesktopColumn title={t("column1")} hidden={step === 2 && !locked}>
+							<BillBasicsSection
+								form={form}
+								locked={locked}
+								showErrors={showErrors}
+								onAddParticipants={() => setPicking(true)}
+								onChangePayer={() => setPayerSheetOpen(true)}
+							/>
+						</DesktopColumn>
+						{locked ? null : (
+							<DesktopColumn title={t("column2")} hidden={step === 1}>
+								<BillSplitSection form={form} />
+							</DesktopColumn>
+						)}
+					</div>
+				)}
 
 				{saveError ? <FormAlert className="hidden lg:flex">{t("saveError")}</FormAlert> : null}
 			</div>
@@ -201,7 +276,7 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 				className="bg-background sticky z-10 mt-auto -mx-4 flex flex-col gap-2 px-4 pt-2.5 pb-3 lg:hidden"
 				style={{ bottom: keyboardInset }}
 			>
-				{step === 1 && !locked ? (
+				{step === 1 && stepped ? (
 					<>
 						{paidMismatch && validation.paidRemainingCents > 0 ? (
 							<span id="bill-next-hint" className="text-caption text-muted-foreground text-center">
@@ -223,9 +298,9 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 				) : (
 					<>
 						{saveError ? <FormAlert>{t("saveError")}</FormAlert> : null}
-						{!locked && splitMismatch ? (
+						{saveHint ? (
 							<span id="bill-save-hint" className="text-caption text-muted-foreground text-center">
-								{t("saveHint")}
+								{saveHint}
 							</span>
 						) : null}
 						<Button
@@ -234,7 +309,7 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 							size="lg"
 							className="w-full"
 							disabled={saveDisabled}
-							aria-describedby={!locked && splitMismatch ? "bill-save-hint" : undefined}
+							aria-describedby={saveHint ? "bill-save-hint" : undefined}
 						>
 							{saveLabel}
 						</Button>
@@ -249,10 +324,14 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 				participantRefs={state.participants.map((p) => p.ref)}
 				value={state.payerRef}
 				onPick={form.setPayer}
-				onSeveral={() => {
-					form.setPayerMode("several");
-					setPayerSheetOpen(false);
-				}}
+				onSeveral={
+					receipt
+						? undefined
+						: () => {
+								form.setPayerMode("several");
+								setPayerSheetOpen(false);
+							}
+				}
 			/>
 		</form>
 	);
@@ -262,12 +341,23 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
  * Колонка десктопа — белая карточка с подзаголовком; внутренние карточки на ней становятся серыми.
  * Исходный цвет карточки сохраняется в `--card-raised` для выбранного сегмента и полей сумм (`--field-bg`).
  */
-function DesktopColumn({ title, hidden, children }: { title: string; hidden: boolean; children: ReactNode }) {
+function DesktopColumn({
+	title,
+	hidden,
+	className,
+	children,
+}: {
+	title: string;
+	hidden: boolean;
+	className?: string;
+	children: ReactNode;
+}) {
 	return (
 		<section
 			className={cn(
 				"lg:bg-card lg:shadow-card lg:rounded-[24px] lg:p-6 lg:[--card-raised:var(--card)]",
 				hidden && "max-lg:hidden",
+				className,
 			)}
 		>
 			<div className="flex flex-col gap-5 lg:[--card:var(--background)] lg:[--field-bg:var(--card-raised)] lg:[--secondary:var(--muted)] lg:[--shadow-card:none] lg:[&_[data-slot=segmented-control-item][data-state=on]]:bg-(--card-raised)">

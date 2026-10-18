@@ -1,6 +1,6 @@
-import type { BillParticipant, BillSplitMode, DebtDirection, PersistedBill } from "@/shared/lib/storage";
+import type { BillItem, BillParticipant, BillSplitMode, DebtDirection, PersistedBill } from "@/shared/lib/storage";
 
-export type { BillParticipant };
+export type { BillItem, BillParticipant };
 
 export type Bill = PersistedBill;
 export type { BillSplitMode };
@@ -8,16 +8,23 @@ export type { BillSplitMode };
 /** `ref` участника-пользователя. */
 export const ME_REF = "me";
 
+/** Больше людей без имени в одной позиции не бывает. */
+export const MAX_EXTRA_PEOPLE = 99;
+
 /** То, что определяет расчёт счёта; общий вход для формы и сохранённого счёта. */
-export type BillDraft = Pick<Bill, "totalAmount" | "splitMode" | "participants">;
+export type BillDraft = Pick<Bill, "totalAmount" | "splitMode" | "participants" | "items">;
 
 export type BillShares = {
 	/** Доля каждого участника в копейках, в порядке `participants`. */
 	cents: number[];
 	/** Участник делит счёт. */
 	inSplit: boolean[];
-	/** Неделимые копейки, розданные первым участникам деления (только «Поровну» и «Долями»). */
+	/** Неделимые копейки, розданные участникам деления (кроме «Суммами»). */
 	leftoverCents: number;
+	/** «По чеку»: доля людей без имени в копейках; у остальных способов — 0. */
+	othersCents: number;
+	/** «По чеку»: участники, получившие неделимую копейку, в порядке `participants`. */
+	roundedUpRefs: string[];
 };
 
 export type BillTransfer = {
@@ -52,7 +59,13 @@ export type BillStatus = {
 	hasMyDebts: boolean;
 };
 
-export type BillValidationError = "amount_required" | "participants_min" | "paid_mismatch" | "split_mismatch";
+export type BillValidationError =
+	| "amount_required"
+	| "participants_min"
+	| "paid_mismatch"
+	| "split_mismatch"
+	| "item_price_required"
+	| "item_people_required";
 
 export type BillValidation = {
 	errors: BillValidationError[];
@@ -60,4 +73,6 @@ export type BillValidation = {
 	paidRemainingCents: number;
 	/** Сумма минус распределено, в копейках (> 0 — осталось распределить, < 0 — распределено больше). */
 	splitRemainingCents: number;
+	/** «По чеку»: индексы позиций без цены или без людей. */
+	invalidItems: number[];
 };

@@ -42,7 +42,7 @@ export type PersistedDebtOperation = {
 	createdAt: string;
 };
 
-export type BillSplitMode = "equal" | "shares" | "amounts";
+export type BillSplitMode = "equal" | "shares" | "amounts" | "items";
 
 export type BillParticipant = {
 	/** `"me"` — пользователь, иначе id контакта. */
@@ -51,8 +51,20 @@ export type BillParticipant = {
 	paid: number;
 	/** Участвует в делении («делит счёт»). */
 	inSplit: boolean;
-	/** Число долей (`shares`) или сумма доли (`amounts`); для `equal` — `null`. */
+	/** Число долей (`shares`) или сумма доли (`amounts`); для `equal` и `items` — `null`. */
 	shareInput: number | null;
+};
+
+/** Позиция чека (`splitMode: "items"`): делится поровну между отмеченными и людьми без имени. */
+export type BillItem = {
+	id: string;
+	title: string | null;
+	/** Цена за всю строку. */
+	price: number;
+	/** Отмеченные участники (`ref`), в порядке `participants`. */
+	refs: string[];
+	/** Люди без имени, 0…99: входят в деление, но не становятся участниками. */
+	extraPeople: number;
 };
 
 export type PersistedBill = {
@@ -63,6 +75,8 @@ export type PersistedBill = {
 	splitMode: BillSplitMode;
 	/** Порядок важен: задаёт раздачу неделимых копеек и порядок переводов. */
 	participants: BillParticipant[];
+	/** Позиции чека; `[]` у остальных способов деления. */
+	items: BillItem[];
 	/** Ручное закрытие — только у счёта без моих переводов. */
 	manualClosedAt: string | null;
 	createdAt: string;
