@@ -64,7 +64,7 @@ export function BillBasicsSection({ form, locked, showErrors, onAddParticipants,
 								>
 									{formatMoney(fromCents(toCents(total)), state.currency)}
 								</span>
-								<span className="text-caption text-muted-foreground">{t("receiptTotalHint")}</span>
+								<ReceiptBreakdown form={form} />
 							</span>
 							<CurrencyPicker
 								value={state.currency}
@@ -295,5 +295,32 @@ function SeveralPayers({ form, locked }: { form: BillFormApi; locked: boolean })
 				) : null}
 			</div>
 		</div>
+	);
+}
+
+/** Под «Сумма по чеку»: из чего она складывается — со скидкой или чаевыми построчно, иначе подсказка. */
+function ReceiptBreakdown({ form }: { form: BillFormApi }) {
+	const { t } = useTranslation(CREATE_BILL_NS);
+	const { receipt, state } = form;
+	const money = (cents: number) => formatMoney(cents / 100, state.currency);
+	if (receipt.discountCents === 0 && receipt.tipsCents === 0) {
+		return (
+			<span className="text-caption text-muted-foreground">
+				{t(receipt.itemsCents > 0 ? "receiptTotalHint" : "receiptTotalEmpty")}
+			</span>
+		);
+	}
+	return (
+		<span className="text-caption text-muted-foreground flex flex-wrap gap-x-1.5">
+			<span className="whitespace-nowrap">{t("receiptBreakdownItems", { amount: money(receipt.itemsCents) })}</span>
+			{receipt.discountCents > 0 ? (
+				<span className="whitespace-nowrap">
+					{t("receiptBreakdownDiscount", { amount: money(receipt.discountCents) })}
+				</span>
+			) : null}
+			{receipt.tipsCents > 0 ? (
+				<span className="whitespace-nowrap">{t("receiptBreakdownTips", { amount: money(receipt.tipsCents) })}</span>
+			) : null}
+		</span>
 	);
 }

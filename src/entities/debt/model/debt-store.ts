@@ -4,9 +4,12 @@ import { fetchExchangeRates, isRatesCacheStale } from "@/shared/lib/exchange-rat
 import { generateId } from "@/shared/lib/id";
 import { roundAmount } from "@/shared/lib/round-amount";
 import type {
+	BillAdjustmentUnit,
+	BillDiscount,
 	BillItem,
 	BillParticipant,
 	BillSplitMode,
+	BillTips,
 	CurrencyCode,
 	DebtDirection,
 	ExchangeRatesCache,
@@ -15,11 +18,11 @@ import type {
 	PersistedDebt,
 	PersistedDebtOperation,
 } from "@/shared/lib/storage";
-import { getStorageAdapter } from "@/shared/lib/storage";
+import { getStorageAdapter, normalizeBill } from "@/shared/lib/storage";
 import {
 	computeBillTransfers,
-	computeItemsTotalCents,
 	computeMyBillDebts,
+	computeReceiptCents,
 	fromCents,
 	validateBill,
 } from "./bill/compute-bill";
@@ -117,11 +120,28 @@ export type BillInput = {
 	participants: BillParticipant[];
 	/** Позиции «По чеку»; у остальных способов деления игнорируются. */
 	items: BillItem[];
+	/** Скидка и чаевые «По чеку»; у остальных способов деления игнорируются. */
+	discount: BillDiscount | null;
+	tips: BillTips | null;
 };
 
+function isPeopleCount(value: number): boolean {
+	return Number.isInteger(value) && value >= 0 && value <= MAX_EXTRA_PEOPLE;
+}
+
+function isUnit(unit: unknown): unit is BillAdjustmentUnit {
+	return unit === "percent" || unit === "amount";
+}
+
+/** Процент — до двух знаков, сумма — до копейки. */
+function roundAdjustmentValue(unit: BillAdjustmentUnit, value: number): number {
+	return unit === "percent" ? Math.round(value * 100) / 100 : roundAmount(value);
+}
+
 /**
- * Вход счёта → то, что пишется и считается. «По чеку»: итог — сумма позиций, `inSplit` — отмечен хотя бы в одной,
- * отметки — в порядке участников; `null`, если в позиции чужой `ref`, повтор или людей без имени вне 0…99.
+ * Вход счёта → то, что пишется и считается. «По чеку»: итог — позиции − скидка + чаевые, `inSplit` — отмечен
+ * в позиции или в чаевых, отметки — в порядке участников; `null`, если в позиции или чаевых чужой `ref`, повтор
+ * или людей без имени вне 0…99.
  */
 function prepareBillDraft(input: BillInput): BillDraft | null {
 	if (input.splitMode !== "items") {
@@ -130,17 +150,18 @@ function prepareBillDraft(input: BillInput): BillDraft | null {
 			splitMode: input.splitMode,
 			participants: input.participants,
 			items: [],
+			discount: null,
+			tips: null,
 		};
 	}
 	const refs = input.participants.map((p) => p.ref);
-	const wellFormed = input.items.every(
-		(item) =>
-			Number.isInteger(item.extraPeople) &&
-			item.extraPeople >= 0 &&
-			item.extraPeople <= MAX_EXTRA_PEOPLE &&
-			new Set(item.refs).size === item.refs.length &&
-			item.refs.every((ref) => refs.includes(ref)),
-	);
+	const isRefList = (list: string[]) => new Set(list).size === list.length && list.every((ref) => refs.includes(ref));
+	const { discount, tips } = input;
+	const wellFormed =
+		input.items.every((item) => isPeopleCount(item.extraPeople) && isRefList(item.refs)) &&
+		(!discount || (isUnit(discount.unit) && Number.isFinite(discount.value))) &&
+		(!tips ||
+			(isUnit(tips.unit) && Number.isFinite(tips.value) && isPeopleCount(tips.extraPeople) && isRefList(tips.refs)));
 	if (!wellFormed) return null;
 	const items = input.items.map((item) => ({
 		...item,
@@ -148,15 +169,25 @@ function prepareBillDraft(input: BillInput): BillDraft | null {
 		price: roundAmount(item.price),
 		refs: refs.filter((ref) => item.refs.includes(ref)),
 	}));
+	const receipt = {
+		items,
+		discount: discount && { unit: discount.unit, value: roundAdjustmentValue(discount.unit, discount.value) },
+		tips: tips && {
+			unit: tips.unit,
+			value: roundAdjustmentValue(tips.unit, tips.value),
+			refs: refs.filter((ref) => tips.refs.includes(ref)),
+			extraPeople: tips.extraPeople,
+		},
+	};
 	return {
-		totalAmount: fromCents(computeItemsTotalCents(items)),
+		...receipt,
+		totalAmount: fromCents(computeReceiptCents(receipt).totalCents),
 		splitMode: "items",
 		participants: input.participants.map((p) => ({
 			...p,
-			inSplit: items.some((item) => item.refs.includes(p.ref)),
+			inSplit: items.some((item) => item.refs.includes(p.ref)) || (receipt.tips?.refs.includes(p.ref) ?? false),
 			shareInput: null,
 		})),
-		items,
 	};
 }
 
@@ -228,8 +259,8 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 				// Долги, записанные до появления счетов, не имеют поля billId.
 				debtsById: debtsToRecord(debts.map((d) => ({ ...d, billId: d.billId ?? null }))),
 				operationsByDebtId: groupOperationsByDebt(operations),
-				// Счета, записанные до деления по чеку, не имеют поля items.
-				billsById: Object.fromEntries(bills.map((b) => [b.id, { ...b, items: b.items ?? [] }])),
+				// Счета, записанные до деления по чеку, не имеют полей items, discount и tips.
+				billsById: Object.fromEntries(bills.map((b) => [b.id, normalizeBill(b)])),
 				ratesCache: meta.ratesCache,
 				hydrated: true,
 				lastError: null,
@@ -466,6 +497,8 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 			splitMode: draft.splitMode,
 			participants: draft.participants,
 			items: draft.items,
+			discount: draft.discount,
+			tips: draft.tips,
 			manualClosedAt: null,
 			createdAt: now,
 			updatedAt: now,
@@ -506,7 +539,8 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 				input.currency !== prev.currency ||
 				draft.splitMode !== prev.splitMode ||
 				JSON.stringify(draft.participants) !== JSON.stringify(prev.participants) ||
-				JSON.stringify(draft.items) !== JSON.stringify(prev.items);
+				JSON.stringify([draft.items, draft.discount, draft.tips]) !==
+					JSON.stringify([prev.items, prev.discount, prev.tips]);
 			if (structureChanged) return false;
 			const bill: PersistedBill = { ...prev, title: note, updatedAt: now };
 			const debts = prevDebts.map((d) => ({ ...d, note, updatedAt: now }));
@@ -529,6 +563,8 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 			splitMode: draft.splitMode,
 			participants: draft.participants,
 			items: draft.items,
+			discount: draft.discount,
+			tips: draft.tips,
 			// Статус счёта с моими долгами следует за долгами.
 			manualClosedAt: myDebts.length > 0 ? null : prev.manualClosedAt,
 			updatedAt: now,

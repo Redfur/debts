@@ -3,19 +3,25 @@ import { minimizeTransfers } from "@/shared/lib/settlement";
 import type { Debt } from "../types";
 import {
 	type Bill,
+	type BillAdjustmentUnit,
+	type BillDiscount,
 	type BillDraft,
 	type BillItem,
 	type BillParticipant,
 	type BillShares,
 	type BillSplitMode,
 	type BillStatus,
+	type BillTips,
 	type BillTransfer,
 	type BillTransferGroup,
 	type BillTransferGrouping,
 	type BillValidation,
 	type BillValidationError,
+	type DiscountIssue,
 	ME_REF,
 	type MyBillDebt,
+	type ReceiptCents,
+	type TipsIssue,
 } from "./types";
 
 export function toCents(amount: number | null | undefined): number {
@@ -57,39 +63,83 @@ function isValidItem(item: BillItem): boolean {
 }
 
 /** Итог «По чеку» в копейках — сумма цен позиций. */
-export function computeItemsTotalCents(items: BillItem[]): number {
+function computeItemsTotalCents(items: BillItem[]): number {
 	return items.reduce((acc, item) => acc + Math.max(0, toCents(item.price)), 0);
+}
+
+/** Деньги скидки или чаевых в копейках: процент от `baseCents` с округлением до копейки один раз или сумма. */
+export function adjustmentCents(adjustment: { unit: BillAdjustmentUnit; value: number }, baseCents: number): number {
+	if (adjustment.unit === "amount") return toCents(adjustment.value);
+	const basisPoints = Math.round(adjustment.value * 100);
+	return Math.round((baseCents * basisPoints) / 10000);
+}
+
+export function discountIssue(discount: BillDiscount, itemsCents: number): DiscountIssue {
+	const cents = adjustmentCents(discount, itemsCents);
+	if (!(discount.value > 0) || (discount.unit === "amount" && cents <= 0)) return "zero";
+	if (discount.unit === "percent" && discount.value >= 100) return "percent_max";
+	if (discount.unit === "amount" && cents >= itemsCents) return "over_items";
+	return null;
+}
+
+function tipsPeople(tips: BillTips): number {
+	return tips.refs.length + tips.extraPeople;
+}
+
+export function tipsIssue(tips: BillTips): TipsIssue {
+	if (!(tips.value > 0) || (tips.unit === "amount" && toCents(tips.value) <= 0)) return "zero";
+	if (tips.unit === "percent" && tips.value > 100) return "percent_max";
+	if (tipsPeople(tips) === 0) return "people";
+	return null;
+}
+
+/** «По чеку»: позиции минус скидка плюс чаевые; скидка и чаевые с ошибкой не применяются. */
+export function computeReceiptCents(draft: Pick<BillDraft, "items" | "discount" | "tips">): ReceiptCents {
+	const itemsCents = computeItemsTotalCents(draft.items.filter(isValidItem));
+	const discountCents =
+		draft.discount && !discountIssue(draft.discount, itemsCents) ? adjustmentCents(draft.discount, itemsCents) : 0;
+	const tipsCents = draft.tips && !tipsIssue(draft.tips) ? adjustmentCents(draft.tips, itemsCents - discountCents) : 0;
+	return { itemsCents, discountCents, tipsCents, totalCents: itemsCents - discountCents + tipsCents };
 }
 
 function gcd(a: bigint, b: bigint): bigint {
 	return b === 0n ? a : gcd(b, a % b);
 }
 
+function lcm(a: bigint, b: bigint): bigint {
+	return (a / gcd(a, b)) * b;
+}
+
 /**
- * «По чеку»: точная доля каждого — Σ цена / на скольких — в дробях с общим знаменателем (НОК всех «на скольких»),
- * округление один раз на весь чек: пол каждой доли, затем копейки по наибольшему остатку,
- * при равенстве — по порядку участников, люди без имени последними.
+ * «По чеку»: точная доля каждого — Σ цена / на скольких × (позиции − скидка) / позиции + чаевые / на скольких —
+ * в дробях с общим знаменателем (НОК всех «на скольких» × сумма позиций), округление один раз на весь чек:
+ * пол каждой доли, затем копейки по наибольшему остатку, при равенстве — по порядку участников, люди без имени последними.
  */
 function computeItemShares(draft: BillDraft): BillShares {
 	const refs = draft.participants.map((p) => p.ref);
 	const items = draft.items.filter(isValidItem);
-	const denominator = items.reduce((acc, item) => {
-		const n = BigInt(itemPeople(item));
-		return (acc / gcd(acc, n)) * n;
-	}, 1n);
+	const { itemsCents, discountCents, tipsCents, totalCents } = computeReceiptCents(draft);
+	const tips = tipsCents > 0 ? draft.tips : null;
+	let people = items.reduce((acc, item) => lcm(acc, BigInt(itemPeople(item))), 1n);
+	if (tips) people = lcm(people, BigInt(tipsPeople(tips)));
+	const itemsBase = BigInt(Math.max(itemsCents, 1));
+	const denominator = people * itemsBase;
+	const kept = BigInt(itemsCents - discountCents);
 	// Последний элемент — люди без имени.
 	const numerators = new Array<bigint>(refs.length + 1).fill(0n);
-	for (const item of items) {
-		const part = (BigInt(toCents(item.price)) * denominator) / BigInt(itemPeople(item));
-		for (const ref of item.refs) {
+	const add = (memberRefs: string[], extraPeople: number, part: bigint) => {
+		for (const ref of memberRefs) {
 			const index = refs.indexOf(ref);
 			if (index >= 0) numerators[index] += part;
 		}
-		numerators[refs.length] += part * BigInt(item.extraPeople);
+		numerators[refs.length] += part * BigInt(extraPeople);
+	};
+	for (const item of items) {
+		add(item.refs, item.extraPeople, ((BigInt(toCents(item.price)) * people) / BigInt(itemPeople(item))) * kept);
 	}
+	if (tips) add(tips.refs, tips.extraPeople, ((BigInt(tipsCents) * people) / BigInt(tipsPeople(tips))) * itemsBase);
 	const cents = numerators.map((n) => Number(n / denominator));
-	const total = items.reduce((acc, item) => acc + toCents(item.price), 0);
-	const leftover = total - cents.reduce((acc, c) => acc + c, 0);
+	const leftover = totalCents - cents.reduce((acc, c) => acc + c, 0);
 	const order = numerators
 		.map((n, index) => ({ index, remainder: n % denominator }))
 		.sort((a, b) => (a.remainder === b.remainder ? a.index - b.index : a.remainder > b.remainder ? -1 : 1));
@@ -99,13 +149,16 @@ function computeItemShares(draft: BillDraft): BillShares {
 		roundedUp.add(index);
 	}
 	const othersCents = cents.pop() ?? 0;
-	const inSplit = refs.map((ref) => items.some((item) => item.refs.includes(ref)));
+	const inSplit = refs.map(
+		(ref) => items.some((item) => item.refs.includes(ref)) || (tips?.refs.includes(ref) ?? false),
+	);
 	return {
 		cents,
 		inSplit,
 		leftoverCents: leftover,
 		othersCents,
 		roundedUpRefs: refs.filter((_, index) => roundedUp.has(index)),
+		othersRoundedUp: roundedUp.has(refs.length),
 	};
 }
 
@@ -120,6 +173,7 @@ export function computeBillShares(draft: BillDraft): BillShares {
 			leftoverCents: 0,
 			othersCents: 0,
 			roundedUpRefs: [],
+			othersRoundedUp: false,
 		};
 	}
 	const weights = draft.participants.map((p, i) => {
@@ -127,12 +181,12 @@ export function computeBillShares(draft: BillDraft): BillShares {
 		return draft.splitMode === "shares" ? (p.shareInput ?? 0) : 1;
 	});
 	const { cents, leftover } = distributeCents(toCents(draft.totalAmount), weights);
-	return { cents, inSplit, leftoverCents: leftover, othersCents: 0, roundedUpRefs: [] };
+	return { cents, inSplit, leftoverCents: leftover, othersCents: 0, roundedUpRefs: [], othersRoundedUp: false };
 }
 
-/** «По чеку»: итог — сумма позиций, плательщик один, деление не сверяется (остаток — у людей без имени). */
+/** «По чеку»: итог — позиции − скидка + чаевые, плательщик один, деление не сверяется (остаток — у людей без имени). */
 function validateItemsBill(draft: BillDraft): BillValidation {
-	const totalCents = computeItemsTotalCents(draft.items);
+	const { itemsCents, totalCents } = computeReceiptCents(draft);
 	const shares = computeItemShares(draft);
 	const paidRemainingCents = totalCents - draft.participants.reduce((acc, p) => acc + toCents(p.paid), 0);
 	const payers = draft.participants.filter((p) => toCents(p.paid) > 0).length;
@@ -140,11 +194,13 @@ function validateItemsBill(draft: BillDraft): BillValidation {
 	const invalidItems = draft.items.flatMap((item, index) => (isValidItem(item) ? [] : [index]));
 
 	const errors: BillValidationError[] = [];
-	if (totalCents <= 0) errors.push("amount_required");
+	if (itemsCents <= 0) errors.push("amount_required");
 	if (active < 2) errors.push("participants_min");
-	if (totalCents > 0 && (paidRemainingCents !== 0 || payers !== 1)) errors.push("paid_mismatch");
+	if (itemsCents > 0 && (paidRemainingCents !== 0 || payers !== 1)) errors.push("paid_mismatch");
 	if (draft.items.some((item) => toCents(item.price) <= 0)) errors.push("item_price_required");
 	if (draft.items.some((item) => itemPeople(item) <= 0)) errors.push("item_people_required");
+	if (draft.discount && discountIssue(draft.discount, itemsCents)) errors.push("discount_invalid");
+	if (draft.tips && tipsIssue(draft.tips)) errors.push("tips_invalid");
 	return { errors, paidRemainingCents, splitRemainingCents: 0, invalidItems };
 }
 
@@ -185,6 +241,8 @@ export function computeBillTransfers(draft: BillDraft): BillTransfer[] | null {
 		"split_mismatch",
 		"item_price_required",
 		"item_people_required",
+		"discount_invalid",
+		"tips_invalid",
 	];
 	if (errors.some((error) => blocking.includes(error))) return null;
 	const balances = computeBillBalances(draft);

@@ -1,6 +1,15 @@
-import type { BillItem, BillParticipant, BillSplitMode, DebtDirection, PersistedBill } from "@/shared/lib/storage";
+import type {
+	BillAdjustmentUnit,
+	BillDiscount,
+	BillItem,
+	BillParticipant,
+	BillSplitMode,
+	BillTips,
+	DebtDirection,
+	PersistedBill,
+} from "@/shared/lib/storage";
 
-export type { BillItem, BillParticipant };
+export type { BillAdjustmentUnit, BillDiscount, BillItem, BillParticipant, BillTips };
 
 export type Bill = PersistedBill;
 export type { BillSplitMode };
@@ -12,7 +21,21 @@ export const ME_REF = "me";
 export const MAX_EXTRA_PEOPLE = 99;
 
 /** То, что определяет расчёт счёта; общий вход для формы и сохранённого счёта. */
-export type BillDraft = Pick<Bill, "totalAmount" | "splitMode" | "participants" | "items">;
+export type BillDraft = Pick<Bill, "totalAmount" | "splitMode" | "participants" | "items" | "discount" | "tips">;
+
+/** «По чеку» в копейках: позиции, применённые скидка и чаевые (с ошибкой — 0) и итог. */
+export type ReceiptCents = {
+	itemsCents: number;
+	discountCents: number;
+	tipsCents: number;
+	totalCents: number;
+};
+
+/** Что не так со скидкой: не больше нуля, 100 % и больше, не меньше суммы позиций. */
+export type DiscountIssue = "zero" | "percent_max" | "over_items" | null;
+
+/** Что не так с чаевыми: не больше нуля, больше 100 %, никто не делит. */
+export type TipsIssue = "zero" | "percent_max" | "people" | null;
 
 export type BillShares = {
 	/** Доля каждого участника в копейках, в порядке `participants`. */
@@ -25,6 +48,8 @@ export type BillShares = {
 	othersCents: number;
 	/** «По чеку»: участники, получившие неделимую копейку, в порядке `participants`. */
 	roundedUpRefs: string[];
+	/** «По чеку»: неделимую копейку получили и люди без имени. */
+	othersRoundedUp: boolean;
 };
 
 export type BillTransfer = {
@@ -65,7 +90,9 @@ export type BillValidationError =
 	| "paid_mismatch"
 	| "split_mismatch"
 	| "item_price_required"
-	| "item_people_required";
+	| "item_people_required"
+	| "discount_invalid"
+	| "tips_invalid";
 
 export type BillValidation = {
 	errors: BillValidationError[];

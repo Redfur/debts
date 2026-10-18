@@ -12,16 +12,17 @@ import { cn } from "@/shared/lib/utils";
 import { FormAlert } from "@/shared/ui/form-message";
 import {
 	type BillEntry,
+	type BillFormApi,
 	billToFormState,
 	createEmptyBillForm,
-	itemIssue,
 	toBillInput,
 	useBillForm,
 } from "../model/use-bill-form";
 import { CREATE_BILL_NS } from "../translations";
+import { BillAdjustmentsSection } from "./BillAdjustmentsSection";
 import { BillBasicsSection } from "./BillBasicsSection";
 import { BillItemsSection } from "./BillItemsSection";
-import { BillReceiptShares } from "./BillReceiptShares";
+import { BillReceiptShares, usePendingItemsText } from "./BillReceiptShares";
 import { BillSplitSection } from "./BillSplitSection";
 import { PayerSheet } from "./PayerSheet";
 
@@ -36,7 +37,8 @@ type Props = {
 
 /**
  * Форма счёта. Первым — переключатель «Одной суммой / По чеку». Одной суммой на телефоне два шага («1 из 2» — сумма,
- * участники, кто заплатил; «2 из 2» — как делим и итог); «По чеку» — один экран: участники, плательщик, позиции, доли.
+ * участники, кто заплатил; «2 из 2» — как делим и итог); «По чеку» — один экран: участники, плательщик, позиции,
+ * скидка, чаевые, доли и строка состояния над «Сохранить счёт».
  * От 1024 px — две колонки с «Отмена» и «Сохранить счёт» в шапке. После погашений — один экран, где меняется только
  * «За что».
  */
@@ -64,10 +66,7 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 	const paidMismatch = errors.includes("paid_mismatch");
 	const splitMismatch = errors.includes("split_mismatch");
 	const step1Invalid = errors.includes("amount_required") || errors.includes("participants_min");
-	// «По чеку»: сохранить нельзя, пока есть незаполненная позиция или нет ни одной.
-	const firstBadItem = state.items.findIndex((item) => itemIssue(item) !== null);
-	const receiptBlocked = receipt && (firstBadItem >= 0 || form.draft.items.length === 0);
-	const receiptHint = firstBadItem >= 0 ? t("itemsHintInvalid", { n: firstBadItem + 1 }) : t("itemsHintEmpty");
+	const receiptStatus = useReceiptStatus(form, locked);
 
 	const goToStep = (next: 1 | 2) => {
 		setStep(next);
@@ -84,7 +83,7 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 		if (pending) return;
 		if (!locked && receipt) {
 			setShowErrors(true);
-			if (receiptBlocked || errors.includes("participants_min")) return;
+			if (receiptStatus.blocked || errors.includes("participants_min")) return;
 		} else if (!locked) {
 			setShowErrors(true);
 			if (step1Invalid) {
@@ -138,17 +137,9 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 
 	const heading = bill ? t("titleEdit") : t("titleCreate");
 	const saveLabel = locked ? t("saveLocked") : t("save");
-	const saveDisabled = pending || (!locked && (receipt ? receiptBlocked : paidMismatch || splitMismatch));
+	const saveDisabled = pending || (!locked && (receipt ? receiptStatus.blocked : paidMismatch || splitMismatch));
 	const stepped = !locked && !receipt;
-	const saveHint = locked
-		? null
-		: receipt
-			? receiptBlocked
-				? receiptHint
-				: null
-			: splitMismatch
-				? t("saveHint")
-				: null;
+	const saveHint = !locked && !receipt && splitMismatch ? t("saveHint") : null;
 	const nameOfCount = t("participantsCount", { count: state.participants.length });
 
 	return (
@@ -186,8 +177,12 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 				<header className="hidden flex-wrap items-center justify-between gap-3 lg:flex">
 					<h1 className="text-title-desktop">{heading}</h1>
 					<div className="flex items-center gap-2">
-						{receiptBlocked && !locked ? (
-							<span className="text-caption text-muted-foreground mr-2">{receiptHint}</span>
+						{receipt ? (
+							<ReceiptStatusLine
+								id="bill-status-desktop"
+								status={receiptStatus}
+								className="mr-2 w-[300px] max-w-full text-right"
+							/>
 						) : null}
 						<Button type="button" variant="secondary" className="bg-card shadow-card" onClick={onCancel}>
 							{tCommon("cancel")}
@@ -226,7 +221,8 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 				</SegmentedControl>
 
 				{receipt ? (
-					<div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+					// Вторая строка забирает высоту длинной колонки позиций: «Доли» стоят сразу под первой колонкой.
+					<div className="grid gap-5 lg:grid-cols-2 lg:grid-rows-[auto_1fr] lg:items-start">
 						<DesktopColumn title={t("column1Receipt")} hidden={false} className="lg:col-start-1 lg:row-start-1">
 							<BillBasicsSection
 								form={form}
@@ -242,6 +238,7 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 							className="lg:col-start-2 lg:row-span-2 lg:row-start-1"
 						>
 							<BillItemsSection form={form} locked={locked} hideLabelOnDesktop />
+							<BillAdjustmentsSection form={form} locked={locked} />
 						</DesktopColumn>
 						{locked ? null : (
 							<div className="flex flex-col gap-4 lg:col-start-1 lg:row-start-2">
@@ -298,6 +295,7 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 				) : (
 					<>
 						{saveError ? <FormAlert>{t("saveError")}</FormAlert> : null}
+						{receipt ? <ReceiptStatusLine id="bill-save-hint" status={receiptStatus} className="text-center" /> : null}
 						{saveHint ? (
 							<span id="bill-save-hint" className="text-caption text-muted-foreground text-center">
 								{saveHint}
@@ -309,7 +307,7 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 							size="lg"
 							className="w-full"
 							disabled={saveDisabled}
-							aria-describedby={saveHint ? "bill-save-hint" : undefined}
+							aria-describedby={saveHint || receipt ? "bill-save-hint" : undefined}
 						>
 							{saveLabel}
 						</Button>
@@ -365,5 +363,58 @@ function DesktopColumn({
 				{children}
 			</div>
 		</section>
+	);
+}
+
+type ReceiptStatus = { text: string; tone: "muted" | "warning" | "error"; blocked: boolean };
+
+/**
+ * Строка над «Сохранить счёт» «По чеку» — всегда на месте, по первому подходящему: после погашений, незаполненные
+ * позиции, ошибки скидки и чаевых, нет позиций, иначе сумма по чеку. `blocked` — сохранить нельзя.
+ */
+function useReceiptStatus(form: BillFormApi, locked: boolean): ReceiptStatus {
+	const { t } = useTranslation(CREATE_BILL_NS);
+	const pendingText = usePendingItemsText();
+	const { receipt, state } = form;
+	const discountError = receipt.discountIssue !== null;
+	const tipsError = receipt.tipsIssue !== null;
+	if (locked) return { text: t("statusLocked"), tone: "muted", blocked: false };
+	if (receipt.pendingItems.length > 0) {
+		return { text: pendingText(receipt.pendingItems), tone: "warning", blocked: true };
+	}
+	if (discountError || tipsError) {
+		const text =
+			discountError && tipsError
+				? t("statusFixBoth")
+				: discountError
+					? t("statusFixDiscount")
+					: receipt.tipsIssue === "people"
+						? t("tipsNeedPeople")
+						: t("statusFixTips");
+		return { text, tone: "error", blocked: true };
+	}
+	if (receipt.itemsCents <= 0) return { text: t("itemsHintEmpty"), tone: "muted", blocked: true };
+	return {
+		text: t("statusTotal", { amount: formatMoney(receipt.totalCents / 100, state.currency) }),
+		tone: "muted",
+		blocked: false,
+	};
+}
+
+function ReceiptStatusLine({ id, status, className }: { id: string; status: ReceiptStatus; className?: string }) {
+	return (
+		<span
+			id={id}
+			role="status"
+			className={cn(
+				"text-caption block h-[18px] truncate",
+				status.tone === "muted" && "text-muted-foreground",
+				status.tone === "warning" && "text-warning font-medium",
+				status.tone === "error" && "text-destructive font-medium",
+				className,
+			)}
+		>
+			{status.text}
+		</span>
 	);
 }

@@ -1,17 +1,23 @@
 import { useMemo, useState } from "react";
 import {
+	adjustmentCents,
 	type Bill,
+	type BillAdjustmentUnit,
 	type BillDraft,
 	type BillInput,
 	type BillItem,
 	type BillSplitMode,
 	computeBillShares,
 	computeBillTransfers,
-	computeItemsTotalCents,
+	computeReceiptCents,
+	type DiscountIssue,
+	discountIssue,
 	fromCents,
 	MAX_EXTRA_PEOPLE,
 	ME_REF,
 	spreadBillRemainder,
+	type TipsIssue,
+	tipsIssue,
 	toCents,
 	validateBill,
 } from "@/entities/debt";
@@ -35,6 +41,22 @@ export type FormItem = {
 /** Чего не хватает заполненной позиции; у пустой строки — ничего (она не сохраняется). */
 export type ItemIssue = "price" | "people" | "both" | null;
 
+/** Скидка или чаевые в форме: значение — сырая строка `AmountInput`; пустое — их нет. */
+export type FormAdjustment = {
+	open: boolean;
+	unit: BillAdjustmentUnit;
+	value: string;
+};
+
+/** Чаевые в форме: отметки — в порядке участников. */
+export type FormTips = FormAdjustment & {
+	refs: string[];
+	extraPeople: number;
+};
+
+/** Значение, которое ставит открытие скидки или чаевых. */
+const DEFAULT_ADJUSTMENT_PERCENT = "10";
+
 /** Участник в форме: суммы — сырые строки поля `AmountInput` («1500.5»). */
 type FormParticipant = {
 	ref: string;
@@ -55,6 +77,22 @@ export type BillFormState = {
 	/** Выбор «Как делим» для «Одной суммой»; сохраняется, пока открыт режим «По чеку». */
 	splitMode: Exclude<BillSplitMode, "items">;
 	items: FormItem[];
+	discount: FormAdjustment;
+	tips: FormTips;
+};
+
+/** «По чеку» для показа: деньги по заполненным позициям, незаполненные (номера с 1) и что не так со скидкой и чаевыми. */
+export type ReceiptSummary = {
+	itemsCents: number;
+	discountCents: number;
+	tipsCents: number;
+	totalCents: number;
+	/** Скидка и чаевые по введённому значению, даже с ошибкой — для перечёркнутого результата. */
+	discountInputCents: number;
+	tipsInputCents: number;
+	pendingItems: number[];
+	discountIssue: DiscountIssue;
+	tipsIssue: TipsIssue;
 };
 
 /** Предыдущие суммы «Суммами» для «Отменить» после «Раскидать поровну». */
@@ -75,6 +113,14 @@ function parseRaw(raw: string): number {
 
 function newItem(): FormItem {
 	return { id: generateId(), title: "", price: "", refs: [], extraPeople: 0 };
+}
+
+function closedAdjustment(): FormAdjustment {
+	return { open: false, unit: "percent", value: "" };
+}
+
+function closedTips(): FormTips {
+	return { ...closedAdjustment(), refs: [], extraPeople: 0 };
 }
 
 function itemPeople(item: FormItem): number {
@@ -122,6 +168,8 @@ export function createEmptyBillForm(): BillFormState {
 		payerRef: ME_REF,
 		splitMode: "equal",
 		items: [],
+		discount: closedAdjustment(),
+		tips: closedTips(),
 	};
 }
 
@@ -151,25 +199,87 @@ export function billToFormState(bill: Bill): BillFormState {
 			refs: item.refs,
 			extraPeople: item.extraPeople,
 		})),
+		discount: bill.discount
+			? { open: true, unit: bill.discount.unit, value: toRaw(bill.discount.value) }
+			: closedAdjustment(),
+		tips: bill.tips
+			? {
+					open: true,
+					unit: bill.tips.unit,
+					value: toRaw(bill.tips.value),
+					refs: bill.tips.refs,
+					extraPeople: bill.tips.extraPeople,
+				}
+			: closedTips(),
 	};
 }
 
-/** «По чеку»: итог — сумма заполненных позиций, всё у одного плательщика, `inSplit` — по отметкам. */
-function toReceiptDraft(state: BillFormState): BillDraft {
+/** Скидка или чаевые учитываются, если блок открыт и значение введено. */
+function hasValue(adjustment: FormAdjustment): boolean {
+	return adjustment.open && adjustment.value.trim() !== "";
+}
+
+/**
+ * «По чеку»: итог — позиции − скидка + чаевые, всё у одного плательщика, `inSplit` — по отметкам. Пустые строки
+ * отбрасываются. Для показа (`preview`) — ещё и незаполненные позиции, скидка и чаевые с ошибкой: доли видны,
+ * пока чек заполняется, а проверка и сохранение идут по полному черновику.
+ */
+function toReceiptDraft(state: BillFormState, preview = false): BillDraft {
 	const refs = state.participants.map((p) => p.ref);
-	const items = state.items.filter((item) => !isEmptyItem(item)).map((item) => toBillItem(item, refs));
-	const totalAmount = fromCents(computeItemsTotalCents(items));
+	const items = state.items
+		.filter((item) => (preview ? itemIssue(item) === null : true) && !isEmptyItem(item))
+		.map((item) => toBillItem(item, refs));
+	let discount: BillDraft["discount"] = hasValue(state.discount)
+		? { unit: state.discount.unit, value: parseRaw(state.discount.value) }
+		: null;
+	let tips: BillDraft["tips"] = hasValue(state.tips)
+		? {
+				unit: state.tips.unit,
+				value: parseRaw(state.tips.value),
+				refs: refs.filter((ref) => state.tips.refs.includes(ref)),
+				extraPeople: state.tips.extraPeople,
+			}
+		: null;
+	if (preview) {
+		const itemsCents = computeReceiptCents({ items, discount: null, tips: null }).itemsCents;
+		if (discount && discountIssue(discount, itemsCents)) discount = null;
+		if (tips && tipsIssue(tips)) tips = null;
+	}
+	const totalAmount = fromCents(computeReceiptCents({ items, discount, tips }).totalCents);
 	return {
 		totalAmount,
 		splitMode: "items",
 		participants: state.participants.map((p) => ({
 			ref: p.ref,
 			paid: p.ref === state.payerRef ? totalAmount : 0,
-			inSplit: items.some((item) => item.refs.includes(p.ref)),
+			inSplit: items.some((item) => item.refs.includes(p.ref)) || (tips?.refs.includes(p.ref) ?? false),
 			shareInput: null,
 		})),
 		items,
+		discount,
+		tips,
 	};
+}
+
+function summarizeReceipt(state: BillFormState, preview: BillDraft): ReceiptSummary {
+	const cents = computeReceiptCents(preview);
+	const full = toReceiptDraft(state);
+	const keptCents = cents.itemsCents - cents.discountCents;
+	return {
+		...cents,
+		discountInputCents: full.discount ? adjustmentCents(full.discount, cents.itemsCents) : 0,
+		tipsInputCents: full.tips ? adjustmentCents(full.tips, keptCents) : 0,
+		pendingItems: state.items.flatMap((item, index) => (itemIssue(item) ? [index + 1] : [])),
+		discountIssue: full.discount ? discountIssue(full.discount, cents.itemsCents) : null,
+		tipsIssue: full.tips ? tipsIssue(full.tips) : null,
+	};
+}
+
+/** Значение скидки или чаевых в другой единице — те же деньги: сумма до копейки, процент до двух знаков. */
+function convertAdjustment(unit: BillAdjustmentUnit, cents: number, baseCents: number): string {
+	if (cents <= 0) return "";
+	if (unit === "amount") return toRaw(fromCents(cents));
+	return baseCents > 0 ? toRaw(Math.round((cents / baseCents) * 10000) / 100) : "";
 }
 
 function toDraft(state: BillFormState): BillDraft {
@@ -185,6 +295,8 @@ function toDraft(state: BillFormState): BillDraft {
 			shareInput: state.splitMode === "shares" ? p.shares : state.splitMode === "amounts" ? parseRaw(p.amount) : null,
 		})),
 		items: [],
+		discount: null,
+		tips: null,
 	};
 }
 
@@ -199,12 +311,19 @@ export function useBillForm(initial: () => BillFormState) {
 
 	const draft = useMemo(() => toDraft(state), [state]);
 	const validation = useMemo(() => validateBill(draft), [draft]);
-	const shares = useMemo(() => computeBillShares(draft), [draft]);
-	const transfers = useMemo(() => computeBillTransfers(draft), [draft]);
+	// Доли и переводы «По чеку» — по заполненному: незаполненная позиция не прячет их, пока чек вводится.
+	const preview = useMemo(() => (state.entry === "receipt" ? toReceiptDraft(state, true) : draft), [state, draft]);
+	const shares = useMemo(() => computeBillShares(preview), [preview]);
+	const transfers = useMemo(() => computeBillTransfers(preview), [preview]);
+	const receipt = useMemo(() => summarizeReceipt(state, preview), [state, preview]);
 
 	const patch = (next: Partial<BillFormState>) => setState((s) => ({ ...s, ...next }));
 	const updateItem = (id: string, change: (item: FormItem) => Partial<FormItem>) =>
 		setState((s) => ({ ...s, items: s.items.map((item) => (item.id === id ? { ...item, ...change(item) } : item)) }));
+	const updateDiscount = (change: Partial<FormAdjustment>) =>
+		setState((s) => ({ ...s, discount: { ...s.discount, ...change } }));
+	const updateTips = (change: (tips: FormTips, s: BillFormState) => Partial<FormTips>) =>
+		setState((s) => ({ ...s, tips: { ...s.tips, ...change(s.tips, s) } }));
 	const updateParticipant = (ref: string, change: Partial<FormParticipant>) =>
 		setState((s) => ({ ...s, participants: s.participants.map((p) => (p.ref === ref ? { ...p, ...change } : p)) }));
 
@@ -214,6 +333,7 @@ export function useBillForm(initial: () => BillFormState) {
 		validation,
 		shares,
 		transfers,
+		receipt,
 		spreadUndo,
 		setAmount: (amount: string) => patch({ amount }),
 		setCurrency: (currency: CurrencyCode) => patch({ currency }),
@@ -224,15 +344,17 @@ export function useBillForm(initial: () => BillFormState) {
 				const kept = s.participants.filter((p) => p.ref === ME_REF || contactIds.includes(p.ref));
 				const added = contactIds.filter((id) => !kept.some((p) => p.ref === id)).map(newParticipant);
 				const participants = [...kept, ...added];
+				const refs = participants.map((p) => p.ref);
 				const payerRef = participants.some((p) => p.ref === s.payerRef) ? s.payerRef : ME_REF;
+				// Чаевые «на всех» остаются на всех и с новыми участниками.
+				const tipsOnAll = s.participants.every((p) => s.tips.refs.includes(p.ref));
+				const tipsRefs = tipsOnAll ? refs : s.tips.refs;
 				return {
 					...s,
 					participants,
 					payerRef,
-					items: keepRefs(
-						s.items,
-						participants.map((p) => p.ref),
-					),
+					items: keepRefs(s.items, refs),
+					tips: { ...s.tips, refs: refs.filter((ref) => tipsRefs.includes(ref)) },
 				};
 			}),
 		removeParticipant: (ref: string) =>
@@ -246,11 +368,12 @@ export function useBillForm(initial: () => BillFormState) {
 						s.items,
 						participants.map((p) => p.ref),
 					),
+					tips: { ...s.tips, refs: s.tips.refs.filter((r) => r !== ref) },
 				};
 			}),
 		/**
 		 * «Одной суммой» ↔ «По чеку». В чек — один плательщик (при «Несколько» — с наибольшей оплатой) и пустая строка,
-		 * если позиций нет; обратно — пустая сумма заполняется итогом позиций.
+		 * если позиций нет; обратно — пустая сумма заполняется суммой по чеку.
 		 */
 		setEntry: (entry: BillEntry) =>
 			setState((s) => {
@@ -260,8 +383,8 @@ export function useBillForm(initial: () => BillFormState) {
 					const payerRef = s.payerMode === "several" ? (top && parseRaw(top.paid) > 0 ? top.ref : ME_REF) : s.payerRef;
 					return { ...s, entry, payerMode: "one", payerRef, items: s.items.length > 0 ? s.items : [newItem()] };
 				}
-				const itemsCents = computeItemsTotalCents(toReceiptDraft(s).items);
-				const amount = toCents(parseRaw(s.amount)) <= 0 && itemsCents > 0 ? toRaw(fromCents(itemsCents)) : s.amount;
+				const totalCents = toCents(toReceiptDraft(s, true).totalAmount);
+				const amount = toCents(parseRaw(s.amount)) <= 0 && totalCents > 0 ? toRaw(fromCents(totalCents)) : s.amount;
 				return { ...s, entry, amount };
 			}),
 		addItem: () => setState((s) => ({ ...s, items: [...s.items, newItem()] })),
@@ -281,6 +404,35 @@ export function useBillForm(initial: () => BillFormState) {
 			})),
 		setItemExtraPeople: (id: string, extraPeople: number) =>
 			updateItem(id, () => ({ extraPeople: Math.min(MAX_EXTRA_PEOPLE, Math.max(0, extraPeople)) })),
+		openDiscount: () => updateDiscount({ open: true, unit: "percent", value: DEFAULT_ADJUSTMENT_PERCENT }),
+		removeDiscount: () => updateDiscount({ open: false, value: "" }),
+		setDiscountValue: (value: string) => updateDiscount({ value }),
+		setDiscountUnit: (unit: BillAdjustmentUnit) => {
+			if (unit === state.discount.unit) return;
+			updateDiscount({ unit, value: convertAdjustment(unit, receipt.discountCents, receipt.itemsCents) });
+		},
+		openTips: () =>
+			updateTips((_, s) => ({
+				open: true,
+				unit: "percent",
+				value: DEFAULT_ADJUSTMENT_PERCENT,
+				refs: s.participants.map((p) => p.ref),
+				extraPeople: 0,
+			})),
+		removeTips: () => updateTips(() => ({ open: false, value: "" })),
+		setTipsValue: (value: string) => updateTips(() => ({ value })),
+		setTipsUnit: (unit: BillAdjustmentUnit) => {
+			if (unit === state.tips.unit) return;
+			const keptCents = receipt.itemsCents - receipt.discountCents;
+			updateTips(() => ({ unit, value: convertAdjustment(unit, receipt.tipsCents, keptCents) }));
+		},
+		toggleTipsRef: (ref: string) =>
+			updateTips((tips, s) => {
+				const on = !tips.refs.includes(ref);
+				return { refs: s.participants.map((p) => p.ref).filter((r) => (r === ref ? on : tips.refs.includes(r))) };
+			}),
+		setTipsExtraPeople: (extraPeople: number) =>
+			updateTips(() => ({ extraPeople: Math.min(MAX_EXTRA_PEOPLE, Math.max(0, extraPeople)) })),
 		setPayer: (payerRef: string) => patch({ payerRef, payerMode: "one" }),
 		/** «Один» → «Несколько»: вся сумма уже записана выбранному плательщику. */
 		setPayerMode: (payerMode: PayerMode) =>

@@ -41,9 +41,9 @@ export function buildDebtsBackupFilename(date: Date): string {
 	return `debts-backup-${iso}.json`;
 }
 
-/** Счета, записанные до деления по чеку, не имеют поля `items`. */
-function normalizeBill(bill: PersistedBill): PersistedBill {
-	return { ...bill, items: bill.items ?? [] };
+/** Счета, записанные до деления по чеку, не имеют полей `items`, `discount` и `tips`. */
+export function normalizeBill(bill: PersistedBill): PersistedBill {
+	return { ...bill, items: bill.items ?? [], discount: bill.discount ?? null, tips: bill.tips ?? null };
 }
 
 function isPersistedMeta(value: unknown): value is PersistedMeta {

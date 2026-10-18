@@ -1,14 +1,15 @@
-import { Check, Minus, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Input } from "@/components/ui/input";
-import { MAX_EXTRA_PEOPLE, ME_REF, toCents, useParticipantName } from "@/entities/debt";
+import { ME_REF, toCents, useParticipantName } from "@/entities/debt";
 import { CURRENCY_SYMBOL } from "@/shared/config/currencies";
 import { formatMoney } from "@/shared/lib/format-amount";
 import { cn } from "@/shared/lib/utils";
 import { type BillFormApi, type FormItem, itemIssue } from "../model/use-bill-form";
 import { CREATE_BILL_NS } from "../translations";
+import { BillPeopleChips } from "./BillPeopleChips";
 
 type Props = {
 	form: BillFormApi;
@@ -60,20 +61,22 @@ function ItemRow({ form, item, index, locked }: RowProps) {
 	const nameOf = useParticipantName();
 	const titleId = useId();
 	const priceId = useId();
-	const { state } = form;
+	const { state, receipt } = form;
 	const title = item.title.trim() || t("itemUntitled");
 	const people = item.refs.length + item.extraPeople;
 	const priceCents = toCents(Number(item.price) || 0);
 	const issue = itemIssue(item);
-	const money = (cents: number) => formatMoney(cents / 100, state.currency);
+	const blank = !issue && (priceCents <= 0 || people === 0);
+	// «по X» — уже со скидкой: позиции уменьшаются пропорционально цене.
+	const keptShare = receipt.itemsCents > 0 ? (receipt.itemsCents - receipt.discountCents) / receipt.itemsCents : 1;
+	const money = (cents: number) => formatMoney(Math.round(cents) / 100, state.currency);
 	const caption = issue
 		? t(ISSUE_KEYS[issue])
-		: people === 1
-			? t("itemOnePerson", { amount: money(priceCents) })
-			: people > 1
-				? t("itemPerPerson", { amount: money(Math.round(priceCents / people)), count: people })
-				: null;
-	const chips = locked ? state.participants.filter((p) => item.refs.includes(p.ref)) : state.participants;
+		: blank
+			? t("itemNeedBoth")
+			: people === 1
+				? t("itemOnePerson", { amount: money(priceCents * keptShare) })
+				: t("itemPerPerson", { amount: money((priceCents * keptShare) / people), count: people });
 	const fieldClass = cn(
 		"flex min-h-12 items-center rounded-[14px] px-3 focus-within:shadow-[inset_0_0_0_2px_var(--ring)]",
 		locked ? "shadow-[inset_0_0_0_1px_var(--border)]" : "bg-(--field-bg,var(--background))",
@@ -117,48 +120,28 @@ function ItemRow({ form, item, index, locked }: RowProps) {
 				</div>
 			</div>
 
-			<fieldset aria-label={t("itemGroup", { title })} className="m-0 flex min-w-0 flex-wrap gap-1.5 border-0 p-0">
-				{chips.map(({ ref }) => {
-					const on = item.refs.includes(ref);
-					const me = ref === ME_REF;
-					const name = nameOf(ref);
-					const label = me
+			<BillPeopleChips
+				participantRefs={state.participants.map((p) => p.ref)}
+				refs={item.refs}
+				extraPeople={item.extraPeople}
+				groupLabel={t("itemGroup", { title })}
+				chipLabel={(ref, on) =>
+					ref === ME_REF
 						? t(on ? "itemSplitsMe" : "itemNotSplitsMe", { title })
-						: t(on ? "itemSplits" : "itemNotSplits", { name, title });
-					if (locked) {
-						return (
-							<span
-								key={ref}
-								className="text-muted-foreground inline-flex min-h-9 max-w-full items-center rounded-full px-3 text-sm font-medium shadow-[inset_0_0_0_1px_var(--border)]"
-							>
-								<span className="max-w-[120px] truncate">{name.split(" ")[0]}</span>
-							</span>
-						);
-					}
-					return (
-						<button
-							key={ref}
-							type="button"
-							aria-pressed={on}
-							aria-label={label}
-							onClick={() => form.toggleItemRef(item.id, ref)}
-							className={cn(
-								"inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-full text-[15px] outline-none focus-visible:ring-2 focus-visible:ring-ring",
-								on
-									? "bg-accent-muted text-accent-strong pr-3.5 pl-2.5 font-semibold shadow-[inset_0_0_0_1.5px_var(--accent)]"
-									: "bg-(--field-bg,var(--background)) px-3.5 font-medium",
-							)}
-						>
-							{on ? <Check className="size-[15px]" strokeWidth={3} aria-hidden="true" /> : null}
-							<span className="max-w-[120px] truncate">{name.split(" ")[0]}</span>
-						</button>
-					);
-				})}
-				<ExtraPeople form={form} item={item} locked={locked} />
-			</fieldset>
+						: t(on ? "itemSplits" : "itemNotSplits", { name: nameOf(ref), title })
+				}
+				onToggle={(ref) => form.toggleItemRef(item.id, ref)}
+				onExtraPeople={(count) => form.setItemExtraPeople(item.id, count)}
+				locked={locked}
+			/>
 
-			<div className="flex min-h-5 items-center justify-between gap-2">
-				<span className={cn("text-caption text-muted-foreground", issue && "font-medium")}>{caption}</span>
+			<div className="flex h-5 items-center justify-between gap-2">
+				<span
+					role="status"
+					className={cn("text-caption min-w-0 truncate", issue ? "text-warning font-medium" : "text-muted-foreground")}
+				>
+					{caption}
+				</span>
 				{locked ? null : (
 					<button
 						type="button"
@@ -171,55 +154,5 @@ function ItemRow({ form, item, index, locked }: RowProps) {
 				)}
 			</div>
 		</li>
-	);
-}
-
-/** «+ ещё» без людей без имени; со счётчиком — «− + ещё N +»; в неактивной форме — только «+ ещё N». */
-function ExtraPeople({ form, item, locked }: { form: BillFormApi; item: FormItem; locked: boolean }) {
-	const { t } = useTranslation(CREATE_BILL_NS);
-	const count = item.extraPeople;
-	const text = t("extraCount", { count });
-	if (locked) {
-		return count > 0 ? (
-			<span className="text-muted-foreground inline-flex min-h-9 items-center rounded-full px-3 text-sm font-medium shadow-[inset_0_0_0_1px_var(--border)]">
-				{text}
-			</span>
-		) : null;
-	}
-	if (count === 0) {
-		return (
-			<button
-				type="button"
-				aria-label={t("extraAddA11y")}
-				onClick={() => form.setItemExtraPeople(item.id, 1)}
-				className="border-muted-foreground/50 text-accent inline-flex min-h-11 items-center rounded-full border-[1.5px] border-dashed px-3.5 text-[15px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring"
-			>
-				{t("extraAdd")}
-			</button>
-		);
-	}
-	return (
-		<span className="bg-accent-muted text-accent-strong inline-flex min-h-11 items-center rounded-full text-[15px] font-semibold shadow-[inset_0_0_0_1.5px_var(--accent)]">
-			<button
-				type="button"
-				aria-label={t("extraLess")}
-				onClick={() => form.setItemExtraPeople(item.id, count - 1)}
-				className="flex h-11 w-10 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
-			>
-				<Minus className="size-4" strokeWidth={2.4} />
-			</button>
-			<span aria-live="polite" className="px-0.5 whitespace-nowrap tabular-nums">
-				{text}
-			</span>
-			<button
-				type="button"
-				aria-label={t("extraMore")}
-				disabled={count >= MAX_EXTRA_PEOPLE}
-				onClick={() => form.setItemExtraPeople(item.id, count + 1)}
-				className="flex h-11 w-10 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40"
-			>
-				<Plus className="size-4" strokeWidth={2.4} />
-			</button>
-		</span>
 	);
 }

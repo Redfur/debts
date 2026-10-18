@@ -1,16 +1,18 @@
-import { ChevronDown, ChevronLeft, Info, UserPlus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ChevronDown, ChevronLeft, Coins, Info, Percent, UserPlus } from "lucide-react";
+import { type ReactNode, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
 	type Bill,
+	type BillAdjustmentUnit,
 	BillStatusBadge,
 	type BillTransfer,
 	computeBillShares,
 	computeBillStatus,
 	computeBillTransfers,
 	computeDebtBalance,
+	computeReceiptCents,
 	type Debt,
 	ME_REF,
 	ParticipantAvatar,
@@ -255,11 +257,20 @@ const FOLD_AFTER = 5;
 const FOLDED_ITEMS = 4;
 /** С этого числа участников позиция «на всех» подписывается «все N участников». */
 const ALL_FROM = 6;
+/** Чаевые на всех при трёх и больше — «все N участника». */
+const ALL_TIPS_FROM = 3;
 
-/** «Позиции N» счёта по чеку: «<что> · <цена>», кто делит («вы» — пользователь) и «+ ещё N». */
+/**
+ * «Позиции N» счёта по чеку: «<что> · <цена>», кто делит («вы» — пользователь) и «+ ещё N»; после позиций —
+ * скидка и чаевые, они не сворачиваются.
+ */
 function BillItemsList({ bill }: { bill: Bill }) {
 	const { t } = useTranslation(BILL_DETAIL_NS);
 	const nameOf = useParticipantName();
+	const receipt = computeReceiptCents(bill);
+	const namesOf = (refs: string[]) => refs.map((ref) => (ref === ME_REF ? t("payersMe") : nameOf(ref))).join(", ");
+	const percentText = (unit: BillAdjustmentUnit, value: number) =>
+		unit === "percent" ? ` ${t("percent", { value: formatAmount(value) })}` : "";
 	const [open, setOpen] = useState(false);
 	const folded = bill.items.length > FOLD_AFTER && !open;
 	const items = folded ? bill.items.slice(0, FOLDED_ITEMS) : bill.items;
@@ -275,7 +286,7 @@ function BillItemsList({ bill }: { bill: Bill }) {
 					const who =
 						item.refs.length === everyone && everyone >= ALL_FROM
 							? t("itemsEveryone", { count: everyone })
-							: item.refs.map((ref) => (ref === ME_REF ? t("payersMe") : nameOf(ref))).join(", ");
+							: namesOf(item.refs);
 					return (
 						<li key={item.id} className={cn("flex flex-col gap-0.5 py-2.5", index > 0 && "border-t")}>
 							<span className="text-body font-medium break-words">
@@ -310,6 +321,77 @@ function BillItemsList({ bill }: { bill: Bill }) {
 					<ChevronDown className={cn("size-[18px]", open && "rotate-180")} strokeWidth={2.2} aria-hidden="true" />
 				</button>
 			) : null}
+			{receipt.discountCents > 0 || receipt.tipsCents > 0 ? (
+				<ul aria-label={t("adjustments")} className="border-t">
+					{bill.discount && receipt.discountCents > 0 ? (
+						<AdjustmentRow
+							icon={<Percent className="size-3.5" strokeWidth={2.4} />}
+							title={t("discountRow", {
+								unit: percentText(bill.discount.unit, bill.discount.value),
+								amount: formatMoney(receipt.discountCents / 100, bill.currency),
+							})}
+						/>
+					) : null}
+					{bill.tips && receipt.tipsCents > 0 ? (
+						<AdjustmentRow
+							icon={<Coins className="size-3.5" strokeWidth={2.4} />}
+							title={t("tipsRow", {
+								unit: percentText(bill.tips.unit, bill.tips.value),
+								amount: formatMoney(receipt.tipsCents / 100, bill.currency),
+							})}
+							who={
+								bill.tips.refs.length === everyone && everyone >= ALL_TIPS_FROM
+									? t("itemsEveryone", { count: everyone })
+									: namesOf(bill.tips.refs)
+							}
+							extraPeople={bill.tips.extraPeople}
+							separated={receipt.discountCents > 0}
+						/>
+					) : null}
+				</ul>
+			) : null}
 		</section>
+	);
+}
+
+function AdjustmentRow({
+	icon,
+	title,
+	who,
+	extraPeople = 0,
+	separated = false,
+}: {
+	icon: ReactNode;
+	title: string;
+	who?: string;
+	extraPeople?: number;
+	separated?: boolean;
+}) {
+	const { t } = useTranslation(BILL_DETAIL_NS);
+	return (
+		<li className={cn("flex flex-col gap-0.5 py-2.5", separated && "border-t")}>
+			<span className="text-body flex items-center gap-2 font-medium">
+				<span
+					aria-hidden="true"
+					className="bg-muted text-muted-foreground flex size-[22px] shrink-0 items-center justify-center rounded-[7px]"
+				>
+					{icon}
+				</span>
+				{title}
+			</span>
+			{who !== undefined ? (
+				<span className="text-caption text-muted-foreground pl-[30px] break-words">
+					{who}
+					{extraPeople > 0 ? (
+						<>
+							{who ? " " : null}
+							<span className="bg-secondary text-foreground rounded-md px-1.5 font-medium whitespace-nowrap">
+								{t("itemExtra", { count: extraPeople })}
+							</span>
+						</>
+					) : null}
+				</span>
+			) : null}
+		</li>
 	);
 }
