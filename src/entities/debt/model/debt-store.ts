@@ -4,8 +4,12 @@ import { fetchExchangeRates, isRatesCacheStale } from "@/shared/lib/exchange-rat
 import { generateId } from "@/shared/lib/id";
 import { roundAmount } from "@/shared/lib/round-amount";
 import type {
+	BillAdjustmentUnit,
+	BillDiscount,
+	BillItem,
 	BillParticipant,
 	BillSplitMode,
+	BillTips,
 	CurrencyCode,
 	DebtDirection,
 	ExchangeRatesCache,
@@ -14,9 +18,15 @@ import type {
 	PersistedDebt,
 	PersistedDebtOperation,
 } from "@/shared/lib/storage";
-import { getStorageAdapter } from "@/shared/lib/storage";
-import { computeBillTransfers, computeMyBillDebts, validateBill } from "./bill/compute-bill";
-import { ME_REF } from "./bill/types";
+import { getStorageAdapter, normalizeBill } from "@/shared/lib/storage";
+import {
+	computeBillTransfers,
+	computeMyBillDebts,
+	computeReceiptCents,
+	fromCents,
+	validateBill,
+} from "./bill/compute-bill";
+import { type BillDraft, MAX_EXTRA_PEOPLE, ME_REF } from "./bill/types";
 import { computeDebtBalance } from "./compute-debt-balance";
 
 function contactsToRecord(rows: PersistedContact[]): Record<string, PersistedContact> {
@@ -108,7 +118,78 @@ export type BillInput = {
 	splitMode: BillSplitMode;
 	/** `ref` — `"me"` или id существующего контакта. */
 	participants: BillParticipant[];
+	/** Позиции «По чеку»; у остальных способов деления игнорируются. */
+	items: BillItem[];
+	/** Скидка и чаевые «По чеку»; у остальных способов деления игнорируются. */
+	discount: BillDiscount | null;
+	tips: BillTips | null;
 };
+
+function isPeopleCount(value: number): boolean {
+	return Number.isInteger(value) && value >= 0 && value <= MAX_EXTRA_PEOPLE;
+}
+
+function isUnit(unit: unknown): unit is BillAdjustmentUnit {
+	return unit === "percent" || unit === "amount";
+}
+
+/** Процент — до двух знаков, сумма — до копейки. */
+function roundAdjustmentValue(unit: BillAdjustmentUnit, value: number): number {
+	return unit === "percent" ? Math.round(value * 100) / 100 : roundAmount(value);
+}
+
+/**
+ * Вход счёта → то, что пишется и считается. «По чеку»: итог — позиции − скидка + чаевые, `inSplit` — отмечен
+ * в позиции или в чаевых, отметки — в порядке участников; `null`, если в позиции или чаевых чужой `ref`, повтор
+ * или людей без имени вне 0…99.
+ */
+function prepareBillDraft(input: BillInput): BillDraft | null {
+	if (input.splitMode !== "items") {
+		return {
+			totalAmount: roundAmount(input.totalAmount),
+			splitMode: input.splitMode,
+			participants: input.participants,
+			items: [],
+			discount: null,
+			tips: null,
+		};
+	}
+	const refs = input.participants.map((p) => p.ref);
+	const isRefList = (list: string[]) => new Set(list).size === list.length && list.every((ref) => refs.includes(ref));
+	const { discount, tips } = input;
+	const wellFormed =
+		input.items.every((item) => isPeopleCount(item.extraPeople) && isRefList(item.refs)) &&
+		(!discount || (isUnit(discount.unit) && Number.isFinite(discount.value))) &&
+		(!tips ||
+			(isUnit(tips.unit) && Number.isFinite(tips.value) && isPeopleCount(tips.extraPeople) && isRefList(tips.refs)));
+	if (!wellFormed) return null;
+	const items = input.items.map((item) => ({
+		...item,
+		title: item.title?.trim() || null,
+		price: roundAmount(item.price),
+		refs: refs.filter((ref) => item.refs.includes(ref)),
+	}));
+	const receipt = {
+		items,
+		discount: discount && { unit: discount.unit, value: roundAdjustmentValue(discount.unit, discount.value) },
+		tips: tips && {
+			unit: tips.unit,
+			value: roundAdjustmentValue(tips.unit, tips.value),
+			refs: refs.filter((ref) => tips.refs.includes(ref)),
+			extraPeople: tips.extraPeople,
+		},
+	};
+	return {
+		...receipt,
+		totalAmount: fromCents(computeReceiptCents(receipt).totalCents),
+		splitMode: "items",
+		participants: input.participants.map((p) => ({
+			...p,
+			inSplit: items.some((item) => item.refs.includes(p.ref)) || (receipt.tips?.refs.includes(p.ref) ?? false),
+			shareInput: null,
+		})),
+	};
+}
 
 type CreateDebtInput = {
 	contactId: string;
@@ -178,7 +259,8 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 				// Долги, записанные до появления счетов, не имеют поля billId.
 				debtsById: debtsToRecord(debts.map((d) => ({ ...d, billId: d.billId ?? null }))),
 				operationsByDebtId: groupOperationsByDebt(operations),
-				billsById: Object.fromEntries(bills.map((b) => [b.id, b])),
+				// Счета, записанные до деления по чеку, не имеют полей items, discount и tips.
+				billsById: Object.fromEntries(bills.map((b) => [b.id, normalizeBill(b)])),
 				ratesCache: meta.ratesCache,
 				hydrated: true,
 				lastError: null,
@@ -398,7 +480,8 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 	},
 
 	createBill: async (input: BillInput) => {
-		const draft = { ...input, totalAmount: roundAmount(input.totalAmount) };
+		const draft = prepareBillDraft(input);
+		if (!draft) return undefined;
 		const transfers = computeBillTransfers(draft);
 		if (!transfers || validateBill(draft).errors.length > 0) return undefined;
 		const { contactsById } = get();
@@ -411,8 +494,11 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 			title: note,
 			currency: input.currency,
 			totalAmount: draft.totalAmount,
-			splitMode: input.splitMode,
-			participants: input.participants,
+			splitMode: draft.splitMode,
+			participants: draft.participants,
+			items: draft.items,
+			discount: draft.discount,
+			tips: draft.tips,
 			manualClosedAt: null,
 			createdAt: now,
 			updatedAt: now,
@@ -444,13 +530,17 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 		const hasRepayments = prevDebts.some((d) => (operationsByDebtId[d.id] ?? []).some((op) => op.kind === "repayment"));
 		const now = new Date().toISOString();
 		const note = input.title.trim() || null;
+		const draft = prepareBillDraft(input);
 
 		if (hasRepayments) {
 			const structureChanged =
-				roundAmount(input.totalAmount) !== prev.totalAmount ||
+				!draft ||
+				draft.totalAmount !== prev.totalAmount ||
 				input.currency !== prev.currency ||
-				input.splitMode !== prev.splitMode ||
-				JSON.stringify(input.participants) !== JSON.stringify(prev.participants);
+				draft.splitMode !== prev.splitMode ||
+				JSON.stringify(draft.participants) !== JSON.stringify(prev.participants) ||
+				JSON.stringify([draft.items, draft.discount, draft.tips]) !==
+					JSON.stringify([prev.items, prev.discount, prev.tips]);
 			if (structureChanged) return false;
 			const bill: PersistedBill = { ...prev, title: note, updatedAt: now };
 			const debts = prevDebts.map((d) => ({ ...d, note, updatedAt: now }));
@@ -459,7 +549,7 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 			);
 		}
 
-		const draft = { ...input, totalAmount: roundAmount(input.totalAmount) };
+		if (!draft) return false;
 		const transfers = computeBillTransfers(draft);
 		if (!transfers || validateBill(draft).errors.length > 0) return false;
 		if (input.participants.some((p) => p.ref !== ME_REF && !contactsById[p.ref])) return false;
@@ -470,8 +560,11 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 			title: note,
 			currency: input.currency,
 			totalAmount: draft.totalAmount,
-			splitMode: input.splitMode,
-			participants: input.participants,
+			splitMode: draft.splitMode,
+			participants: draft.participants,
+			items: draft.items,
+			discount: draft.discount,
+			tips: draft.tips,
 			// Статус счёта с моими долгами следует за долгами.
 			manualClosedAt: myDebts.length > 0 ? null : prev.manualClosedAt,
 			updatedAt: now,

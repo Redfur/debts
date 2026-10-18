@@ -16,7 +16,8 @@ type Props = {
 	participantRefs: string[];
 	value: string;
 	onPick: (ref: string) => void;
-	onSeveral: () => void;
+	/** Без него («По чеку») кнопки «Платили несколько» нет: плательщик один. */
+	onSeveral?: () => void;
 };
 
 /** Шторка «Кто заплатил»: выбор одного плательщика из участников и «Платили несколько». */
@@ -61,12 +62,14 @@ export function PayerSheet({ open, onOpenChange, subtitle, participantRefs, valu
 						);
 					})}
 				</RadioGroup>
-				<div className="border-t px-2 pt-2.5">
-					<Button type="button" variant="secondary" size="lg" className="w-full" onClick={onSeveral}>
-						<Users className="size-5" aria-hidden="true" />
-						{t("payerSeveralButton")}
-					</Button>
-				</div>
+				{onSeveral ? (
+					<div className="border-t px-2 pt-2.5">
+						<Button type="button" variant="secondary" size="lg" className="w-full" onClick={onSeveral}>
+							<Users className="size-5" aria-hidden="true" />
+							{t("payerSeveralButton")}
+						</Button>
+					</div>
+				) : null}
 			</DialogContent>
 		</Dialog>
 	);

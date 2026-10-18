@@ -1,6 +1,15 @@
-import type { BillParticipant, BillSplitMode, DebtDirection, PersistedBill } from "@/shared/lib/storage";
+import type {
+	BillAdjustmentUnit,
+	BillDiscount,
+	BillItem,
+	BillParticipant,
+	BillSplitMode,
+	BillTips,
+	DebtDirection,
+	PersistedBill,
+} from "@/shared/lib/storage";
 
-export type { BillParticipant };
+export type { BillAdjustmentUnit, BillDiscount, BillItem, BillParticipant, BillTips };
 
 export type Bill = PersistedBill;
 export type { BillSplitMode };
@@ -8,16 +17,39 @@ export type { BillSplitMode };
 /** `ref` участника-пользователя. */
 export const ME_REF = "me";
 
+/** Больше людей без имени в одной позиции не бывает. */
+export const MAX_EXTRA_PEOPLE = 99;
+
 /** То, что определяет расчёт счёта; общий вход для формы и сохранённого счёта. */
-export type BillDraft = Pick<Bill, "totalAmount" | "splitMode" | "participants">;
+export type BillDraft = Pick<Bill, "totalAmount" | "splitMode" | "participants" | "items" | "discount" | "tips">;
+
+/** «По чеку» в копейках: позиции, применённые скидка и чаевые (с ошибкой — 0) и итог. */
+export type ReceiptCents = {
+	itemsCents: number;
+	discountCents: number;
+	tipsCents: number;
+	totalCents: number;
+};
+
+/** Что не так со скидкой: не больше нуля, 100 % и больше, не меньше суммы позиций. */
+export type DiscountIssue = "zero" | "percent_max" | "over_items" | null;
+
+/** Что не так с чаевыми: не больше нуля, больше 100 %, никто не делит. */
+export type TipsIssue = "zero" | "percent_max" | "people" | null;
 
 export type BillShares = {
 	/** Доля каждого участника в копейках, в порядке `participants`. */
 	cents: number[];
 	/** Участник делит счёт. */
 	inSplit: boolean[];
-	/** Неделимые копейки, розданные первым участникам деления (только «Поровну» и «Долями»). */
+	/** Неделимые копейки, розданные участникам деления (кроме «Суммами»). */
 	leftoverCents: number;
+	/** «По чеку»: доля людей без имени в копейках; у остальных способов — 0. */
+	othersCents: number;
+	/** «По чеку»: участники, получившие неделимую копейку, в порядке `participants`. */
+	roundedUpRefs: string[];
+	/** «По чеку»: неделимую копейку получили и люди без имени. */
+	othersRoundedUp: boolean;
 };
 
 export type BillTransfer = {
@@ -52,7 +84,15 @@ export type BillStatus = {
 	hasMyDebts: boolean;
 };
 
-export type BillValidationError = "amount_required" | "participants_min" | "paid_mismatch" | "split_mismatch";
+export type BillValidationError =
+	| "amount_required"
+	| "participants_min"
+	| "paid_mismatch"
+	| "split_mismatch"
+	| "item_price_required"
+	| "item_people_required"
+	| "discount_invalid"
+	| "tips_invalid";
 
 export type BillValidation = {
 	errors: BillValidationError[];
@@ -60,4 +100,6 @@ export type BillValidation = {
 	paidRemainingCents: number;
 	/** Сумма минус распределено, в копейках (> 0 — осталось распределить, < 0 — распределено больше). */
 	splitRemainingCents: number;
+	/** «По чеку»: индексы позиций без цены или без людей. */
+	invalidItems: number[];
 };

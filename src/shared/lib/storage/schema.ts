@@ -42,7 +42,7 @@ export type PersistedDebtOperation = {
 	createdAt: string;
 };
 
-export type BillSplitMode = "equal" | "shares" | "amounts";
+export type BillSplitMode = "equal" | "shares" | "amounts" | "items";
 
 export type BillParticipant = {
 	/** `"me"` — пользователь, иначе id контакта. */
@@ -51,8 +51,41 @@ export type BillParticipant = {
 	paid: number;
 	/** Участвует в делении («делит счёт»). */
 	inSplit: boolean;
-	/** Число долей (`shares`) или сумма доли (`amounts`); для `equal` — `null`. */
+	/** Число долей (`shares`) или сумма доли (`amounts`); для `equal` и `items` — `null`. */
 	shareInput: number | null;
+};
+
+/** Позиция чека (`splitMode: "items"`): делится поровну между отмеченными и людьми без имени. */
+export type BillItem = {
+	id: string;
+	title: string | null;
+	/** Цена за всю строку. */
+	price: number;
+	/** Отмеченные участники (`ref`), в порядке `participants`. */
+	refs: string[];
+	/** Люди без имени, 0…99: входят в деление, но не становятся участниками. */
+	extraPeople: number;
+};
+
+/** Скидка или чаевые чека: процент или сумма в валюте счёта. */
+export type BillAdjustmentUnit = "percent" | "amount";
+
+/** Скидка на весь чек: уменьшает позиции пропорционально цене. Хранится введённое значение, деньги выводятся. */
+export type BillDiscount = {
+	unit: BillAdjustmentUnit;
+	/** Процент (0…100, до двух знаков) или сумма. */
+	value: number;
+};
+
+/** Чаевые чека: процент — от суммы позиций после скидки; делятся поровну между отмеченными и людьми без имени. */
+export type BillTips = {
+	unit: BillAdjustmentUnit;
+	/** Процент (до 100) или сумма. */
+	value: number;
+	/** Отмеченные участники (`ref`), в порядке `participants`. */
+	refs: string[];
+	/** Люди без имени, 0…99. */
+	extraPeople: number;
 };
 
 export type PersistedBill = {
@@ -63,6 +96,12 @@ export type PersistedBill = {
 	splitMode: BillSplitMode;
 	/** Порядок важен: задаёт раздачу неделимых копеек и порядок переводов. */
 	participants: BillParticipant[];
+	/** Позиции чека; `[]` у остальных способов деления. */
+	items: BillItem[];
+	/** Скидка на весь чек; `null` без скидки и у остальных способов деления. */
+	discount: BillDiscount | null;
+	/** Чаевые; `null` без чаевых и у остальных способов деления. */
+	tips: BillTips | null;
 	/** Ручное закрытие — только у счёта без моих переводов. */
 	manualClosedAt: string | null;
 	createdAt: string;

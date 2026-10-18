@@ -3,18 +3,25 @@ import { minimizeTransfers } from "@/shared/lib/settlement";
 import type { Debt } from "../types";
 import {
 	type Bill,
+	type BillAdjustmentUnit,
+	type BillDiscount,
 	type BillDraft,
+	type BillItem,
 	type BillParticipant,
 	type BillShares,
 	type BillSplitMode,
 	type BillStatus,
+	type BillTips,
 	type BillTransfer,
 	type BillTransferGroup,
 	type BillTransferGrouping,
 	type BillValidation,
 	type BillValidationError,
+	type DiscountIssue,
 	ME_REF,
 	type MyBillDebt,
+	type ReceiptCents,
+	type TipsIssue,
 } from "./types";
 
 export function toCents(amount: number | null | undefined): number {
@@ -47,21 +54,158 @@ function distributeCents(total: number, weights: number[]): { cents: number[]; l
 	return { cents, leftover: distributed };
 }
 
+function itemPeople(item: BillItem): number {
+	return item.refs.length + item.extraPeople;
+}
+
+function isValidItem(item: BillItem): boolean {
+	return toCents(item.price) > 0 && itemPeople(item) > 0;
+}
+
+/** Итог «По чеку» в копейках — сумма цен позиций. */
+function computeItemsTotalCents(items: BillItem[]): number {
+	return items.reduce((acc, item) => acc + Math.max(0, toCents(item.price)), 0);
+}
+
+/** Деньги скидки или чаевых в копейках: процент от `baseCents` с округлением до копейки один раз или сумма. */
+export function adjustmentCents(adjustment: { unit: BillAdjustmentUnit; value: number }, baseCents: number): number {
+	if (adjustment.unit === "amount") return toCents(adjustment.value);
+	const basisPoints = Math.round(adjustment.value * 100);
+	return Math.round((baseCents * basisPoints) / 10000);
+}
+
+export function discountIssue(discount: BillDiscount, itemsCents: number): DiscountIssue {
+	const cents = adjustmentCents(discount, itemsCents);
+	if (!(discount.value > 0) || (discount.unit === "amount" && cents <= 0)) return "zero";
+	if (discount.unit === "percent" && discount.value >= 100) return "percent_max";
+	if (discount.unit === "amount" && cents >= itemsCents) return "over_items";
+	return null;
+}
+
+function tipsPeople(tips: BillTips): number {
+	return tips.refs.length + tips.extraPeople;
+}
+
+export function tipsIssue(tips: BillTips): TipsIssue {
+	if (!(tips.value > 0) || (tips.unit === "amount" && toCents(tips.value) <= 0)) return "zero";
+	if (tips.unit === "percent" && tips.value > 100) return "percent_max";
+	if (tipsPeople(tips) === 0) return "people";
+	return null;
+}
+
+/** «По чеку»: позиции минус скидка плюс чаевые; скидка и чаевые с ошибкой не применяются. */
+export function computeReceiptCents(draft: Pick<BillDraft, "items" | "discount" | "tips">): ReceiptCents {
+	const itemsCents = computeItemsTotalCents(draft.items.filter(isValidItem));
+	const discountCents =
+		draft.discount && !discountIssue(draft.discount, itemsCents) ? adjustmentCents(draft.discount, itemsCents) : 0;
+	const tipsCents = draft.tips && !tipsIssue(draft.tips) ? adjustmentCents(draft.tips, itemsCents - discountCents) : 0;
+	return { itemsCents, discountCents, tipsCents, totalCents: itemsCents - discountCents + tipsCents };
+}
+
+function gcd(a: bigint, b: bigint): bigint {
+	return b === 0n ? a : gcd(b, a % b);
+}
+
+function lcm(a: bigint, b: bigint): bigint {
+	return (a / gcd(a, b)) * b;
+}
+
+/**
+ * «По чеку»: точная доля каждого — Σ цена / на скольких × (позиции − скидка) / позиции + чаевые / на скольких —
+ * в дробях с общим знаменателем (НОК всех «на скольких» × сумма позиций), округление один раз на весь чек:
+ * пол каждой доли, затем копейки по наибольшему остатку, при равенстве — по порядку участников, люди без имени последними.
+ */
+function computeItemShares(draft: BillDraft): BillShares {
+	const refs = draft.participants.map((p) => p.ref);
+	const items = draft.items.filter(isValidItem);
+	const { itemsCents, discountCents, tipsCents, totalCents } = computeReceiptCents(draft);
+	const tips = tipsCents > 0 ? draft.tips : null;
+	let people = items.reduce((acc, item) => lcm(acc, BigInt(itemPeople(item))), 1n);
+	if (tips) people = lcm(people, BigInt(tipsPeople(tips)));
+	const itemsBase = BigInt(Math.max(itemsCents, 1));
+	const denominator = people * itemsBase;
+	const kept = BigInt(itemsCents - discountCents);
+	// Последний элемент — люди без имени.
+	const numerators = new Array<bigint>(refs.length + 1).fill(0n);
+	const add = (memberRefs: string[], extraPeople: number, part: bigint) => {
+		for (const ref of memberRefs) {
+			const index = refs.indexOf(ref);
+			if (index >= 0) numerators[index] += part;
+		}
+		numerators[refs.length] += part * BigInt(extraPeople);
+	};
+	for (const item of items) {
+		add(item.refs, item.extraPeople, ((BigInt(toCents(item.price)) * people) / BigInt(itemPeople(item))) * kept);
+	}
+	if (tips) add(tips.refs, tips.extraPeople, ((BigInt(tipsCents) * people) / BigInt(tipsPeople(tips))) * itemsBase);
+	const cents = numerators.map((n) => Number(n / denominator));
+	const leftover = totalCents - cents.reduce((acc, c) => acc + c, 0);
+	const order = numerators
+		.map((n, index) => ({ index, remainder: n % denominator }))
+		.sort((a, b) => (a.remainder === b.remainder ? a.index - b.index : a.remainder > b.remainder ? -1 : 1));
+	const roundedUp = new Set<number>();
+	for (const { index } of order.slice(0, leftover)) {
+		cents[index] += 1;
+		roundedUp.add(index);
+	}
+	const othersCents = cents.pop() ?? 0;
+	const inSplit = refs.map(
+		(ref) => items.some((item) => item.refs.includes(ref)) || (tips?.refs.includes(ref) ?? false),
+	);
+	return {
+		cents,
+		inSplit,
+		leftoverCents: leftover,
+		othersCents,
+		roundedUpRefs: refs.filter((_, index) => roundedUp.has(index)),
+		othersRoundedUp: roundedUp.has(refs.length),
+	};
+}
+
 /** Доли участников в копейках. */
 export function computeBillShares(draft: BillDraft): BillShares {
+	if (draft.splitMode === "items") return computeItemShares(draft);
 	const inSplit = draft.participants.map((p) => isInBillSplit(p, draft.splitMode));
 	if (draft.splitMode === "amounts") {
-		return { cents: draft.participants.map((p) => toCents(p.shareInput)), inSplit, leftoverCents: 0 };
+		return {
+			cents: draft.participants.map((p) => toCents(p.shareInput)),
+			inSplit,
+			leftoverCents: 0,
+			othersCents: 0,
+			roundedUpRefs: [],
+			othersRoundedUp: false,
+		};
 	}
 	const weights = draft.participants.map((p, i) => {
 		if (!inSplit[i]) return 0;
 		return draft.splitMode === "shares" ? (p.shareInput ?? 0) : 1;
 	});
 	const { cents, leftover } = distributeCents(toCents(draft.totalAmount), weights);
-	return { cents, inSplit, leftoverCents: leftover };
+	return { cents, inSplit, leftoverCents: leftover, othersCents: 0, roundedUpRefs: [], othersRoundedUp: false };
+}
+
+/** «По чеку»: итог — позиции − скидка + чаевые, плательщик один, деление не сверяется (остаток — у людей без имени). */
+function validateItemsBill(draft: BillDraft): BillValidation {
+	const { itemsCents, totalCents } = computeReceiptCents(draft);
+	const shares = computeItemShares(draft);
+	const paidRemainingCents = totalCents - draft.participants.reduce((acc, p) => acc + toCents(p.paid), 0);
+	const payers = draft.participants.filter((p) => toCents(p.paid) > 0).length;
+	const active = draft.participants.filter((p, i) => toCents(p.paid) > 0 || shares.inSplit[i]).length;
+	const invalidItems = draft.items.flatMap((item, index) => (isValidItem(item) ? [] : [index]));
+
+	const errors: BillValidationError[] = [];
+	if (itemsCents <= 0) errors.push("amount_required");
+	if (active < 2) errors.push("participants_min");
+	if (itemsCents > 0 && (paidRemainingCents !== 0 || payers !== 1)) errors.push("paid_mismatch");
+	if (draft.items.some((item) => toCents(item.price) <= 0)) errors.push("item_price_required");
+	if (draft.items.some((item) => itemPeople(item) <= 0)) errors.push("item_people_required");
+	if (draft.discount && discountIssue(draft.discount, itemsCents)) errors.push("discount_invalid");
+	if (draft.tips && tipsIssue(draft.tips)) errors.push("tips_invalid");
+	return { errors, paidRemainingCents, splitRemainingCents: 0, invalidItems };
 }
 
 export function validateBill(draft: BillDraft): BillValidation {
+	if (draft.splitMode === "items") return validateItemsBill(draft);
 	const totalCents = toCents(draft.totalAmount);
 	const shares = computeBillShares(draft);
 	const paidRemainingCents = totalCents - draft.participants.reduce((acc, p) => acc + toCents(p.paid), 0);
@@ -73,21 +217,34 @@ export function validateBill(draft: BillDraft): BillValidation {
 	if (active < 2) errors.push("participants_min");
 	if (totalCents > 0 && paidRemainingCents !== 0) errors.push("paid_mismatch");
 	if (totalCents > 0 && splitRemainingCents !== 0) errors.push("split_mismatch");
-	return { errors, paidRemainingCents, splitRemainingCents };
+	return { errors, paidRemainingCents, splitRemainingCents, invalidItems: [] };
 }
 
-/** Баланс участника в копейках: заплатил минус доля. */
+/**
+ * Баланс участника в копейках: заплатил минус доля. «По чеку» долю людей без имени собирает плательщик:
+ * она вычитается из его баланса, и сумма балансов остаётся нулевой без виртуального участника.
+ */
 function computeBillBalances(draft: BillDraft): number[] {
-	const { cents } = computeBillShares(draft);
-	return draft.participants.map((p, i) => toCents(p.paid) - cents[i]);
+	const { cents, othersCents } = computeBillShares(draft);
+	return draft.participants.map((p, i) => {
+		const paid = toCents(p.paid);
+		return paid - cents[i] - (paid > 0 ? othersCents : 0);
+	});
 }
 
 /** Минимальная схема переводов; `null`, пока оплачено или распределено не всё. */
 export function computeBillTransfers(draft: BillDraft): BillTransfer[] | null {
 	const { errors } = validateBill(draft);
-	if (errors.includes("amount_required") || errors.includes("paid_mismatch") || errors.includes("split_mismatch")) {
-		return null;
-	}
+	const blocking: BillValidationError[] = [
+		"amount_required",
+		"paid_mismatch",
+		"split_mismatch",
+		"item_price_required",
+		"item_people_required",
+		"discount_invalid",
+		"tips_invalid",
+	];
+	if (errors.some((error) => blocking.includes(error))) return null;
 	const balances = computeBillBalances(draft);
 	return minimizeTransfers(draft.participants.map((p, i) => ({ id: p.ref, cents: balances[i] }))).map((t) => ({
 		from: t.from,

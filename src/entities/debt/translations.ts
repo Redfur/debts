@@ -23,6 +23,7 @@ export const entityDebtTranslations = {
 		billClosed: "Закрыт",
 		billWithoutMe: "без меня",
 		billAmountForPeople: "{{amount}} на {{people}}",
+		billAmountByReceipt: "{{amount}} по чеку",
 		billLink: "Из счёта · {{amountForPeople}}",
 		transferGroupingLabel: "Как показать переводы",
 		transferGroupingFrom: "Кто переводит",

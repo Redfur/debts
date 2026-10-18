@@ -4,10 +4,12 @@ import { useTranslation } from "react-i18next";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Input } from "@/components/ui/input";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
-import { ME_REF, ParticipantAvatar, toCents, useParticipantName } from "@/entities/debt";
+import { fromCents, ME_REF, ParticipantAvatar, toCents, useParticipantName } from "@/entities/debt";
+import { CURRENCY_SHORT_LABEL } from "@/shared/config/currencies";
 import { formatAmount, formatMoney } from "@/shared/lib/format-amount";
 import { cn } from "@/shared/lib/utils";
 import { AmountField } from "@/shared/ui/amount-field";
+import { CurrencyPicker } from "@/shared/ui/currency-picker";
 import { FieldError } from "@/shared/ui/form-message";
 import type { BillFormApi, PayerMode } from "../model/use-bill-form";
 import { CREATE_BILL_NS } from "../translations";
@@ -22,7 +24,10 @@ type Props = {
 	onChangePayer: () => void;
 };
 
-/** «Сколько и кто платил»: сумма и валюта, «За что», участники, «Кто заплатил». */
+/**
+ * «Сколько и кто платил»: сумма и валюта, «За что», участники, «Кто заплатил». «По чеку» вместо поля суммы — итог
+ * позиций, плательщик всегда один.
+ */
 export function BillBasicsSection({ form, locked, showErrors, onAddParticipants, onChangePayer }: Props) {
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const nameOf = useParticipantName();
@@ -33,7 +38,8 @@ export function BillBasicsSection({ form, locked, showErrors, onAddParticipants,
 	const participantsErrorId = useId();
 	const payerLabelId = useId();
 	const { state, validation } = form;
-	const total = Number(state.amount) || 0;
+	const receipt = state.entry === "receipt";
+	const total = receipt ? form.draft.totalAmount : Number(state.amount) || 0;
 	const amountError = showErrors && validation.errors.includes("amount_required");
 	const participantsError = showErrors && validation.errors.includes("participants_min");
 
@@ -46,20 +52,45 @@ export function BillBasicsSection({ form, locked, showErrors, onAddParticipants,
 						locked && "shadow-[inset_0_0_0_1px_var(--border)] bg-transparent",
 					)}
 				>
-					<AmountField
-						id={amountId}
-						label={t("amountLabel")}
-						value={state.amount}
-						onValueChange={form.setAmount}
-						currency={state.currency}
-						onCurrencyChange={form.setCurrency}
-						currencyTitle={t("currencyTitle")}
-						currencyLabel={(name) => t("currencyLabel", { name })}
-						invalid={amountError}
-						describedBy={amountError ? amountErrorId : undefined}
-						disabled={locked}
-						surface="plain"
-					/>
+					{receipt ? (
+						<div role="status" aria-live="polite" className="flex items-center gap-2.5 py-3.5 pr-2.5 pl-5">
+							<span className="flex min-w-0 flex-1 flex-col gap-0.5">
+								<span className="text-caption text-muted-foreground">{t("receiptTotalLabel")}</span>
+								<span
+									className={cn(
+										"text-[40px] leading-12 font-bold tracking-[-0.03em] whitespace-nowrap tabular-nums",
+										locked && "text-muted-foreground",
+									)}
+								>
+									{formatMoney(fromCents(toCents(total)), state.currency)}
+								</span>
+								<ReceiptBreakdown form={form} />
+							</span>
+							<CurrencyPicker
+								value={state.currency}
+								onChange={form.setCurrency}
+								title={t("currencyTitle")}
+								triggerLabel={t("currencyLabel", { name: CURRENCY_SHORT_LABEL[state.currency].toLowerCase() })}
+								disabled={locked}
+								triggerClassName="self-start mt-4.5"
+							/>
+						</div>
+					) : (
+						<AmountField
+							id={amountId}
+							label={t("amountLabel")}
+							value={state.amount}
+							onValueChange={form.setAmount}
+							currency={state.currency}
+							onCurrencyChange={form.setCurrency}
+							currencyTitle={t("currencyTitle")}
+							currencyLabel={(name) => t("currencyLabel", { name })}
+							invalid={amountError}
+							describedBy={amountError ? amountErrorId : undefined}
+							disabled={locked}
+							surface="plain"
+						/>
+					)}
 					<div className="bg-border ml-5 h-px" />
 					<label htmlFor={titleId} className="sr-only">
 						{t("titleLabel")}
@@ -68,7 +99,7 @@ export function BillBasicsSection({ form, locked, showErrors, onAddParticipants,
 						id={titleId}
 						value={state.title}
 						onChange={(e) => form.setTitle(e.target.value)}
-						placeholder={t("titlePlaceholder")}
+						placeholder={t(receipt ? "titlePlaceholderReceipt" : "titlePlaceholder")}
 						enterKeyHint="done"
 						className="min-h-13 rounded-none bg-transparent px-5 shadow-none focus-visible:shadow-[inset_0_0_0_2px_var(--ring)]"
 					/>
@@ -127,25 +158,33 @@ export function BillBasicsSection({ form, locked, showErrors, onAddParticipants,
 				<span id={payerLabelId} className="text-caption text-muted-foreground pl-1 font-semibold">
 					{t("payerLabel")}
 				</span>
-				<SegmentedControl
-					aria-labelledby={payerLabelId}
-					value={state.payerMode}
-					onValueChange={(mode) => form.setPayerMode(mode === "several" ? "several" : "one")}
-					disabled={locked}
-					className="rounded-[18px]"
-				>
-					{(["one", "several"] satisfies PayerMode[]).map((mode) => (
-						<SegmentedControlItem key={mode} value={mode} className="min-h-11 rounded-[14px] text-[15px]">
-							{t(mode === "one" ? "payerOne" : "payerSeveral")}
-						</SegmentedControlItem>
-					))}
-				</SegmentedControl>
+				{receipt ? null : (
+					<SegmentedControl
+						aria-labelledby={payerLabelId}
+						value={state.payerMode}
+						onValueChange={(mode) => form.setPayerMode(mode === "several" ? "several" : "one")}
+						disabled={locked}
+						className="rounded-[18px]"
+					>
+						{(["one", "several"] satisfies PayerMode[]).map((mode) => (
+							<SegmentedControlItem key={mode} value={mode} className="min-h-11 rounded-[14px] text-[15px]">
+								{t(mode === "one" ? "payerOne" : "payerSeveral")}
+							</SegmentedControlItem>
+						))}
+					</SegmentedControl>
+				)}
 
 				{state.payerMode === "one" ? (
 					<SinglePayer
 						name={nameOf(state.payerRef)}
 						participantRef={state.payerRef}
-						whole={total > 0 ? t("payerWholeAmount", { amount: formatMoney(total, state.currency) }) : t("payerWhole")}
+						whole={
+							total > 0
+								? t(receipt ? "payerWholeReceiptAmount" : "payerWholeAmount", {
+										amount: formatMoney(total, state.currency),
+									})
+								: t(receipt ? "payerWholeReceipt" : "payerWhole")
+						}
 						locked={locked}
 						onChange={onChangePayer}
 					/>
@@ -256,5 +295,32 @@ function SeveralPayers({ form, locked }: { form: BillFormApi; locked: boolean })
 				) : null}
 			</div>
 		</div>
+	);
+}
+
+/** Под «Сумма по чеку»: из чего она складывается — со скидкой или чаевыми построчно, иначе подсказка. */
+function ReceiptBreakdown({ form }: { form: BillFormApi }) {
+	const { t } = useTranslation(CREATE_BILL_NS);
+	const { receipt, state } = form;
+	const money = (cents: number) => formatMoney(cents / 100, state.currency);
+	if (receipt.discountCents === 0 && receipt.tipsCents === 0) {
+		return (
+			<span className="text-caption text-muted-foreground">
+				{t(receipt.itemsCents > 0 ? "receiptTotalHint" : "receiptTotalEmpty")}
+			</span>
+		);
+	}
+	return (
+		<span className="text-caption text-muted-foreground flex flex-wrap gap-x-1.5">
+			<span className="whitespace-nowrap">{t("receiptBreakdownItems", { amount: money(receipt.itemsCents) })}</span>
+			{receipt.discountCents > 0 ? (
+				<span className="whitespace-nowrap">
+					{t("receiptBreakdownDiscount", { amount: money(receipt.discountCents) })}
+				</span>
+			) : null}
+			{receipt.tipsCents > 0 ? (
+				<span className="whitespace-nowrap">{t("receiptBreakdownTips", { amount: money(receipt.tipsCents) })}</span>
+			) : null}
+		</span>
 	);
 }

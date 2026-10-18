@@ -59,9 +59,14 @@ function BillMyPart({ totals, currency, closed }: MyPartProps) {
 	);
 }
 
-/** «6 000 ₽ на четверых». */
-function useBillAmountForPeople(bill: Pick<Bill, "totalAmount" | "currency" | "participants">): string {
+/**
+ * «6 000 ₽ на четверых»; у счёта по чеку — «4 880 ₽ по чеку»: с людьми без имени число участников ничего не говорит.
+ */
+function useBillAmountForPeople(bill: Pick<Bill, "totalAmount" | "currency" | "participants" | "splitMode">): string {
 	const { t } = useTranslation(ENTITY_DEBT_NS);
+	if (bill.splitMode === "items") {
+		return t("billAmountByReceipt", { amount: formatMoney(bill.totalAmount, bill.currency) });
+	}
 	return t("billAmountForPeople", {
 		amount: formatMoney(bill.totalAmount, bill.currency),
 		people: formatPeopleCount(bill.participants.length),

@@ -4,17 +4,30 @@ import { ENTITY_DEBT_NS, entityDebtTranslations } from "./translations";
 injectTranslation(ENTITY_DEBT_NS, entityDebtTranslations as Record<string, Record<string, string>>);
 
 export {
+	adjustmentCents,
 	computeBillMyTotals,
 	computeBillShares,
 	computeBillStatus,
 	computeBillTransfers,
+	computeReceiptCents,
+	discountIssue,
 	fromCents,
 	spreadBillRemainder,
+	tipsIssue,
 	toCents,
 	validateBill,
 } from "./model/bill/compute-bill";
-export type { Bill, BillDraft, BillSplitMode, BillTransfer } from "./model/bill/types";
-export { ME_REF } from "./model/bill/types";
+export type {
+	Bill,
+	BillAdjustmentUnit,
+	BillDraft,
+	BillItem,
+	BillSplitMode,
+	BillTransfer,
+	DiscountIssue,
+	TipsIssue,
+} from "./model/bill/types";
+export { MAX_EXTRA_PEOPLE, ME_REF } from "./model/bill/types";
 export { useBillDebts } from "./model/bill/use-bill-debts";
 export { computeContactSummary } from "./model/compute-contact-summary";
 export { computeContactTotals } from "./model/compute-contact-totals";
