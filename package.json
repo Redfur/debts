@@ -64,8 +64,14 @@
     "vite-plugin-pwa": "^1.2.0"
   },
   "overrides": {
+    "@ts-morph/common": {
+      "minimatch": "^11.0.4"
+    },
     "@tailwindcss/vite": {
       "vite": "^8.0.0"
+    },
+    "workbox-build": {
+      "glob": "^14.0.3"
     }
   }
 }
