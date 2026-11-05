@@ -11,7 +11,7 @@ export function BottomNav({ active }: { active: NavSection }) {
 	const { t } = useTranslation(COMMON_NS);
 
 	return (
-		<div className="fixed inset-x-4 bottom-[calc(24px+env(safe-area-inset-bottom,0px))] z-40 flex items-center gap-2.5 lg:hidden">
+		<div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2.5 px-4 pb-[calc(24px+env(safe-area-inset-bottom,0px))] lg:hidden">
 			<nav aria-label={t("navLabel")} className="nav-glass shadow-nav flex h-15 flex-1 gap-1 rounded-full p-1.5">
 				{NAV_ITEMS.map(({ to, section, labelKey, icon: Icon }) => {
 					const isActive = active === section;
