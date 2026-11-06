@@ -1,0 +1,11 @@
+services:
+  debts:
+    image: ghcr.io/redfur/debts:${DEBTS_VERSION:?Укажите DEBTS_VERSION, например v2.3.1}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${DEBTS_PORT:-8080}:80"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

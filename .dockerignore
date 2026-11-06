@@ -1,0 +1,12 @@
+.git
+node_modules
+dist
+dist-ssr
+dev-dist
+**/*.tsbuildinfo
+.env
+.env.*
+*.local
+.claude
+.cursor
+.vscode

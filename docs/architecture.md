@@ -127,4 +127,5 @@ UI (pages/widgets)
 
 - `npm run check` (Biome), `npm run knip`, `npm run spec:validate` (OpenSpec), `npm run tokens:contrast` (контраст пар токенов, `scripts/check-contrast.mjs`), `npm run build` (`tsc -b` + Vite) — в `.github/workflows/ci.yml` на каждый push.
 - Автотестов пока нет. Кандидаты на unit-тесты без React: `computeDebtBalance`, `computeContactSummary`, `computeGlobalTotals`, `convertAmount`, `parseDebtsBackup`, маска `AmountInput`; стор — с моком `StorageAdapter`.
-- Релизы: `scripts/release.sh` + `.github/workflows/release.yml` (тег → GitHub Release → GitHub Pages), см. README.
+- Релизы: `scripts/release.sh` + `.github/workflows/release.yml` (тег → GitHub Release → проверка и сборка → GitHub Pages и контейнер в GHCR), см. README. Задача `container` берёт checkout релизного тега, проверяет версию `package.json` и публикует `ghcr.io/redfur/debts:vX.Y.Z` и `ghcr.io/redfur/debts:latest`; `latest` обновляется при каждой успешной публикации.
+- Контейнер: корневой `Dockerfile` собирает статическую PWA с `VITE_BASE_PATH=/`; runtime nginx использует `nginx.conf` со SPA fallback и правилами кеширования. `compose.yaml` скачивает явно выбранную версию из GHCR и публикует HTTP только на loopback. Серверная БД и тома с пользовательскими данными не нужны.
