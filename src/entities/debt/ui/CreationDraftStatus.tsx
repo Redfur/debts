@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { i18n } from "@/shared/lib/i18n";
 import type { CreationDraftKind } from "@/shared/lib/storage";
+import { cn } from "@/shared/lib/utils";
 import { showConfirmActionModal } from "@/shared/ui/modals/ConfirmActionModal";
 import {
 	flushCreationDraft,
@@ -49,27 +50,32 @@ export function CreationDraftGate({
 	);
 }
 
-export function CreationDraftStatus({
-	kind,
-	restored,
-	onDelete,
-}: {
-	kind: CreationDraftKind;
-	restored: boolean;
-	onDelete: () => void;
-}) {
+export function CreationDraftStatus({ kind, onDelete }: { kind: CreationDraftKind; onDelete: () => void }) {
 	const { t } = useTranslation(ENTITY_DEBT_NS);
 	const current = useCreationDraftStore((s) => s[kind]);
 	return (
-		<div className="flex flex-col gap-1.5">
-			{restored ? (
-				<p className="text-caption text-muted-foreground">
-					{t(kind === "debt" ? "draftContinueDebt" : "draftContinueBill")}
-				</p>
-			) : null}
-			<div role="status" aria-live="polite" className="text-caption text-muted-foreground">
-				{current.status === "saving" ? t("draftSaving") : current.status === "saved" ? t("draftSaved") : null}
+		<div
+			className={cn(
+				"flex flex-col gap-0.5 rounded-[18px] px-4 py-3.5 shadow-[inset_0_0_0_1px_var(--border)]",
+				!current.present && "invisible",
+			)}
+		>
+			<div className="flex min-h-11 items-center justify-between gap-2">
+				<div role="status" aria-live="polite" className="min-w-0 truncate text-[15px] leading-5 font-semibold">
+					{current.status === "saving" ? t("draftSaving") : current.status === "saved" ? t("draftSaved") : null}
+				</div>
+				<Button
+					type="button"
+					variant="destructive-ghost"
+					size="sm"
+					disabled={!current.present || current.locked}
+					className={cn("text-caption h-11 shrink-0 px-2", !current.present && "invisible")}
+					onClick={onDelete}
+				>
+					{t("draftDelete")}
+				</Button>
 			</div>
+			{current.status !== "error" ? <p className="text-muted-foreground text-sm">{t("draftHint")}</p> : null}
 			{current.status === "error" ? (
 				<div role="alert" className="text-caption text-destructive">
 					{t("draftSaveError")}{" "}
@@ -77,17 +83,6 @@ export function CreationDraftStatus({
 						{t("draftRetry")}
 					</Button>
 				</div>
-			) : null}
-			{current.present ? (
-				<Button
-					type="button"
-					variant="destructive-ghost"
-					disabled={current.locked}
-					className="self-start"
-					onClick={onDelete}
-				>
-					{t("draftDelete")}
-				</Button>
 			) : null}
 		</div>
 	);

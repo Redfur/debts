@@ -45,7 +45,6 @@ export function CreateDebtForm({ initialContactId, onSuccess, onCancel, onDelete
 	const amountErrorId = useId();
 	const noteId = useId();
 
-	const [restored] = useState(() => useCreationDraftStore.getState().debt.draft !== null);
 	const [fields, renderFields] = useState<DebtCreationFields>(() => {
 		const saved = useCreationDraftStore.getState().debt.draft;
 		return saved?.kind === "debt"
@@ -105,7 +104,6 @@ export function CreateDebtForm({ initialContactId, onSuccess, onCancel, onDelete
 						<span />
 					</header>
 
-					<CreationDraftStatus kind="debt" restored={restored} onDelete={onDelete} />
 					{contactId && !contact ? <FormAlert>{tEntity("draftMissingContact")}</FormAlert> : null}
 					<ContactPicker
 						value={contact?.id}
@@ -171,10 +169,14 @@ export function CreateDebtForm({ initialContactId, onSuccess, onCancel, onDelete
 					</div>
 				</div>
 
+				<div className={cn("mt-auto pt-4 lg:mt-0 lg:pt-6", picking && "hidden")}>
+					<CreationDraftStatus kind="debt" onDelete={onDelete} />
+				</div>
+
 				{/* Над клавиатурой: Chrome сжимает layout (interactive-widget), iOS — отступ по visualViewport. */}
 				<div
 					className={cn(
-						"bg-background sticky z-10 mt-auto -mx-4 flex flex-col gap-2.5 px-4 pt-2.5 pb-3 lg:static lg:mx-0 lg:mt-0 lg:px-0 lg:pt-6",
+						"bg-background sticky z-10 -mx-4 flex flex-col gap-2.5 px-4 pt-2.5 pb-3 lg:static lg:mx-0 lg:px-0",
 						picking && "hidden",
 					)}
 					style={{ bottom: keyboardInset }}

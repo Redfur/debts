@@ -227,9 +227,6 @@ export function BillForm({ bill, locked = false, onSaved, onCancel, onDelete }: 
 						</div>
 					</header>
 
-					{!bill && onDelete ? (
-						<CreationDraftStatus kind="bill" restored={savedDraft !== null} onDelete={onDelete} />
-					) : null}
 					{missingContacts ? <FormAlert>{tEntity("draftMissingParticipants")}</FormAlert> : null}
 					{locked ? (
 						<div
@@ -308,9 +305,18 @@ export function BillForm({ bill, locked = false, onSaved, onCancel, onDelete }: 
 					{saveError ? <FormAlert className="hidden lg:flex">{t("saveError")}</FormAlert> : null}
 				</div>
 
+				{!bill && onDelete ? (
+					<div className="mt-auto pt-4 lg:mt-0 lg:pt-6">
+						<CreationDraftStatus kind="bill" onDelete={onDelete} />
+					</div>
+				) : null}
+
 				{/* Над клавиатурой: Chrome сжимает layout (interactive-widget), iOS — отступ по visualViewport. */}
 				<div
-					className="bg-background sticky z-10 mt-auto -mx-4 flex flex-col gap-2 px-4 pt-2.5 pb-3 lg:hidden"
+					className={cn(
+						"bg-background sticky z-10 -mx-4 flex flex-col gap-2 px-4 pt-2.5 pb-3 lg:hidden",
+						(bill || !onDelete) && "mt-auto",
+					)}
 					style={{ bottom: keyboardInset }}
 				>
 					{step === 1 && stepped ? (
