@@ -9,7 +9,7 @@ import { ContactAvatar } from "./ContactAvatar";
 export function useParticipantName(): (ref: string) => string {
 	const { t } = useTranslation(ENTITY_DEBT_NS);
 	const contactsById = useDebtStore((s) => s.contactsById);
-	return (ref) => (ref === ME_REF ? t("me") : (contactsById[ref]?.name ?? ""));
+	return (ref) => (ref === ME_REF ? t("me") : (contactsById[ref]?.name ?? t("participantUnavailable")));
 }
 
 /** Аватар участника; у «Я» — тёмный круг с «Я». */
@@ -35,7 +35,7 @@ export function ParticipantAvatar({
 				classes,
 			)}
 		>
-			{t("me")}
+			{participantRef === ME_REF ? t("me") : "?"}
 		</span>
 	);
 }

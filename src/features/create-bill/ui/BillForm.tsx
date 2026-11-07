@@ -1,9 +1,18 @@
 import { ChevronLeft, Lock } from "lucide-react";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, type ReactNode, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
-import { type Bill, ME_REF, useDebtStore } from "@/entities/debt";
+import {
+	type Bill,
+	CreationDraftStatus,
+	completeCreationDraft,
+	ENTITY_DEBT_NS,
+	ME_REF,
+	saveCreationDraft,
+	useCreationDraftStore,
+	useDebtStore,
+} from "@/entities/debt";
 import { ParticipantsPicker } from "@/features/select-contact";
 import { COMMON_NS } from "@/shared/i18n";
 import { formatMoney } from "@/shared/lib/format-amount";
@@ -33,24 +42,39 @@ type Props = {
 	locked?: boolean;
 	onSaved: (billId: string) => void;
 	onCancel: () => void;
+	onDelete?: () => void;
 };
 
 /**
  * Форма счёта. Первым — переключатель «Одной суммой / По чеку». Одной суммой на телефоне два шага («1 из 2» — сумма,
  * участники, кто заплатил; «2 из 2» — как делим и итог); «По чеку» — один экран: участники, плательщик, позиции,
  * скидка, чаевые, доли и строка состояния над «Сохранить счёт».
- * От 1024 px — две колонки с «Отмена» и «Сохранить счёт» в шапке. После погашений — один экран, где меняется только
+ * От 1024 px — две колонки с «Назад» (при редактировании — «Отмена») и «Сохранить счёт» в шапке. После погашений — один экран, где меняется только
  * «За что».
  */
-export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
+export function BillForm({ bill, locked = false, onSaved, onCancel, onDelete }: Props) {
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
-	const form = useBillForm(() => (bill ? billToFormState(bill) : createEmptyBillForm()));
+	const { t: tEntity } = useTranslation(ENTITY_DEBT_NS);
+	const [savedDraft] = useState(() => (bill ? null : useCreationDraftStore.getState().bill.draft));
+	const [step, renderStep] = useState<1 | 2>(() => (savedDraft?.kind === "bill" ? savedDraft.payload.step : 1));
+	const stepRef = useRef(step);
+	const form = useBillForm(
+		() => (bill ? billToFormState(bill) : savedDraft?.kind === "bill" ? savedDraft.payload : createEmptyBillForm()),
+		bill ? undefined : (next) => saveCreationDraft("bill", { ...next, step: stepRef.current }),
+	);
+	const setStep = (next: 1 | 2) => {
+		if (!bill && useCreationDraftStore.getState().bill.locked) return;
+		if (next === stepRef.current) return;
+		stepRef.current = next;
+		renderStep(next);
+		if (!bill) saveCreationDraft("bill", { ...form.getState(), step: next });
+	};
 	const createBill = useDebtStore((s) => s.createBill);
 	const updateBill = useDebtStore((s) => s.updateBill);
 	const keyboardInset = useKeyboardInset();
+	const draftLocked = useCreationDraftStore((s) => s.bill.locked);
 
-	const [step, setStep] = useState<1 | 2>(1);
 	const [picking, setPicking] = useState(false);
 	const [payerSheetOpen, setPayerSheetOpen] = useState(false);
 	const [showErrors, setShowErrors] = useState(false);
@@ -58,6 +82,8 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 	const [pending, setPending] = useState(false);
 
 	const { state, validation } = form;
+	const contactsById = useDebtStore((s) => s.contactsById);
+	const missingContacts = state.participants.some((p) => p.ref !== ME_REF && !contactsById[p.ref]);
 	const errors = validation.errors;
 	const receipt = state.entry === "receipt";
 	const title = state.title.trim() || t("untitled");
@@ -80,7 +106,11 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 	};
 
 	const save = async () => {
-		if (pending) return;
+		if (pending || (!bill && useCreationDraftStore.getState().bill.locked)) return;
+		if (!locked && missingContacts) {
+			setShowErrors(true);
+			return;
+		}
 		if (!locked && receipt) {
 			setShowErrors(true);
 			if (receiptStatus.blocked || errors.includes("participants_min")) return;
@@ -102,7 +132,7 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 			} else if (bill) {
 				savedId = (await updateBill(bill.id, toBillInput(state))) ? bill.id : undefined;
 			} else {
-				savedId = await createBill(toBillInput(state));
+				savedId = await completeCreationDraft("bill", (id) => createBill(toBillInput(state), id));
 			}
 			if (savedId) onSaved(savedId);
 			else setSaveError(true);
@@ -137,200 +167,213 @@ export function BillForm({ bill, locked = false, onSaved, onCancel }: Props) {
 
 	const heading = bill ? t("titleEdit") : t("titleCreate");
 	const saveLabel = locked ? t("saveLocked") : t("save");
-	const saveDisabled = pending || (!locked && (receipt ? receiptStatus.blocked : paidMismatch || splitMismatch));
+	const saveDisabled =
+		pending ||
+		(!locked && missingContacts) ||
+		(!locked && (receipt ? receiptStatus.blocked : paidMismatch || splitMismatch));
 	const stepped = !locked && !receipt;
 	const saveHint = !locked && !receipt && splitMismatch ? t("saveHint") : null;
 	const nameOfCount = t("participantsCount", { count: state.participants.length });
 
 	return (
 		<form noValidate className="mx-auto flex w-full max-w-xl flex-1 flex-col lg:max-w-[1080px]" onSubmit={handleSubmit}>
-			<div className="flex flex-col gap-4 pt-[env(safe-area-inset-top,0px)] lg:gap-6 lg:pt-9">
-				{/* Шапка телефона: «Отмена» или «назад» к шагу 1, заголовок, номер шага. */}
-				<header className="grid min-h-11 grid-cols-[1fr_auto_1fr] items-center pt-2 lg:hidden">
-					{step === 2 && stepped ? (
-						<button
-							type="button"
-							aria-label={tCommon("back")}
-							onClick={() => goToStep(1)}
-							className="-ml-2.5 flex size-11 items-center justify-center justify-self-start rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
-						>
-							<ChevronLeft className="size-6" strokeWidth={2.2} aria-hidden="true" />
-						</button>
-					) : (
-						<button
-							type="button"
-							onClick={onCancel}
-							className="text-body -ml-1 flex min-h-11 items-center justify-self-start rounded-md px-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
-						>
-							{tCommon("cancel")}
-						</button>
-					)}
-					<h1 className="text-heading max-w-[240px] truncate text-center">
-						{step === 2 && stepped ? t("headerStep2", { title, amount: totalText }) : heading}
-					</h1>
-					<span className="text-caption text-muted-foreground justify-self-end">
-						{stepped ? (step === 1 ? t("step1") : t("step2")) : null}
-					</span>
-				</header>
+			<fieldset disabled={pending || (!bill && draftLocked)} className="contents">
+				<div className="flex flex-col gap-4 pt-[env(safe-area-inset-top,0px)] lg:gap-6 lg:pt-9">
+					{/* Шапка телефона: «Отмена» или «назад» к шагу 1, заголовок, номер шага. */}
+					<header className="grid min-h-11 grid-cols-[1fr_auto_1fr] items-center pt-2 lg:hidden">
+						{step === 2 && stepped ? (
+							<button
+								type="button"
+								aria-label={tCommon("back")}
+								onClick={() => goToStep(1)}
+								className="-ml-2.5 flex size-11 items-center justify-center justify-self-start rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							>
+								<ChevronLeft className="size-6" strokeWidth={2.2} aria-hidden="true" />
+							</button>
+						) : (
+							<button
+								type="button"
+								onClick={onCancel}
+								className="text-body -ml-1 flex min-h-11 items-center justify-self-start rounded-md px-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+							>
+								{tCommon(bill ? "cancel" : "back")}
+							</button>
+						)}
+						<h1 className="text-heading max-w-[240px] truncate text-center">
+							{step === 2 && stepped ? t("headerStep2", { title, amount: totalText }) : heading}
+						</h1>
+						<span className="text-caption text-muted-foreground justify-self-end">
+							{stepped ? (step === 1 ? t("step1") : t("step2")) : null}
+						</span>
+					</header>
 
-				{/* Шапка десктопа: заголовок, «Отмена» и «Сохранить». */}
-				<header className="hidden flex-wrap items-center justify-between gap-3 lg:flex">
-					<h1 className="text-title-desktop">{heading}</h1>
-					<div className="flex items-center gap-2">
-						{receipt ? (
-							<ReceiptStatusLine
-								id="bill-status-desktop"
-								status={receiptStatus}
-								className="mr-2 w-[300px] max-w-full text-right"
-							/>
-						) : null}
-						<Button type="button" variant="secondary" className="bg-card shadow-card" onClick={onCancel}>
-							{tCommon("cancel")}
-						</Button>
-						<Button type="button" variant="accent" disabled={saveDisabled} onClick={() => void save()}>
-							{saveLabel}
-						</Button>
-					</div>
-				</header>
+					{/* Шапка десктопа: заголовок, «Отмена» и «Сохранить». */}
+					<header className="hidden flex-wrap items-center justify-between gap-3 lg:flex">
+						<h1 className="text-title-desktop">{heading}</h1>
+						<div className="flex items-center gap-2">
+							{receipt ? (
+								<ReceiptStatusLine
+									id="bill-status-desktop"
+									status={receiptStatus}
+									className="mr-2 w-[300px] max-w-full text-right"
+								/>
+							) : null}
+							<Button type="button" variant="secondary" className="bg-card shadow-card" onClick={onCancel}>
+								{tCommon(bill ? "cancel" : "back")}
+							</Button>
+							<Button type="button" variant="accent" disabled={saveDisabled} onClick={() => void save()}>
+								{saveLabel}
+							</Button>
+						</div>
+					</header>
 
-				{locked ? (
-					<div
-						role="note"
-						className="bg-card text-muted-foreground shadow-card flex gap-2.5 rounded-[16px] px-3.5 py-3 lg:max-w-[calc(50%-10px)]"
+					{!bill && onDelete ? (
+						<CreationDraftStatus kind="bill" restored={savedDraft !== null} onDelete={onDelete} />
+					) : null}
+					{missingContacts ? <FormAlert>{tEntity("draftMissingParticipants")}</FormAlert> : null}
+					{locked ? (
+						<div
+							role="note"
+							className="bg-card text-muted-foreground shadow-card flex gap-2.5 rounded-[16px] px-3.5 py-3 lg:max-w-[calc(50%-10px)]"
+						>
+							<Lock className="mt-px size-[18px] shrink-0" aria-hidden="true" />
+							<span className="text-caption">{t("lockedNote")}</span>
+						</div>
+					) : null}
+
+					<SegmentedControl
+						aria-label={t("entryLabel")}
+						value={state.entry}
+						onValueChange={(entry) => {
+							if (entry === form.getState().entry) return;
+							stepRef.current = 1;
+							renderStep(1);
+							form.setEntry(entry as BillEntry);
+						}}
+						disabled={locked}
+						className="rounded-[18px] lg:w-full lg:max-w-[380px]"
 					>
-						<Lock className="mt-px size-[18px] shrink-0" aria-hidden="true" />
-						<span className="text-caption">{t("lockedNote")}</span>
-					</div>
-				) : null}
+						{(["sum", "receipt"] satisfies BillEntry[]).map((entry) => (
+							<SegmentedControlItem key={entry} value={entry} className="min-h-11 rounded-[14px] text-[15px]">
+								{t(entry === "sum" ? "entrySum" : "entryReceipt")}
+							</SegmentedControlItem>
+						))}
+					</SegmentedControl>
 
-				<SegmentedControl
-					aria-label={t("entryLabel")}
-					value={state.entry}
-					onValueChange={(entry) => {
-						form.setEntry(entry as BillEntry);
-						setStep(1);
-					}}
-					disabled={locked}
-					className="rounded-[18px] lg:w-full lg:max-w-[380px]"
-				>
-					{(["sum", "receipt"] satisfies BillEntry[]).map((entry) => (
-						<SegmentedControlItem key={entry} value={entry} className="min-h-11 rounded-[14px] text-[15px]">
-							{t(entry === "sum" ? "entrySum" : "entryReceipt")}
-						</SegmentedControlItem>
-					))}
-				</SegmentedControl>
-
-				{receipt ? (
-					// Вторая строка забирает высоту длинной колонки позиций: «Доли» стоят сразу под первой колонкой.
-					<div className="grid gap-5 lg:grid-cols-2 lg:grid-rows-[auto_1fr] lg:items-start">
-						<DesktopColumn title={t("column1Receipt")} hidden={false} className="lg:col-start-1 lg:row-start-1">
-							<BillBasicsSection
-								form={form}
-								locked={locked}
-								showErrors={showErrors}
-								onAddParticipants={() => setPicking(true)}
-								onChangePayer={() => setPayerSheetOpen(true)}
-							/>
-						</DesktopColumn>
-						<DesktopColumn
-							title={t("column2Receipt", { count: state.items.length })}
-							hidden={false}
-							className="lg:col-start-2 lg:row-span-2 lg:row-start-1"
-						>
-							<BillItemsSection form={form} locked={locked} hideLabelOnDesktop />
-							<BillAdjustmentsSection form={form} locked={locked} />
-						</DesktopColumn>
-						{locked ? null : (
-							<div className="flex flex-col gap-4 lg:col-start-1 lg:row-start-2">
-								<BillReceiptShares form={form} />
-							</div>
-						)}
-					</div>
-				) : (
-					<div className="grid gap-5 lg:grid-cols-2 lg:items-start">
-						<DesktopColumn title={t("column1")} hidden={step === 2 && !locked}>
-							<BillBasicsSection
-								form={form}
-								locked={locked}
-								showErrors={showErrors}
-								onAddParticipants={() => setPicking(true)}
-								onChangePayer={() => setPayerSheetOpen(true)}
-							/>
-						</DesktopColumn>
-						{locked ? null : (
-							<DesktopColumn title={t("column2")} hidden={step === 1}>
-								<BillSplitSection form={form} />
+					{receipt ? (
+						// Вторая строка забирает высоту длинной колонки позиций: «Доли» стоят сразу под первой колонкой.
+						<div className="grid gap-5 lg:grid-cols-2 lg:grid-rows-[auto_1fr] lg:items-start">
+							<DesktopColumn title={t("column1Receipt")} hidden={false} className="lg:col-start-1 lg:row-start-1">
+								<BillBasicsSection
+									form={form}
+									locked={locked}
+									showErrors={showErrors}
+									onAddParticipants={() => setPicking(true)}
+									onChangePayer={() => setPayerSheetOpen(true)}
+								/>
 							</DesktopColumn>
-						)}
-					</div>
-				)}
+							<DesktopColumn
+								title={t("column2Receipt", { count: state.items.length })}
+								hidden={false}
+								className="lg:col-start-2 lg:row-span-2 lg:row-start-1"
+							>
+								<BillItemsSection form={form} locked={locked} hideLabelOnDesktop />
+								<BillAdjustmentsSection form={form} locked={locked} />
+							</DesktopColumn>
+							{locked ? null : (
+								<div className="flex flex-col gap-4 lg:col-start-1 lg:row-start-2">
+									<BillReceiptShares form={form} />
+								</div>
+							)}
+						</div>
+					) : (
+						<div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+							<DesktopColumn title={t("column1")} hidden={step === 2 && !locked}>
+								<BillBasicsSection
+									form={form}
+									locked={locked}
+									showErrors={showErrors}
+									onAddParticipants={() => setPicking(true)}
+									onChangePayer={() => setPayerSheetOpen(true)}
+								/>
+							</DesktopColumn>
+							{locked ? null : (
+								<DesktopColumn title={t("column2")} hidden={step === 1}>
+									<BillSplitSection form={form} />
+								</DesktopColumn>
+							)}
+						</div>
+					)}
 
-				{saveError ? <FormAlert className="hidden lg:flex">{t("saveError")}</FormAlert> : null}
-			</div>
+					{saveError ? <FormAlert className="hidden lg:flex">{t("saveError")}</FormAlert> : null}
+				</div>
 
-			{/* Над клавиатурой: Chrome сжимает layout (interactive-widget), iOS — отступ по visualViewport. */}
-			<div
-				className="bg-background sticky z-10 mt-auto -mx-4 flex flex-col gap-2 px-4 pt-2.5 pb-3 lg:hidden"
-				style={{ bottom: keyboardInset }}
-			>
-				{step === 1 && stepped ? (
-					<>
-						{paidMismatch && validation.paidRemainingCents > 0 ? (
-							<span id="bill-next-hint" className="text-caption text-muted-foreground text-center">
-								{t("paidHint", { amount: formatMoney(validation.paidRemainingCents / 100, state.currency) })}
-							</span>
-						) : null}
-						<Button
-							type="button"
-							variant="accent"
-							size="lg"
-							className="w-full"
-							disabled={paidMismatch}
-							aria-describedby={paidMismatch ? "bill-next-hint" : undefined}
-							onClick={handleNext}
-						>
-							{t("next")}
-						</Button>
-					</>
-				) : (
-					<>
-						{saveError ? <FormAlert>{t("saveError")}</FormAlert> : null}
-						{receipt ? <ReceiptStatusLine id="bill-save-hint" status={receiptStatus} className="text-center" /> : null}
-						{saveHint ? (
-							<span id="bill-save-hint" className="text-caption text-muted-foreground text-center">
-								{saveHint}
-							</span>
-						) : null}
-						<Button
-							type="submit"
-							variant="accent"
-							size="lg"
-							className="w-full"
-							disabled={saveDisabled}
-							aria-describedby={saveHint || receipt ? "bill-save-hint" : undefined}
-						>
-							{saveLabel}
-						</Button>
-					</>
-				)}
-			</div>
+				{/* Над клавиатурой: Chrome сжимает layout (interactive-widget), iOS — отступ по visualViewport. */}
+				<div
+					className="bg-background sticky z-10 mt-auto -mx-4 flex flex-col gap-2 px-4 pt-2.5 pb-3 lg:hidden"
+					style={{ bottom: keyboardInset }}
+				>
+					{step === 1 && stepped ? (
+						<>
+							{paidMismatch && validation.paidRemainingCents > 0 ? (
+								<span id="bill-next-hint" className="text-caption text-muted-foreground text-center">
+									{t("paidHint", { amount: formatMoney(validation.paidRemainingCents / 100, state.currency) })}
+								</span>
+							) : null}
+							<Button
+								type="button"
+								variant="accent"
+								size="lg"
+								className="w-full"
+								disabled={paidMismatch}
+								aria-describedby={paidMismatch ? "bill-next-hint" : undefined}
+								onClick={handleNext}
+							>
+								{t("next")}
+							</Button>
+						</>
+					) : (
+						<>
+							{saveError ? <FormAlert>{t("saveError")}</FormAlert> : null}
+							{receipt ? (
+								<ReceiptStatusLine id="bill-save-hint" status={receiptStatus} className="text-center" />
+							) : null}
+							{saveHint ? (
+								<span id="bill-save-hint" className="text-caption text-muted-foreground text-center">
+									{saveHint}
+								</span>
+							) : null}
+							<Button
+								type="submit"
+								variant="accent"
+								size="lg"
+								className="w-full"
+								disabled={saveDisabled}
+								aria-describedby={saveHint || receipt ? "bill-save-hint" : undefined}
+							>
+								{saveLabel}
+							</Button>
+						</>
+					)}
+				</div>
 
-			<PayerSheet
-				open={payerSheetOpen}
-				onOpenChange={setPayerSheetOpen}
-				subtitle={[title, total > 0 ? totalText : null, nameOfCount].filter(Boolean).join(" · ")}
-				participantRefs={state.participants.map((p) => p.ref)}
-				value={state.payerRef}
-				onPick={form.setPayer}
-				onSeveral={
-					receipt
-						? undefined
-						: () => {
-								form.setPayerMode("several");
-								setPayerSheetOpen(false);
-							}
-				}
-			/>
+				<PayerSheet
+					open={payerSheetOpen}
+					onOpenChange={setPayerSheetOpen}
+					subtitle={[title, total > 0 ? totalText : null, nameOfCount].filter(Boolean).join(" · ")}
+					participantRefs={state.participants.map((p) => p.ref)}
+					value={state.payerRef}
+					onPick={form.setPayer}
+					onSeveral={
+						receipt
+							? undefined
+							: () => {
+									form.setPayerMode("several");
+									setPayerSheetOpen(false);
+								}
+					}
+				/>
+			</fieldset>
 		</form>
 	);
 }

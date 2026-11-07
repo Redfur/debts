@@ -122,3 +122,70 @@ export type PersistedMeta = {
 	schemaVersion: number;
 	ratesCache: ExchangeRatesCache | null;
 };
+
+export type PayerMode = "one" | "several";
+
+/** Как записывается счёт: итог одной суммой или по позициям чека. */
+export type BillEntry = "sum" | "receipt";
+
+/** Позиция в форме: цена — сырая строка `AmountInput`; отметки — в порядке участников. */
+export type FormItem = {
+	id: string;
+	title: string;
+	price: string;
+	refs: string[];
+	extraPeople: number;
+};
+
+/** Скидка или чаевые в форме: значение — сырая строка `AmountInput`; пустое — их нет. */
+export type FormAdjustment = {
+	open: boolean;
+	unit: BillAdjustmentUnit;
+	value: string;
+};
+
+/** Чаевые в форме: отметки — в порядке участников. */
+export type FormTips = FormAdjustment & {
+	refs: string[];
+	extraPeople: number;
+};
+
+/** Участник в форме: суммы — сырые строки поля `AmountInput` («1500.5»). */
+export type FormParticipant = {
+	ref: string;
+	paid: string;
+	inSplit: boolean;
+	shares: number;
+	amount: string;
+};
+
+export type BillFormState = {
+	entry: BillEntry;
+	amount: string;
+	currency: CurrencyCode;
+	title: string;
+	participants: FormParticipant[];
+	payerMode: PayerMode;
+	payerRef: string;
+	/** Выбор «Как делим» для «Одной суммой»; сохраняется, пока открыт режим «По чеку». */
+	splitMode: Exclude<BillSplitMode, "items">;
+	items: FormItem[];
+	discount: FormAdjustment;
+	tips: FormTips;
+};
+
+export type DebtCreationFields = {
+	contactId: string | undefined;
+	direction: DebtDirection;
+	currency: CurrencyCode;
+	amount: string;
+	note: string;
+};
+export type CreationDraftPayloads = {
+	debt: DebtCreationFields;
+	bill: BillFormState & { step: 1 | 2 };
+};
+export type CreationDraftKind = keyof CreationDraftPayloads;
+export type CreationDraft<K extends CreationDraftKind = CreationDraftKind> = {
+	[P in K]: { kind: P; id: string; version: 1; updatedAt: string; payload: CreationDraftPayloads[P] };
+}[K];

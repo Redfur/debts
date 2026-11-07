@@ -218,11 +218,11 @@ type DebtState = {
 	lastError: string | null;
 	hydrate: () => Promise<void>;
 	getOrCreateContact: (name: string) => Promise<string | undefined>;
-	createDebt: (input: CreateDebtInput) => Promise<string | undefined>;
+	createDebt: (input: CreateDebtInput, draftId?: string) => Promise<string | undefined>;
 	updateDebt: (id: string, patch: UpdateDebtInput) => Promise<boolean>;
 	addRepayment: (debtId: string, amount: number, note?: string) => Promise<boolean>;
 	deleteDebt: (id: string) => Promise<boolean>;
-	createBill: (input: BillInput) => Promise<string | undefined>;
+	createBill: (input: BillInput, draftId?: string) => Promise<string | undefined>;
 	/** Пока по долгам счёта нет погашений, меняется всё; после — только описание (иначе отказ). */
 	updateBill: (id: string, input: BillInput) => Promise<boolean>;
 	deleteBill: (id: string) => Promise<boolean>;
@@ -305,7 +305,7 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 		}
 	},
 
-	createDebt: async (input: CreateDebtInput) => {
+	createDebt: async (input: CreateDebtInput, draftId?: string) => {
 		const amount = roundAmount(input.amount);
 		if (!Number.isFinite(amount) || amount <= 0) return undefined;
 		if (!get().contactsById[input.contactId]) return undefined;
@@ -341,8 +341,7 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 
 		try {
 			const storage = getStorageAdapter();
-			await storage.putDebt(debtRow);
-			await storage.putDebtOperation(operationRow);
+			await storage.putDebtWithOperation(debtRow, operationRow, draftId);
 			return debtRow.id;
 		} catch (e) {
 			const message = e instanceof Error ? e.message : String(e);
@@ -479,7 +478,7 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 		}
 	},
 
-	createBill: async (input: BillInput) => {
+	createBill: async (input: BillInput, draftId?: string) => {
 		const draft = prepareBillDraft(input);
 		if (!draft) return undefined;
 		const transfers = computeBillTransfers(draft);
@@ -517,7 +516,7 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 				debts: Object.fromEntries(debts.map((d) => [d.id, d])),
 				operations: Object.fromEntries(operations.map((op) => [op.debtId, [op]])),
 			},
-			() => getStorageAdapter().putBillWithDebts(bill, debts, operations, []),
+			() => getStorageAdapter().putBillWithDebts(bill, debts, operations, [], draftId),
 		);
 		return saved ? bill.id : undefined;
 	},

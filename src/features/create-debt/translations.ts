@@ -3,6 +3,7 @@ export const CREATE_DEBT_NS = "create-debt";
 export const createDebtTranslations = {
 	ru: {
 		title: "Новый долг",
+		createDebt: "Создать долг",
 		directionLabel: "Направление",
 		hintOwedToMe: "{{name}} вернёт деньги вам",
 		hintIOwe: "{{name}} ждёт деньги от вас",

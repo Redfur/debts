@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useDebtStore } from "@/entities/debt";
+import { completeCreationDraft, useDebtStore } from "@/entities/debt";
 import type { CurrencyCode, DebtDirection } from "@/shared/lib/storage";
 
 type SubmitInput = {
@@ -18,7 +18,7 @@ export function useCreateDebt() {
 		if (pending) return undefined;
 		setPending(true);
 		try {
-			return await createDebt(input);
+			return await completeCreationDraft("debt", (id) => createDebt(input, id));
 		} finally {
 			setPending(false);
 		}

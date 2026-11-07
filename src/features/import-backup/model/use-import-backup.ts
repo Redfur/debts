@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { clearCreationDraftsWith } from "@/entities/debt";
 import { parseDebtsBackup, restoreDebtsFromBackup } from "@/shared/lib/storage";
 import { IMPORT_BACKUP_NS } from "../translations";
 import { showImportBackupConfirm } from "../ui/ImportBackupConfirm";
@@ -46,7 +47,7 @@ export function useImportBackup() {
 			onConfirm: async () => {
 				setBusy(true);
 				try {
-					await restoreDebtsFromBackup(payload);
+					await clearCreationDraftsWith(() => restoreDebtsFromBackup(payload));
 					toast.success(t("success"));
 					window.location.reload();
 				} catch (e) {

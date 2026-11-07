@@ -2,6 +2,12 @@ export const HOME_SCREEN_NS = "homeScreen";
 
 export const homeScreenTranslations = {
 	ru: {
+		draftsTitle: "Незавершённые",
+		draftDebt: "Незавершённый долг",
+		draftBill: "Незавершённый счёт",
+		draftContinue: "Продолжить",
+		draftDelete: "Удалить черновик",
+		draftReadError: "Не удалось прочитать черновик.",
 		title: "Долги",
 		amountA11y: "{{label}} {{amount}}. Показать в другой валюте",
 		noRateA11y: "Сумма недоступна без курса",

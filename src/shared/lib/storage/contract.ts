@@ -1,6 +1,18 @@
-import type { PersistedBill, PersistedContact, PersistedDebt, PersistedDebtOperation, PersistedMeta } from "./schema";
+import type {
+	CreationDraft,
+	CreationDraftKind,
+	PersistedBill,
+	PersistedContact,
+	PersistedDebt,
+	PersistedDebtOperation,
+	PersistedMeta,
+} from "./schema";
 
 export interface StorageAdapter {
+	getCreationDraft(kind: CreationDraftKind): Promise<unknown>;
+	putCreationDraft(draft: CreationDraft): Promise<void>;
+	deleteCreationDraft(kind: CreationDraftKind, expectedId: string | undefined): Promise<void>;
+	putDebtWithOperation(debt: PersistedDebt, operation: PersistedDebtOperation, draftId?: string): Promise<void>;
 	getAllContacts(): Promise<PersistedContact[]>;
 	putContact(contact: PersistedContact): Promise<void>;
 	getAllDebts(): Promise<PersistedDebt[]>;
@@ -14,6 +26,7 @@ export interface StorageAdapter {
 		upsertDebts: PersistedDebt[],
 		upsertOperations: PersistedDebtOperation[],
 		deleteDebtIds: string[],
+		draftId?: string,
 	): Promise<void>;
 	/** Одной транзакцией удаляет счёт, его долги и их операции. */
 	deleteBillCascade(billId: string): Promise<void>;

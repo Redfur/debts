@@ -3,6 +3,7 @@ import { ENTITY_DEBT_NS, entityDebtTranslations } from "./translations";
 
 injectTranslation(ENTITY_DEBT_NS, entityDebtTranslations as Record<string, Record<string, string>>);
 
+export type { CreationDraftKind, DebtCreationFields } from "@/shared/lib/storage";
 export {
 	adjustmentCents,
 	computeBillMyTotals,
@@ -35,6 +36,14 @@ export { computeDebtBalance } from "./model/compute-debt-balance";
 export { computeNetPosition } from "./model/compute-net-position";
 export { computeGlobalTotals } from "./model/compute-totals";
 export { contactMatchesFilter, countContactsByDirection } from "./model/count-contacts-by-direction";
+export {
+	clearCreationDraftsWith,
+	completeCreationDraft,
+	deleteCreationDraft,
+	hydrateCreationDraft,
+	saveCreationDraft,
+	useCreationDraftStore,
+} from "./model/creation-drafts/creation-draft-store";
 export type { BillInput } from "./model/debt-store";
 export { useDebtStore } from "./model/debt-store";
 export type {
@@ -56,6 +65,7 @@ export {
 } from "./ui/BillParts";
 export { ContactAvatar } from "./ui/ContactAvatar";
 export { ContactRow, ContactRowList } from "./ui/ContactRow";
+export { CreationDraftGate, CreationDraftStatus, leaveCreationDraft } from "./ui/CreationDraftStatus";
 export { DebtStatusBadge } from "./ui/DebtStatusBadge";
 export { DirectionChip } from "./ui/DirectionChip";
 export { DirectionIcon } from "./ui/DirectionIcon";

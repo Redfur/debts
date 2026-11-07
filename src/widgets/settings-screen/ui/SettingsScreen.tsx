@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
+import { clearCreationDraftsWith } from "@/entities/debt";
 import { useExportBackup } from "@/features/export-backup";
 import { useImportBackup } from "@/features/import-backup";
 import { InstallSettingsRows } from "@/features/install-app";
@@ -125,7 +126,7 @@ export function SettingsScreen() {
 			action: t("clearDataAction"),
 			onClick: () =>
 				confirm(t("clearDataConfirmTitle"), t("clearDataConfirmBody"), t("clearDataAction"), async () => {
-					await wipeAppIndexedDatabase();
+					await clearCreationDraftsWith(wipeAppIndexedDatabase);
 					window.location.reload();
 				}),
 		},
@@ -154,7 +155,7 @@ export function SettingsScreen() {
 			strong: true,
 			onClick: () =>
 				confirm(t("clearAllConfirmTitle"), t("clearAllConfirmBody"), t("clearAll"), async () => {
-					await wipeAppIndexedDatabase();
+					await clearCreationDraftsWith(wipeAppIndexedDatabase);
 					clearAllClientStorage();
 					window.location.reload();
 				}),

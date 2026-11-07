@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
 	adjustmentCents,
 	type Bill,
@@ -22,64 +22,20 @@ import {
 	validateBill,
 } from "@/entities/debt";
 import { generateId } from "@/shared/lib/id";
-import type { CurrencyCode } from "@/shared/lib/storage";
+import type {
+	BillEntry,
+	BillFormState,
+	CurrencyCode,
+	FormAdjustment,
+	FormItem,
+	FormParticipant,
+	FormTips,
+	PayerMode,
+} from "@/shared/lib/storage";
 
-export type PayerMode = "one" | "several";
-
-/** Как записывается счёт: итог одной суммой или по позициям чека. */
-export type BillEntry = "sum" | "receipt";
-
-/** Позиция в форме: цена — сырая строка `AmountInput`; отметки — в порядке участников. */
-export type FormItem = {
-	id: string;
-	title: string;
-	price: string;
-	refs: string[];
-	extraPeople: number;
-};
-
-/** Чего не хватает заполненной позиции; у пустой строки — ничего (она не сохраняется). */
+export type { BillEntry, BillFormState, FormAdjustment, FormItem, PayerMode } from "@/shared/lib/storage";
 export type ItemIssue = "price" | "people" | "both" | null;
-
-/** Скидка или чаевые в форме: значение — сырая строка `AmountInput`; пустое — их нет. */
-export type FormAdjustment = {
-	open: boolean;
-	unit: BillAdjustmentUnit;
-	value: string;
-};
-
-/** Чаевые в форме: отметки — в порядке участников. */
-export type FormTips = FormAdjustment & {
-	refs: string[];
-	extraPeople: number;
-};
-
-/** Значение, которое ставит открытие скидки или чаевых. */
 const DEFAULT_ADJUSTMENT_PERCENT = "10";
-
-/** Участник в форме: суммы — сырые строки поля `AmountInput` («1500.5»). */
-type FormParticipant = {
-	ref: string;
-	paid: string;
-	inSplit: boolean;
-	shares: number;
-	amount: string;
-};
-
-export type BillFormState = {
-	entry: BillEntry;
-	amount: string;
-	currency: CurrencyCode;
-	title: string;
-	participants: FormParticipant[];
-	payerMode: PayerMode;
-	payerRef: string;
-	/** Выбор «Как делим» для «Одной суммой»; сохраняется, пока открыт режим «По чеку». */
-	splitMode: Exclude<BillSplitMode, "items">;
-	items: FormItem[];
-	discount: FormAdjustment;
-	tips: FormTips;
-};
 
 /** «По чеку» для показа: деньги по заполненным позициям, незаполненные (номера с 1) и что не так со скидкой и чаевыми. */
 export type ReceiptSummary = {
@@ -305,8 +261,16 @@ export function toBillInput(state: BillFormState): BillInput {
 }
 
 /** Состояние формы счёта и производные: проверка, доли и «Кто кому переводит» пересчитываются на каждый ввод. */
-export function useBillForm(initial: () => BillFormState) {
-	const [state, setState] = useState(initial);
+export function useBillForm(initial: () => BillFormState, onChange?: (state: BillFormState) => void) {
+	const [state, renderState] = useState(initial);
+	const current = useRef(state);
+	const setState = (update: (previous: BillFormState) => BillFormState) => {
+		const next = update(current.current);
+		if (JSON.stringify(next) === JSON.stringify(current.current)) return;
+		current.current = next;
+		onChange?.(next);
+		renderState(next);
+	};
 	const [spreadUndo, setSpreadUndo] = useState<SpreadUndo | null>(null);
 
 	const draft = useMemo(() => toDraft(state), [state]);
@@ -329,6 +293,7 @@ export function useBillForm(initial: () => BillFormState) {
 
 	return {
 		state,
+		getState: () => current.current,
 		draft,
 		validation,
 		shares,

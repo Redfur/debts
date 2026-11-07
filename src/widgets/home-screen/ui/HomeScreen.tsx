@@ -8,6 +8,7 @@ import { useDisplayCurrency } from "@/shared/lib/currency-preference";
 import { HOME_SCREEN_NS } from "../translations";
 import { BillsSection } from "./BillsSection";
 import { ContactList } from "./ContactList";
+import { CreationDraftsSection } from "./CreationDraftsSection";
 import { HomeDifferenceCard, HomeNetPosition } from "./HomeNetPosition";
 import { HomeOnboarding } from "./HomeOnboarding";
 import { TotalCard } from "./HomeTotalsCards";
@@ -29,6 +30,7 @@ export function HomeScreen() {
 		return (
 			<ScreenBody className="flex-1">
 				<PageHeader title={t("title")} />
+				<CreationDraftsSection />
 				<HomeOnboarding />
 			</ScreenBody>
 		);
@@ -39,6 +41,7 @@ export function HomeScreen() {
 	return (
 		<ScreenBody gap="compact">
 			<PageHeader title={t("title")} className="mb-2" />
+			<CreationDraftsSection />
 			<InstallBanner onSaveBackup={exportBackup} />
 			<div className="grid gap-2 lg:grid-cols-[repeat(auto-fit,minmax(260px,1fr))] lg:gap-4">
 				<TotalCard

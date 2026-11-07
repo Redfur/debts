@@ -1,14 +1,23 @@
 import { type DBSchema, deleteDB, type IDBPDatabase, openDB } from "idb";
 import type { StorageAdapter } from "./contract";
-import type { PersistedBill, PersistedContact, PersistedDebt, PersistedDebtOperation, PersistedMeta } from "./schema";
+import type {
+	CreationDraft,
+	CreationDraftKind,
+	PersistedBill,
+	PersistedContact,
+	PersistedDebt,
+	PersistedDebtOperation,
+	PersistedMeta,
+} from "./schema";
 
 const DB_NAME = "debts";
-const DB_VERSION = 2;
-const CURRENT_SCHEMA_VERSION = 2;
+const DB_VERSION = 3;
+const CURRENT_SCHEMA_VERSION = 3;
 
 type MetaRow = PersistedMeta & { key: string };
 
 interface DebtsDBSchema extends DBSchema {
+	creationDrafts: { key: CreationDraftKind; value: CreationDraft };
 	contacts: {
 		key: string;
 		value: PersistedContact;
@@ -52,6 +61,7 @@ function getDb(): Promise<IDBPDatabase<DebtsDBSchema>> {
 					database.createObjectStore("bills", { keyPath: "id" });
 					tx.objectStore("debts").createIndex("by-billId", "billId");
 				}
+				if (oldVersion < 3) database.createObjectStore("creationDrafts", { keyPath: "kind" });
 			},
 			blocking() {
 				// Другой клиент удаляет или обновляет БД — отпускаем соединение, чтобы не держать его.
@@ -89,6 +99,35 @@ async function commitOrAbort(tx: { done: Promise<void>; abort(): void }, write: 
 
 function createIndexedDbStorageAdapter(): StorageAdapter {
 	return {
+		async getCreationDraft(kind) {
+			return (await getDb()).get("creationDrafts", kind);
+		},
+		async putCreationDraft(draft) {
+			const db = await getDb();
+			const tx = db.transaction("creationDrafts", "readwrite");
+			await commitOrAbort(tx, async () => {
+				await tx.store.put(draft);
+			});
+		},
+		async deleteCreationDraft(kind, expectedId) {
+			const db = await getDb();
+			const tx = db.transaction("creationDrafts", "readwrite");
+			await commitOrAbort(tx, async () => {
+				const current = await tx.store.get(kind);
+				if (current && current.id !== expectedId) throw new Error("Draft session changed");
+				await tx.store.delete(kind);
+			});
+		},
+		async putDebtWithOperation(debt, operation, draftId) {
+			const db = await getDb();
+			const tx = db.transaction(["debts", "debtOperations", "creationDrafts"], "readwrite");
+			await commitOrAbort(tx, async () => {
+				await tx.objectStore("debts").put(debt);
+				await tx.objectStore("debtOperations").put(operation);
+				const current = await tx.objectStore("creationDrafts").get("debt");
+				if (draftId && current?.id === draftId) await tx.objectStore("creationDrafts").delete("debt");
+			});
+		},
 		async getAllContacts() {
 			const db = await getDb();
 			return db.getAll("contacts");
@@ -127,14 +166,16 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 			return db.getAll("bills");
 		},
 
-		async putBillWithDebts(bill, upsertDebts, upsertOperations, deleteDebtIds) {
+		async putBillWithDebts(bill, upsertDebts, upsertOperations, deleteDebtIds, draftId) {
 			const db = await getDb();
-			const tx = db.transaction(["bills", "debts", "debtOperations"], "readwrite");
+			const tx = db.transaction(["bills", "debts", "debtOperations", "creationDrafts"], "readwrite");
 			const debtsStore = tx.objectStore("debts");
 			const operationsStore = tx.objectStore("debtOperations");
 			const operationsIndex = operationsStore.index("by-debtId");
 			await commitOrAbort(tx, async () => {
 				await tx.objectStore("bills").put(bill);
+				const current = await tx.objectStore("creationDrafts").get("bill");
+				if (draftId && current?.id === draftId) await tx.objectStore("creationDrafts").delete("bill");
 				for (const debtId of deleteDebtIds) {
 					for (const operationId of await operationsIndex.getAllKeys(debtId)) {
 						await operationsStore.delete(operationId);
@@ -181,7 +222,7 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 			const db = await getDb();
 			const row = await db.get("meta", META_KEY);
 			return row
-				? { schemaVersion: row.schemaVersion, ratesCache: row.ratesCache }
+				? { schemaVersion: CURRENT_SCHEMA_VERSION, ratesCache: row.ratesCache }
 				: { schemaVersion: CURRENT_SCHEMA_VERSION, ratesCache: null };
 		},
 
@@ -192,25 +233,28 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 
 		async replaceAll({ contacts, debts, debtOperations, bills, meta }) {
 			const db = await getDb();
-			const tx = db.transaction(["contacts", "debts", "debtOperations", "bills", "meta"], "readwrite");
+			const tx = db.transaction(
+				["contacts", "debts", "debtOperations", "bills", "meta", "creationDrafts"],
+				"readwrite",
+			);
 			const contactsStore = tx.objectStore("contacts");
 			const debtsStore = tx.objectStore("debts");
 			const operationsStore = tx.objectStore("debtOperations");
 			const billsStore = tx.objectStore("bills");
 			const metaStore = tx.objectStore("meta");
-			await Promise.all([
-				contactsStore.clear(),
-				debtsStore.clear(),
-				operationsStore.clear(),
-				billsStore.clear(),
-				metaStore.clear(),
-				...contacts.map((contact) => contactsStore.put(contact)),
-				...debts.map((debt) => debtsStore.put(debt)),
-				...debtOperations.map((operation) => operationsStore.put(operation)),
-				...bills.map((bill) => billsStore.put(bill)),
-				metaStore.put({ key: META_KEY, ...meta, schemaVersion: CURRENT_SCHEMA_VERSION }),
-				tx.done,
-			]);
+			await commitOrAbort(tx, async () => {
+				await tx.objectStore("creationDrafts").clear();
+				await contactsStore.clear();
+				await debtsStore.clear();
+				await operationsStore.clear();
+				await billsStore.clear();
+				await metaStore.clear();
+				for (const row of contacts) await contactsStore.put(row);
+				for (const row of debts) await debtsStore.put(row);
+				for (const row of debtOperations) await operationsStore.put(row);
+				for (const row of bills) await billsStore.put(row);
+				await metaStore.put({ key: META_KEY, ...meta, schemaVersion: CURRENT_SCHEMA_VERSION });
+			});
 		},
 	};
 }
