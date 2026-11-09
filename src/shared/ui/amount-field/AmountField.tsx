@@ -5,6 +5,7 @@ import { cn } from "@/shared/lib/utils";
 import { CurrencyPicker } from "@/shared/ui/currency-picker";
 
 type Props = {
+	topCurrencies: readonly CurrencyCode[];
 	id: string;
 	/** Подпись поля для экранного диктора («Сумма»). */
 	label: string;
@@ -27,6 +28,7 @@ type Props = {
 /** Крупное поле суммы на карточке и кнопка валюты справа (форма нового долга, изменение долга). */
 export function AmountField({
 	id,
+	topCurrencies,
 	label,
 	value,
 	onValueChange,
@@ -67,6 +69,7 @@ export function AmountField({
 				className="caret-accent placeholder:text-muted-foreground/60 h-13 min-h-0 flex-1 rounded-none bg-transparent px-0 text-[44px] leading-[52px] font-bold tracking-[-0.03em] focus-visible:shadow-none disabled:bg-transparent disabled:shadow-none aria-invalid:shadow-none lg:text-[44px]"
 			/>
 			<CurrencyPicker
+				topCurrencies={topCurrencies}
 				value={currency}
 				onChange={onCurrencyChange}
 				title={currencyTitle}

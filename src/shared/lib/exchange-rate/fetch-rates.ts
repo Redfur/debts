@@ -1,5 +1,5 @@
-import { SUPPORTED_CURRENCIES } from "@/shared/config/currencies";
-import type { CurrencyCode, ExchangeRatesCache } from "@/shared/lib/storage";
+import { SUPPORTED_CURRENCIES } from "../../config/currencies.ts";
+import type { CurrencyCode, ExchangeRatesCache } from "../storage/schema";
 
 const BASE_CURRENCY: CurrencyCode = "USD";
 
@@ -20,7 +20,7 @@ async function fetchFromUrl(url: string): Promise<CurrencyApiResponse> {
 	if (!response.ok) {
 		throw new Error(`Currency API responded with ${response.status}`);
 	}
-	return response.json();
+	return (await response.json()) as CurrencyApiResponse;
 }
 
 /** Загружает свежие курсы к {@link BASE_CURRENCY}; бросает при недоступности сети/источника. */
@@ -37,11 +37,12 @@ export async function fetchExchangeRates(): Promise<ExchangeRatesCache> {
 		throw new Error("Unexpected currency API response shape");
 	}
 
-	const rates = {} as Record<CurrencyCode, number>;
+	const rates: Partial<Record<CurrencyCode, number>> = {};
 	for (const code of SUPPORTED_CURRENCIES) {
 		const value = (rawRates as Record<string, unknown>)[code.toLowerCase()];
-		rates[code] = typeof value === "number" ? value : code === BASE_CURRENCY ? 1 : Number.NaN;
+		if (typeof value === "number" && Number.isFinite(value) && value > 0) rates[code] = value;
 	}
+	rates[BASE_CURRENCY] = 1;
 
 	return {
 		base: BASE_CURRENCY,

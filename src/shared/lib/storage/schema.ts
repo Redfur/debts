@@ -1,6 +1,8 @@
 /** Форма записи в IndexedDB (доменные имена — в entities/debt). Слой shared не импортирует entities. */
 
-export type CurrencyCode = "RUB" | "USD" | "EUR" | "CNY";
+import type { CurrencyCode } from "../../config/currency-catalog";
+
+export type { CurrencyCode } from "../../config/currency-catalog";
 
 export type PersistedContact = {
 	id: string;
@@ -115,7 +117,7 @@ export type ExchangeRatesCache = {
 	date: string;
 	/** Момент локального сохранения — для троттлинга обновления. */
 	fetchedAt: string;
-	rates: Record<CurrencyCode, number>;
+	rates: Partial<Record<CurrencyCode, number>>;
 };
 
 export type PersistedMeta = {

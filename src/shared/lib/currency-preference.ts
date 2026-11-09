@@ -1,62 +1,41 @@
-import { useEffect, useState } from "react";
-import { isSupportedCurrency } from "@/shared/config/currencies";
-import { CLIENT_STORAGE_KEYS } from "@/shared/lib/client-storage-keys";
+import { useSyncExternalStore } from "react";
+import { localeCurrency } from "@/shared/config/currencies";
 import type { CurrencyCode } from "@/shared/lib/storage";
+import { createCurrencyPreferences } from "./currency-preference-state";
+import { i18n } from "./i18n";
 
-const DEFAULT_DISPLAY_CURRENCY: CurrencyCode = "RUB";
-
-const DISPLAY_CURRENCY_CHANGE_EVENT = "app-display-currency-change";
-
-type DisplayCurrencyChangeDetail = {
-	currency: CurrencyCode;
-};
-
-function getDisplayCurrency(): CurrencyCode {
-	if (typeof localStorage === "undefined") return DEFAULT_DISPLAY_CURRENCY;
-	try {
-		const stored = localStorage.getItem(CLIENT_STORAGE_KEYS.displayCurrency);
-		if (stored && isSupportedCurrency(stored)) return stored;
-	} catch {
-		/* ignore */
+let preferences: ReturnType<typeof createCurrencyPreferences> | undefined;
+function getPreferences() {
+	if (!preferences) {
+		let storage: Storage | undefined;
+		try {
+			storage = globalThis.localStorage;
+		} catch {
+			/* Хранилище может быть недоступно. */
+		}
+		preferences = createCurrencyPreferences(storage, localeCurrency(i18n.resolvedLanguage ?? i18n.language));
 	}
-	return DEFAULT_DISPLAY_CURRENCY;
+	return preferences;
 }
 
 export function setDisplayCurrency(currency: CurrencyCode): void {
-	try {
-		localStorage.setItem(CLIENT_STORAGE_KEYS.displayCurrency, currency);
-	} catch {
-		/* ignore */
-	}
-	if (typeof window !== "undefined") {
-		window.dispatchEvent(
-			new CustomEvent<DisplayCurrencyChangeDetail>(DISPLAY_CURRENCY_CHANGE_EVENT, { detail: { currency } }),
-		);
-	}
+	getPreferences().setCurrent(currency);
 }
 
-/** Сообщает подписчикам, что сохранённая валюта сброшена к значению по умолчанию. */
+export function setPreferredDisplayCurrency(currency: CurrencyCode): void {
+	getPreferences().setPreferred(currency);
+}
+
 export function notifyDisplayCurrencyReset(): void {
-	if (typeof window === "undefined") return;
-	window.dispatchEvent(
-		new CustomEvent<DisplayCurrencyChangeDetail>(DISPLAY_CURRENCY_CHANGE_EVENT, {
-			detail: { currency: DEFAULT_DISPLAY_CURRENCY },
-		}),
-	);
+	getPreferences().reset(localeCurrency(i18n.resolvedLanguage ?? i18n.language));
 }
 
-/** Валюта отображения агрегатов с подпиской на изменение в других частях приложения. */
+export function useCurrencyPreferences() {
+	const store = getPreferences();
+	return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+}
+
+/** Общая валюта всех сводок; переключение не меняет постоянное предпочтение. */
 export function useDisplayCurrency(): CurrencyCode {
-	const [currency, setCurrency] = useState<CurrencyCode>(() => getDisplayCurrency());
-
-	useEffect(() => {
-		const onChange = (e: Event) => {
-			const ce = e as CustomEvent<DisplayCurrencyChangeDetail>;
-			if (ce.detail?.currency) setCurrency(ce.detail.currency);
-		};
-		window.addEventListener(DISPLAY_CURRENCY_CHANGE_EVENT, onChange);
-		return () => window.removeEventListener(DISPLAY_CURRENCY_CHANGE_EVENT, onChange);
-	}, []);
-
-	return currency;
+	return useCurrencyPreferences().current;
 }

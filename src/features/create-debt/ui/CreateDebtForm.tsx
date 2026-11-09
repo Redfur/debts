@@ -9,6 +9,7 @@ import {
 	ENTITY_DEBT_NS,
 	saveCreationDraft,
 	useCreationDraftStore,
+	useDebtCurrencies,
 	useDebtStore,
 } from "@/entities/debt";
 import { ContactPicker } from "@/features/select-contact";
@@ -34,6 +35,7 @@ type Errors = { contact?: string; amount?: string; form?: string };
  * крупная сумма с валютой, заметка и «Создать долг», закреплённая над клавиатурой.
  */
 export function CreateDebtForm({ initialContactId, onSuccess, onCancel, onDelete }: Props) {
+	const { top: topCurrencies } = useDebtCurrencies();
 	const { t } = useTranslation(CREATE_DEBT_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
 	const { t: tEntity } = useTranslation(ENTITY_DEBT_NS);
@@ -136,6 +138,7 @@ export function CreateDebtForm({ initialContactId, onSuccess, onCancel, onDelete
 
 						<div className="flex flex-col gap-1.5">
 							<AmountField
+								topCurrencies={topCurrencies}
 								id={amountId}
 								label={t("amountLabel")}
 								value={amount}

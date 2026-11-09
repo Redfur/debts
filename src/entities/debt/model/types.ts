@@ -1,4 +1,4 @@
-import type { PersistedContact, PersistedDebt, PersistedDebtOperation } from "@/shared/lib/storage";
+import type { PersistedContact, PersistedDebt, PersistedDebtOperation } from "../../../shared/lib/storage/schema";
 
 /** Контакт-должник/кредитор; совпадает с формой в IndexedDB. */
 export type Contact = PersistedContact;

@@ -2,6 +2,7 @@
 export const CLIENT_STORAGE_KEYS = {
 	theme: "app-theme",
 	displayCurrency: "debts.displayCurrency",
+	preferredDisplayCurrency: "debts.preferredDisplayCurrency",
 } as const;
 
 /** Служебные отметки интерфейса: «Сбросить настройки интерфейса» их не трогает, «Очистить всё» — удаляет. */

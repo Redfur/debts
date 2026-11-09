@@ -1,4 +1,4 @@
-import { roundAmount } from "@/shared/lib/round-amount";
+import { roundAmount } from "../../../shared/lib/round-amount.ts";
 import type { Debt, DebtOperation } from "./types";
 
 /** Остаток долга: исходная сумма минус сумма погашений; не уходит ниже нуля. */

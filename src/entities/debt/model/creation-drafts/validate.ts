@@ -1,4 +1,5 @@
-import type { CreationDraft } from "@/shared/lib/storage";
+import { isSupportedCurrency } from "../../../../shared/config/currencies.ts";
+import type { CreationDraft } from "../../../../shared/lib/storage/schema";
 
 function object(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -11,9 +12,6 @@ function number(value: unknown): value is number {
 }
 function people(value: unknown) {
 	return number(value) && Number.isInteger(value) && value >= 0 && value <= 99;
-}
-function currency(value: unknown) {
-	return ["RUB", "USD", "EUR", "CNY"].includes(String(value));
 }
 function adjustment(value: unknown) {
 	return (
@@ -37,7 +35,7 @@ export function isCreationDraft(value: unknown): value is CreationDraft {
 	)
 		return false;
 	const p = value.payload;
-	if (!currency(p.currency) || typeof p.amount !== "string") return false;
+	if (!isSupportedCurrency(p.currency) || typeof p.amount !== "string") return false;
 	if (value.kind === "debt")
 		return (
 			(p.contactId === undefined || typeof p.contactId === "string") &&

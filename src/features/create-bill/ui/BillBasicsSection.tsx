@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Input } from "@/components/ui/input";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
-import { fromCents, ME_REF, ParticipantAvatar, toCents, useParticipantName } from "@/entities/debt";
+import { fromCents, ME_REF, ParticipantAvatar, toCents, useDebtCurrencies, useParticipantName } from "@/entities/debt";
 import { CURRENCY_SHORT_LABEL } from "@/shared/config/currencies";
 import { formatAmount, formatMoney } from "@/shared/lib/format-amount";
 import { cn } from "@/shared/lib/utils";
@@ -29,6 +29,7 @@ type Props = {
  * позиций, плательщик всегда один.
  */
 export function BillBasicsSection({ form, locked, showErrors, onAddParticipants, onChangePayer }: Props) {
+	const { top: topCurrencies } = useDebtCurrencies();
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const nameOf = useParticipantName();
 	const amountId = useId();
@@ -67,6 +68,7 @@ export function BillBasicsSection({ form, locked, showErrors, onAddParticipants,
 								<ReceiptBreakdown form={form} />
 							</span>
 							<CurrencyPicker
+								topCurrencies={topCurrencies}
 								value={state.currency}
 								onChange={form.setCurrency}
 								title={t("currencyTitle")}
@@ -77,6 +79,7 @@ export function BillBasicsSection({ form, locked, showErrors, onAddParticipants,
 						</div>
 					) : (
 						<AmountField
+							topCurrencies={topCurrencies}
 							id={amountId}
 							label={t("amountLabel")}
 							value={state.amount}

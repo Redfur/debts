@@ -53,6 +53,7 @@ export type {
 	Debt,
 	DebtOperation,
 } from "./model/types";
+export { useDebtCurrencies } from "./model/use-debt-currencies";
 export { useDebtOperations } from "./model/use-debt-operations";
 export { AmountPill } from "./ui/AmountPill";
 export { ParticipantAvatar, useParticipantName } from "./ui/BillParticipant";

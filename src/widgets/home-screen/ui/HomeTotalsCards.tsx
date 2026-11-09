@@ -9,6 +9,7 @@ import { CurrencyBreakdown } from "@/shared/ui/money";
 import { HOME_SCREEN_NS } from "../translations";
 
 type CardProps = {
+	cycle: readonly CurrencyCode[];
 	direction: DebtDirection;
 	converted: number | null;
 	byCurrency: Partial<Record<CurrencyCode, number>>;
@@ -16,7 +17,7 @@ type CardProps = {
 };
 
 /** Карточка итога направления. Нажатие на сумму переключает настройку «Валюта итогов» по кругу. */
-export function TotalCard({ direction, converted, byCurrency, displayCurrency }: CardProps) {
+export function TotalCard({ direction, converted, byCurrency, displayCurrency, cycle }: CardProps) {
 	const { t } = useTranslation(HOME_SCREEN_NS);
 	const { t: tDebt } = useTranslation(ENTITY_DEBT_NS);
 	const owedToMe = direction === "owed_to_me";
@@ -70,7 +71,7 @@ export function TotalCard({ direction, converted, byCurrency, displayCurrency }:
 			) : (
 				<button
 					type="button"
-					onClick={() => setDisplayCurrency(nextSupportedCurrency(displayCurrency))}
+					onClick={() => setDisplayCurrency(nextSupportedCurrency(displayCurrency, cycle))}
 					aria-label={t("amountA11y", { label, amount: formatMoney(converted, displayCurrency) })}
 					className="text-amount-xl lg:text-amount-display flex min-h-11 items-center self-start rounded-md text-left whitespace-nowrap text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
 				>

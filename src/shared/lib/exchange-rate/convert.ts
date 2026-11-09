@@ -1,4 +1,4 @@
-import type { CurrencyCode, ExchangeRatesCache } from "@/shared/lib/storage";
+import type { CurrencyCode, ExchangeRatesCache } from "../storage/schema";
 
 /** Конвертирует сумму между валютами через `ratesCache.base`; null — курса нет или он некорректен. */
 export function convertAmount(
@@ -12,7 +12,15 @@ export function convertAmount(
 
 	const rateFrom = ratesCache.rates[from];
 	const rateTo = ratesCache.rates[to];
-	if (!Number.isFinite(rateFrom) || !rateFrom || !Number.isFinite(rateTo)) return null;
+	if (
+		typeof rateFrom !== "number" ||
+		!Number.isFinite(rateFrom) ||
+		rateFrom <= 0 ||
+		typeof rateTo !== "number" ||
+		!Number.isFinite(rateTo) ||
+		rateTo <= 0
+	)
+		return null;
 
 	const amountInBase = amount / rateFrom;
 	return amountInBase * rateTo;

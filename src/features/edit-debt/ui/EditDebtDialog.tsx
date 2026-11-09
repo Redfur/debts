@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { DirectionToggle, ENTITY_DEBT_NS, useDebtOperations, useDebtStore } from "@/entities/debt";
+import { DirectionToggle, ENTITY_DEBT_NS, useDebtCurrencies, useDebtOperations, useDebtStore } from "@/entities/debt";
 import { COMMON_NS } from "@/shared/i18n";
 import { formatMoney } from "@/shared/lib/format-amount";
 import type { CurrencyCode, DebtDirection } from "@/shared/lib/storage";
@@ -36,6 +36,7 @@ function ReadOnlyTile({ label, children }: { label: string; children: ReactNode 
 }
 
 const EditDebtDialogComponent = NiceModal.create(({ debtId, onOpenBill }: Props) => {
+	const { top: topCurrencies } = useDebtCurrencies();
 	const { t } = useTranslation(EDIT_DEBT_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
 	const { t: tDebt } = useTranslation(ENTITY_DEBT_NS);
@@ -146,6 +147,7 @@ const EditDebtDialogComponent = NiceModal.create(({ debtId, onOpenBill }: Props)
 							<DirectionToggle value={direction} onChange={setDirection} label={t("directionLabel")} surface="sheet" />
 							<div className="flex flex-col gap-1.5">
 								<AmountField
+									topCurrencies={topCurrencies}
 									id={amountId}
 									label={t("amountLabel")}
 									value={amount}
