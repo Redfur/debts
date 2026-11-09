@@ -34,6 +34,7 @@ export const settingsScreenTranslations = {
 		clearAllConfirmTitle: "Очистить всё?",
 		clearAllConfirmBody: "Удалятся все данные, черновики и настройки, приложение перезагрузится. Отменить это нельзя.",
 		aboutVersion: "Версия {{version}}",
+		aboutChangelog: "История изменений",
 		aboutRepository: "GitHub",
 	},
 } as const;

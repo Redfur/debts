@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight, Download, Upload } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
@@ -315,6 +316,13 @@ export function SettingsScreen() {
 
 			<p className="text-caption text-muted-foreground text-center lg:text-left">
 				{t("aboutVersion", { version })}
+				{" · "}
+				<Link
+					to="/settings/changelog"
+					className="text-accent inline-flex min-h-11 items-center py-3 font-medium outline-none hover:underline focus-visible:underline"
+				>
+					{t("aboutChangelog")}
+				</Link>
 				{repoUrl ? (
 					<>
 						{" · "}

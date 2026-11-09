@@ -7,6 +7,21 @@ import { ScreenBody } from "@/shared/layout";
 
 const HEADER = "mt-[calc(env(safe-area-inset-top,0px)+20px)] h-11 lg:mt-9";
 
+export function ChangelogRouteFallback() {
+	const { t } = useTranslation(COMMON_NS);
+	return (
+		<ScreenBody variant="skeleton" className="w-full gap-6 lg:max-w-[760px]">
+			<span className="sr-only">{t("loadingChangelog")}</span>
+			<div className={`${HEADER} mb-12`}>
+				<Skeleton className="mb-4 size-11 rounded-full" />
+				<Skeleton className="h-8 w-60 rounded-full" />
+			</div>
+			<Skeleton className="h-72 w-full rounded-card" />
+			<Skeleton className="h-72 w-full rounded-card" />
+		</ScreenBody>
+	);
+}
+
 function SkeletonRow() {
 	return (
 		<div className="flex min-h-14 items-center gap-3 px-4">

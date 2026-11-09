@@ -7,6 +7,7 @@ import "@/widgets/contact-detail";
 import {
 	BillDetailRouteFallback,
 	BillFormRouteFallback,
+	ChangelogRouteFallback,
 	ContactDetailRouteFallback,
 	ContactsRouteFallback,
 	CreateDebtRouteFallback,
@@ -16,6 +17,11 @@ import {
 const SettingsPage = lazy(async () => {
 	const m = await import("@/pages/settings");
 	return { default: m.SettingsPage };
+});
+
+const ChangelogPage = lazy(async () => {
+	const m = await import("@/pages/changelog");
+	return { default: m.ChangelogPage };
 });
 
 const ContactDetailPage = lazy(async () => {
@@ -112,6 +118,14 @@ export function AppRoutes() {
 				element={
 					<Suspense fallback={<SettingsRouteFallback />}>
 						<SettingsPage />
+					</Suspense>
+				}
+			/>
+			<Route
+				path="/settings/changelog"
+				element={
+					<Suspense fallback={<ChangelogRouteFallback />}>
+						<ChangelogPage />
 					</Suspense>
 				}
 			/>

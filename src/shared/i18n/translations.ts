@@ -20,6 +20,7 @@ export const commonTranslations = {
 		navContacts: "Контакты",
 		navSettings: "Настройки",
 		loadingSettings: "Загрузка настроек",
+		loadingChangelog: "Загрузка истории изменений",
 		loadingContacts: "Загрузка контактов",
 		loadingCreateDebt: "Загрузка формы",
 		loadingBillForm: "Загрузка формы счёта",

@@ -29,6 +29,7 @@ React 19, Vite 8, TypeScript, Zustand, react-router-dom, react-i18next, Tailwind
 | `/contacts` | `pages/contacts` (index → `ContactsIndexPage`) → `widgets/contacts-screen` | lazy |
 | `/contacts/:contactId` | вложен в `/contacts`: `pages/contact-detail` → `widgets/contact-detail` | lazy |
 | `/settings` | `pages/settings` → `widgets/settings-screen` | lazy |
+| `/settings/changelog` | `pages/changelog` → `widgets/changelog-screen` | lazy |
 | `/bills/new` | `pages/create-bill` → `features/create-bill` (`BillForm`) | lazy |
 | `/bills/:billId` | `pages/bill-detail` → `widgets/bill-detail` | lazy |
 | `/bills/:billId/edit` | `pages/edit-bill` → `features/create-bill` (`BillForm` с `bill`, `locked` при погашениях; счёт по чеку открывается в режиме «По чеку») | lazy |
@@ -41,7 +42,7 @@ React 19, Vite 8, TypeScript, Zustand, react-router-dom, react-i18next, Tailwind
 `AppShell` выбирает режим по пути (`useShellMode`, через `matchPath`):
 
 - `section` — `/`, `/contacts`, `/settings`: на мобильном плавающее нижнее меню `BottomNav` и круглая кнопка «+» (`CreateFab` — меню Radix `DropdownMenu` «Новый долг» → `/new` / «Разделить счёт» → `/bills/new`; открытое меню поворачивает «+» в «×» «Закрыть меню»);
-- `fullscreen` — `/new`, `/contacts/:id` и `/bills/*` на мобильном: без нижнего меню, со своей шапкой. В боковом меню `/bills/*` подсвечивает «Главную».
+- `fullscreen` — `/new`, `/contacts/:id`, `/settings/changelog` и `/bills/*` на мобильном: без нижнего меню, со своей шапкой. В боковом меню `/bills/*` подсвечивает «Главную», `/settings/changelog` — «Настройки». Кнопка «Назад» в истории всегда ведёт в `/settings`, в том числе после прямого входа.
 
 От 1024 px всегда показывается боковое меню `SideNav` и «+» в правом нижнем углу. Раскладка «список + карточка» на `/contacts` — CSS-сетка в `ContactsPage`: на мобильном видна только одна колонка (`max-lg:hidden`), на десктопе обе. Баннер ошибки хранилища каркас подставляет под заголовок любого экрана через контекст `PageHeaderAfterSlot`.
 
@@ -112,6 +113,14 @@ UI (pages/widgets)
 - `initInstallApp()` вызывается в `src/main.tsx` до рендера: перехватывает `beforeinstallprompt` (откладывает системный диалог для кнопки «Установить») и `appinstalled` (тост), а в установленном режиме молча просит `navigator.storage.persist()`.
 - Режим — «установлено» (`display-mode` / `navigator.standalone`), «внутри другого приложения» (UA встроенных браузеров) или «в браузере»; платформа — iOS/iPadOS или другая (`lib/detect-platform.ts`, чистые функции). Состояние — модульный стор + `useSyncExternalStore` (`useInstallState`).
 - UI: `InstallOnboardingCard` (пустая главная), `InstallBanner` (над итогами, закрывается навсегда), шторка «Как установить» (шаги по платформе; на iOS и во встроенном браузере при наличии записей — перенос через резервную копию), `InstallSettingsRows` (группа «Приложение»: режим и защита данных от автоочистки). Экспорт копии — другая фича, поэтому виджеты передают `onSaveBackup` из `useExportBackup`.
+
+## История изменений
+
+`CHANGELOG.md` — единый источник описаний для приложения и будущих GitHub Releases. История доступна по ссылке внизу настроек. Новый слайс `pages/changelog` подключает `widgets/changelog-screen`: одноколоночную ленту версий с датами, абзацами, группами и списками. Переводы заголовков и пустого состояния находятся в слайсе виджета.
+
+`build/changelog.ts` разбирает используемое подмножество Keep a Changelog: версии, календарные даты, абзацы, группы, списки, жирное выделение и inline-код. Исключаются вступление, `[Unreleased]`, пустые группы и версии новее `VITE_APP_VERSION` (с необязательным `v`); версии сравниваются численно. Неподдержанный блок, неизвестная группа, повтор версии и неверная дата дают явную ошибку с номером строки. Проверки: `node --experimental-strip-types --test build/changelog.test.ts` (Node 22+).
+
+Локальный плагин `build/changelog-plugin.ts` в `vite.config.ts` предоставляет типизированный `virtual:changelog`, обновляемый при изменении исходного файла в dev. Данные входят только в ленивый чанк истории и существующий precache PWA: экран впервые открывается без сети после кеширования приложения, без запросов за Markdown, JSON или GitHub Releases. Генерируемые исходники не записываются. Дата отображается в UTC как календарная дата без сдвига дня; текст выводится React-элементами без исполнения HTML. Новых зависимостей, состояния в сторе, записей в хранилище и изменений формата бэкапа нет.
 
 ## Нефункциональные требования
 

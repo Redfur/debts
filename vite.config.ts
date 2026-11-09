@@ -6,6 +6,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import biomePlugin from "vite-plugin-biome";
 import { VitePWA } from "vite-plugin-pwa";
+import { changelogPlugin } from "./build/changelog-plugin";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(path.join(rootDir, "package.json"), "utf-8")) as {
@@ -45,6 +46,7 @@ export default defineConfig({
 		tsconfigPaths: true,
 	},
 	plugins: [
+		changelogPlugin(path.join(rootDir, "CHANGELOG.md"), appVersion),
 		react(),
 		biomePlugin(),
 		tailwindcss(),
