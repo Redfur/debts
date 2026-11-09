@@ -64,8 +64,8 @@ const HINT_CLASS = "text-caption text-muted-foreground mx-1 lg:mx-0";
 const ROW_BUTTON_CLASS =
 	"hover:bg-secondary focus-visible:bg-secondary flex w-full items-center gap-3 text-left outline-none transition-colors";
 
-function Divider({ inset = "ml-4" }: { inset?: string }) {
-	return <div aria-hidden="true" className={cn("bg-border h-px lg:ml-0", inset)} />;
+function Divider() {
+	return <div aria-hidden="true" className="bg-border mx-4 h-px lg:mx-0" />;
 }
 
 function useThemePreference(): [ThemePreference, (value: ThemePreference) => void] {
@@ -231,7 +231,7 @@ export function SettingsScreen() {
 							<Download className="text-muted-foreground size-5" aria-hidden="true" />
 							{exporter.label}
 						</button>
-						<Divider inset="ml-12" />
+						<Divider />
 						<button
 							type="button"
 							disabled={importer.busy}

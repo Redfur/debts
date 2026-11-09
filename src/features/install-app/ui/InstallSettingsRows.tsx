@@ -96,7 +96,7 @@ export function InstallSettingsRows({ onSaveBackup, listClassName, hintClassName
 				/>
 				{showStorage ? (
 					<>
-						<div aria-hidden="true" className="bg-border ml-4 h-px lg:hidden" />
+						<div aria-hidden="true" className="bg-border mx-4 h-px lg:hidden" />
 						<StatusRow
 							label={t("storageLabel")}
 							value={t(atRisk ? "storageAtRisk" : "storagePersisted")}

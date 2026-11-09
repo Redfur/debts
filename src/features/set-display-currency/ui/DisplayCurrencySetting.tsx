@@ -16,7 +16,7 @@ export function DisplayCurrencySetting() {
 	const { current, preferred } = useCurrencyPreferences();
 	const { top } = useDebtCurrencies();
 	return (
-		<>
+		<div className="contents lg:flex lg:flex-col lg:gap-2">
 			<CurrencySettingRow
 				currency={preferred}
 				onChange={setPreferredDisplayCurrency}
@@ -31,7 +31,7 @@ export function DisplayCurrencySetting() {
 				label={t("currentLabel")}
 				hint={t("currentHint")}
 			/>
-		</>
+		</div>
 	);
 }
 
