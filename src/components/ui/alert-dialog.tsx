@@ -1,98 +1,142 @@
-import { AlertDialog as AlertDialogPrimitive } from "radix-ui";
-import type * as React from "react";
+import { AlertDialog as RadixAlert } from "radix-ui";
+import * as React from "react";
 import { buttonVariants } from "@/components/ui/button";
-import { ModalHandle, modalContentClass, modalOverlayClass } from "@/components/ui/dialog";
 import { cn } from "@/shared/lib/utils";
+import { AdaptiveModal, type AdaptiveModalProps, useAdaptiveModal, useRadixCloseComplete } from "./adaptive-modal";
+import { modalContentClass, modalOverlayClass } from "./dialog";
+import { Drawer, DrawerContent } from "./drawer";
 
-function AlertDialog({ ...props }: React.ComponentProps<typeof AlertDialogPrimitive.Root>) {
-	return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />;
+function AlertDialog(props: AdaptiveModalProps) {
+	return <AdaptiveModal alert {...props} />;
 }
-
-function AlertDialogTrigger({ ...props }: React.ComponentProps<typeof AlertDialogPrimitive.Trigger>) {
-	return <AlertDialogPrimitive.Trigger data-slot="alert-dialog-trigger" {...props} />;
-}
-
-function AlertDialogPortal({ ...props }: React.ComponentProps<typeof AlertDialogPrimitive.Portal>) {
-	return <AlertDialogPrimitive.Portal data-slot="alert-dialog-portal" {...props} />;
-}
-
-function AlertDialogOverlay({ className, ...props }: React.ComponentProps<typeof AlertDialogPrimitive.Overlay>) {
-	return (
-		<AlertDialogPrimitive.Overlay
-			data-slot="alert-dialog-overlay"
-			className={cn(modalOverlayClass, className)}
-			{...props}
-		/>
-	);
-}
-
 function AlertDialogContent({
 	className,
 	children,
+	onEscapeKeyDown,
+	onCloseAutoFocus,
 	...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Content>) {
-	return (
-		<AlertDialogPortal>
-			<AlertDialogOverlay />
-			<AlertDialogPrimitive.Content
-				data-slot="alert-dialog-content"
-				className={cn(modalContentClass, "items-center text-center", className)}
+}: React.ComponentProps<typeof RadixAlert.Content>) {
+	const { mobile, dismissible, returnFocus } = useAdaptiveModal();
+	const ref = useRadixCloseComplete();
+	const cancelRef = React.useRef<HTMLButtonElement>(null);
+	if (mobile)
+		return (
+			<DrawerContent
 				{...props}
+				role="alertdialog"
+				data-modal-backend="drawer"
+				dismissible={dismissible}
+				initialFocus={cancelRef}
+				finalFocus={returnFocus}
+				className={cn("items-center text-center", className)}
 			>
-				<ModalHandle />
+				<CancelFocusContext.Provider value={cancelRef}>{children}</CancelFocusContext.Provider>
+			</DrawerContent>
+		);
+	return (
+		<RadixAlert.Portal>
+			<RadixAlert.Overlay className={modalOverlayClass} />
+			<RadixAlert.Content
+				{...props}
+				ref={ref}
+				data-modal-backend="radix"
+				className={cn(modalContentClass, "items-center text-center", className)}
+				onCloseAutoFocus={(event) => {
+					onCloseAutoFocus?.(event);
+					if (event.defaultPrevented) return;
+					const target = returnFocus();
+					if (target !== true) {
+						event.preventDefault();
+						target.focus({ preventScroll: true });
+					}
+				}}
+				onEscapeKeyDown={(event) => {
+					if (!dismissible) event.preventDefault();
+					onEscapeKeyDown?.(event);
+				}}
+			>
 				{children}
-			</AlertDialogPrimitive.Content>
-		</AlertDialogPortal>
+			</RadixAlert.Content>
+		</RadixAlert.Portal>
 	);
 }
-
+const CancelFocusContext = React.createContext<React.RefObject<HTMLButtonElement | null> | undefined>(undefined);
 function AlertDialogHeader({ className, ...props }: React.ComponentProps<"div">) {
 	return (
 		<div
 			data-slot="alert-dialog-header"
-			className={cn("flex flex-col items-center gap-1.5 px-2", className)}
+			className={cn("flex shrink-0 flex-col items-center gap-1.5 px-2", className)}
 			{...props}
 		/>
 	);
 }
-
 function AlertDialogFooter({ className, ...props }: React.ComponentProps<"div">) {
 	return (
-		<div data-slot="alert-dialog-footer" className={cn("mt-1 flex w-full flex-col gap-2", className)} {...props} />
+		<div
+			data-slot="alert-dialog-footer"
+			className={cn("mt-1 flex w-full shrink-0 flex-col gap-2", className)}
+			{...props}
+		/>
 	);
 }
-
-function AlertDialogTitle({ className, ...props }: React.ComponentProps<typeof AlertDialogPrimitive.Title>) {
+function AlertDialogTitle({ className, ...props }: React.ComponentProps<typeof RadixAlert.Title>) {
+	const { mobile } = useAdaptiveModal();
+	const Component = mobile ? Drawer.Title : RadixAlert.Title;
 	return (
-		<AlertDialogPrimitive.Title
+		<Component
 			data-slot="alert-dialog-title"
 			className={cn("text-[20px] leading-[26px] font-bold", className)}
 			{...props}
 		/>
 	);
 }
-
-function AlertDialogDescription({
-	className,
-	...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Description>) {
+function AlertDialogDescription({ className, ...props }: React.ComponentProps<typeof RadixAlert.Description>) {
+	const { mobile } = useAdaptiveModal();
+	const Component = mobile ? Drawer.Description : RadixAlert.Description;
 	return (
-		<AlertDialogPrimitive.Description
+		<Component
 			data-slot="alert-dialog-description"
 			className={cn("text-muted-foreground text-[15px] leading-[22px]", className)}
 			{...props}
 		/>
 	);
 }
-
-function AlertDialogAction({ className, ...props }: React.ComponentProps<typeof AlertDialogPrimitive.Action>) {
-	return <AlertDialogPrimitive.Action className={cn(buttonVariants({ size: "lg" }), "w-full", className)} {...props} />;
+function AlertDialogAction({ className, onClick, ...props }: React.ComponentProps<typeof RadixAlert.Action>) {
+	const { mobile } = useAdaptiveModal();
+	const classes = cn(buttonVariants({ size: "lg" }), "w-full", className);
+	if (mobile)
+		return (
+			<Drawer.Close
+				className={classes}
+				{...props}
+				onClick={(event) => {
+					onClick?.(event);
+					// Сохраняем контракт Radix: preventDefault отменяет автоматическое закрытие action.
+					if (event.defaultPrevented) event.preventBaseUIHandler();
+				}}
+			/>
+		);
+	return <RadixAlert.Action className={classes} onClick={onClick} {...props} />;
 }
-
-function AlertDialogCancel({ className, ...props }: React.ComponentProps<typeof AlertDialogPrimitive.Cancel>) {
+function AlertDialogCancel({ className, disabled, ...props }: React.ComponentProps<typeof RadixAlert.Cancel>) {
+	const { mobile, dismissible } = useAdaptiveModal();
+	const ref = React.useContext(CancelFocusContext);
+	const classes = cn(buttonVariants({ variant: "secondary", size: "lg" }), "w-full font-medium", className);
+	if (mobile)
+		return (
+			<Drawer.Close
+				ref={ref}
+				data-slot="alert-dialog-cancel"
+				disabled={disabled || !dismissible}
+				className={classes}
+				{...props}
+			/>
+		);
 	return (
-		<AlertDialogPrimitive.Cancel
-			className={cn(buttonVariants({ variant: "secondary", size: "lg" }), "w-full font-medium", className)}
+		<RadixAlert.Cancel
+			data-slot="alert-dialog-cancel"
+			disabled={disabled || !dismissible}
+			className={classes}
 			{...props}
 		/>
 	);
@@ -106,8 +150,5 @@ export {
 	AlertDialogDescription,
 	AlertDialogFooter,
 	AlertDialogHeader,
-	AlertDialogOverlay,
-	AlertDialogPortal,
 	AlertDialogTitle,
-	AlertDialogTrigger,
 };

@@ -1,6 +1,7 @@
 export const commonTranslations = {
 	ru: {
 		save: "Сохранить",
+		close: "Закрыть",
 		cancel: "Отмена",
 		delete: "Удалить",
 		create: "Создать",

@@ -9,6 +9,7 @@ import { DirectionToggle, ENTITY_DEBT_NS, useDebtCurrencies, useDebtOperations, 
 import { COMMON_NS } from "@/shared/i18n";
 import { formatMoney } from "@/shared/lib/format-amount";
 import type { CurrencyCode, DebtDirection } from "@/shared/lib/storage";
+import { useModalClose } from "@/shared/lib/use-modal-close";
 import { AmountField } from "@/shared/ui/amount-field";
 import { FieldError, FormAlert } from "@/shared/ui/form-message";
 import { useEditDebt } from "../model/use-edit-debt";
@@ -73,10 +74,7 @@ const EditDebtDialogComponent = NiceModal.create(({ debtId, onOpenBill }: Props)
 		setErrors({});
 	}, [modal.visible, debtId]);
 
-	const closeModal = async () => {
-		await modal.hide();
-		modal.remove();
-	};
+	const { close: closeModal, onCloseComplete } = useModalClose(modal);
 
 	const handleOpenChange = (open: boolean) => {
 		if (open) return;
@@ -105,87 +103,113 @@ const EditDebtDialogComponent = NiceModal.create(({ debtId, onOpenBill }: Props)
 	};
 
 	return (
-		<Dialog open={modal.visible} onOpenChange={handleOpenChange}>
+		<Dialog
+			open={modal.visible}
+			onCloseComplete={onCloseComplete}
+			dismissible={!pending}
+			onOpenChange={handleOpenChange}
+		>
 			<DialogContent className="gap-3.5">
 				<DialogHeader className="gap-0.5 px-1">
 					<DialogTitle>{t("title")}</DialogTitle>
 					<DialogDescription className="text-caption">{contactName}</DialogDescription>
 				</DialogHeader>
-				<form noValidate className="flex flex-col gap-3.5" onSubmit={(e) => void handleSubmit(e)}>
-					{locked ? (
-						<>
-							<div className="bg-secondary text-muted-foreground flex gap-2.5 rounded-[16px] px-3.5 py-3">
-								<Info className="mt-px size-4 shrink-0" aria-hidden="true" />
-								<span className="text-caption">
-									{bill ? t("billHint", { title: bill.title ?? t("untitledBill") }) : t("lockedHint")}
-								</span>
-							</div>
-							{bill && onOpenBill ? (
-								<Button
-									type="button"
-									variant="secondary"
-									className="self-start"
-									onClick={() => {
-										// `modal.hide()` без `resolveHide` не завершается — переходим до закрытия.
-										onOpenBill(bill.id);
-										void closeModal();
-									}}
-								>
-									<ReceiptText className="size-4" aria-hidden="true" />
-									{t("openBill")}
-								</Button>
-							) : null}
-							<div className="grid grid-cols-2 gap-2">
-								<ReadOnlyTile label={t("directionLabel")}>
-									{debt.direction === "owed_to_me" ? `+ ${tDebt("directionOwedToMe")}` : `− ${tDebt("directionIOwe")}`}
-								</ReadOnlyTile>
-								<ReadOnlyTile label={t("amountLabel")}>{formatMoney(debt.principalAmount, debt.currency)}</ReadOnlyTile>
-							</div>
-						</>
-					) : (
-						<>
-							<DirectionToggle value={direction} onChange={setDirection} label={t("directionLabel")} surface="sheet" />
-							<div className="flex flex-col gap-1.5">
-								<AmountField
-									topCurrencies={topCurrencies}
-									id={amountId}
-									label={t("amountLabel")}
-									value={amount}
-									onValueChange={(raw) => {
-										setAmount(raw);
-										if (errors.amount) setErrors({});
-									}}
-									currency={currency}
-									onCurrencyChange={setCurrency}
-									currencyTitle={t("currencyTitle")}
-									currencyLabel={(name) => t("currencyLabel", { name })}
-									invalid={Boolean(errors.amount)}
-									describedBy={errors.amount ? amountErrorId : undefined}
+				<form
+					noValidate
+					className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-hidden"
+					onSubmit={(e) => void handleSubmit(e)}
+				>
+					<div className="flex min-h-0 flex-col gap-3.5 overflow-y-auto overscroll-contain">
+						{locked ? (
+							<>
+								<div className="bg-secondary text-muted-foreground flex gap-2.5 rounded-[16px] px-3.5 py-3">
+									<Info className="mt-px size-4 shrink-0" aria-hidden="true" />
+									<span className="text-caption">
+										{bill ? t("billHint", { title: bill.title ?? t("untitledBill") }) : t("lockedHint")}
+									</span>
+								</div>
+								{bill && onOpenBill ? (
+									<Button
+										type="button"
+										variant="secondary"
+										className="self-start"
+										disabled={pending}
+										onClick={async () => {
+											await closeModal();
+											onOpenBill(bill.id);
+										}}
+									>
+										<ReceiptText className="size-4" aria-hidden="true" />
+										{t("openBill")}
+									</Button>
+								) : null}
+								<div className="grid grid-cols-2 gap-2">
+									<ReadOnlyTile label={t("directionLabel")}>
+										{debt.direction === "owed_to_me"
+											? `+ ${tDebt("directionOwedToMe")}`
+											: `− ${tDebt("directionIOwe")}`}
+									</ReadOnlyTile>
+									<ReadOnlyTile label={t("amountLabel")}>
+										{formatMoney(debt.principalAmount, debt.currency)}
+									</ReadOnlyTile>
+								</div>
+							</>
+						) : (
+							<>
+								<DirectionToggle
+									value={direction}
+									onChange={setDirection}
+									label={t("directionLabel")}
 									surface="sheet"
 								/>
-								{errors.amount ? <FieldError id={amountErrorId}>{errors.amount}</FieldError> : null}
-							</div>
-						</>
-					)}
+								<div className="flex flex-col gap-1.5">
+									<AmountField
+										topCurrencies={topCurrencies}
+										id={amountId}
+										label={t("amountLabel")}
+										value={amount}
+										onValueChange={(raw) => {
+											setAmount(raw);
+											if (errors.amount) setErrors({});
+										}}
+										currency={currency}
+										onCurrencyChange={setCurrency}
+										currencyTitle={t("currencyTitle")}
+										currencyLabel={(name) => t("currencyLabel", { name })}
+										invalid={Boolean(errors.amount)}
+										describedBy={errors.amount ? amountErrorId : undefined}
+										surface="sheet"
+									/>
+									{errors.amount ? <FieldError id={amountErrorId}>{errors.amount}</FieldError> : null}
+								</div>
+							</>
+						)}
 
-					<div className="flex flex-col gap-1.5">
-						<label htmlFor={noteId} className="text-caption text-muted-foreground pl-1">
-							{t("noteLabel")}
-						</label>
-						<Input
-							id={noteId}
-							value={note}
-							onChange={(e) => setNote(e.target.value)}
-							placeholder={t("notePlaceholder")}
-							enterKeyHint="done"
-							className="min-h-13 rounded-[16px] px-4"
-						/>
+						<div className="flex flex-col gap-1.5">
+							<label htmlFor={noteId} className="text-caption text-muted-foreground pl-1">
+								{t("noteLabel")}
+							</label>
+							<Input
+								id={noteId}
+								value={note}
+								onChange={(e) => setNote(e.target.value)}
+								placeholder={t("notePlaceholder")}
+								enterKeyHint="done"
+								className="min-h-13 rounded-[16px] px-4"
+							/>
+						</div>
+
+						{errors.form ? <FormAlert>{errors.form}</FormAlert> : null}
 					</div>
-
-					{errors.form ? <FormAlert>{errors.form}</FormAlert> : null}
-
-					<div className="mt-1 flex gap-2">
-						<Button type="button" variant="secondary" size="lg" className="flex-1" onClick={() => void closeModal()}>
+					<div className="mt-1 flex shrink-0 gap-2">
+						<Button
+							type="button"
+							variant="secondary"
+							size="lg"
+							className="flex-1"
+							disabled={pending}
+							onClick={() => void closeModal()}
+						>
 							{tCommon("cancel")}
 						</Button>
 						<Button type="submit" variant="accent" size="lg" className="flex-[2]" disabled={pending}>

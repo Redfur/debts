@@ -4,7 +4,7 @@
 
 ## Стек
 
-React 19, Vite 8, TypeScript, Zustand, react-router-dom, react-i18next, Tailwind CSS 4 (токены дизайн-системы в `src/index.css`, шрифт Onest), shadcn/ui (Radix), `@ebay/nice-modal-react`, IndexedDB через `idb`, PWA (`vite-plugin-pwa`), date-fns, Sonner (toasts). Бэкенда нет.
+React 19, Vite 8, TypeScript, Zustand, react-router-dom, react-i18next, Tailwind CSS 4 (токены дизайн-системы в `src/index.css`, шрифт Onest), shadcn/ui (Radix), Base UI Drawer, `@ebay/nice-modal-react`, IndexedDB через `idb`, PWA (`vite-plugin-pwa`), date-fns, Sonner (toasts). Бэкенда нет.
 
 ## Feature-Sliced Design (привязка к репозиторию)
 
@@ -50,12 +50,21 @@ React 19, Vite 8, TypeScript, Zustand, react-router-dom, react-i18next, Tailwind
 
 ## Модальные окна
 
-- `Dialog` и `AlertDialog` на ширине меньше 1024 px — шторка снизу, шире — диалог по центру (только CSS, общие классы в `components/ui/dialog.tsx`).
+- `components/ui/adaptive-modal.tsx` выбирает один backend для `Dialog` / `AlertDialog`: при открытии на ширине < 1024 px — Base UI Drawer (`drawer.tsx`, `@base-ui/react`), от 1024 px — Radix Dialog/AlertDialog. Режим фиксируется до завершения закрытия, поэтому изменение ширины не размонтирует введённую форму; следующее открытие учитывает новую ширину. Контекст передаёт режим, `dismissible`, возврат фокуса и завершение закрытия всем частям окна.
+- Мобильный Drawer владеет жестом, анимацией, focus trap и scroll-lock. Локальный адаптер на старте жеста помечает `data-base-ui-swipe-ignore` интерактивные элементы, выделенный текст и область с ненулевым scrollTop: достижение верха в середине движения не превращает прокрутку в свайп. Ручка находится вне scroll-области и работает независимо от списка. Физика жеста остаётся библиотечной.
+- `Drawer.VirtualKeyboardProvider` — единственный владелец клавиатурной геометрии мобильного окна; `--drawer-keyboard-inset` ограничивает высоту и поднимает шторку над перекрывающей клавиатурой. Прежний `useKeyboardInset` используется только полноэкранными формами. Для iOS overlay у body задан `position: relative`; анимации учитывают reduced-motion.
 - Утилитарная модалка подтверждения — `shared/ui/modals/ConfirmActionModal` (`AlertDialog`, необязательная строка `lead` над описанием): удаление долга и счёта, сброс данных.
 - Шторка «Кто заплатил» (`features/create-bill/ui/PayerSheet`) — управляемый `Dialog` внутри формы. Модалки рендерятся вне роутера, поэтому «Открыть счёт» в «Изменить долг» передаётся колбэком `onOpenBill`. Подтверждение импорта со сводкой — `features/import-backup/ui/ImportBackupConfirm`.
 - Модалки с доменной логикой — в фичах: `features/edit-debt/ui/EditDebtDialog.tsx`, `features/add-repayment/ui/AddRepaymentDialog.tsx` (`NiceModal.create` + shadcn `Dialog`). Открываются хелперами `showEditDebtDialog` / `showAddRepaymentDialog`.
 - Создание долга — не модалка, а страница `/new`.
-- `components/ui/dialog.tsx`: `DialogContent` игнорирует «клик наружу», если координаты события внутри рамки диалога — обход бага Radix с вложенными слоями (`Select`/`Popover`), которые временно отключают `pointer-events` у диалога.
+- На десктопе `components/ui/dialog.tsx`: `DialogContent` игнорирует «клик наружу», если координаты события внутри рамки диалога — обход бага Radix с вложенными слоями (`Select`/`Popover`), которые временно отключают `pointer-events` у диалога.
+
+
+- Вложенный CurrencyPicker остаётся React-потомком родительского Root; Base UI управляет вложенностью и независимыми корнями NiceModal. Radix Select/Popover сохраняют свои порталы и focus scope: адаптивный Root отменяет повторную обработку Escape, уже предотвращённого Radix. Мобильный AlertDialogAction переводит контракт `preventDefault()` в `preventBaseUIHandler()`, чтобы подтверждение не закрывалось до завершения async-действия.
+- Обычные окна закрываются по фону, отменой, Escape и мобильным свайпом. Подтверждения запрещают закрытие по фону. Во время `busy` / `pending` общий `dismissible=false` отменяет запросы закрытия; swipe-ignore не даёт начать drag, кнопки отмены и повторного выполнения отключаются. Синхронные ref-защиты исключают запуск повторного действия до перерисовки React. Программное закрытие после записи доступно.
+- `shared/lib/use-modal-close.ts` связывает NiceModal с `onCloseComplete`: `hide()` запускает закрытие, затем по фактическому окончанию вызываются `resolveHide()` и `remove()` один раз. Base UI сообщает `onOpenChangeComplete(false)`; Radix ожидает завершение CSS-анимаций через Web Animations (при отсутствии анимации — следующий кадр). Фиксированного таймера нет. Переход «Открыть счёт» ждёт завершения hide. Публичные результаты helper-ов сохранены.
+- При открытии сохраняется цепочка предков инициатора. После закрытия фокус возвращается к нему, а при его удалении — к ближайшему доступному действию в сохранившемся предке. Закрытие дочернего окна не удаляет родителя и его поля.
+- Воспроизводимый стенд всех семи потребителей и вложенных Radix-порталов — `scripts/drawer-fixture.html` / `.tsx`; CDP-сценарии — `scripts/check-drawers.mjs`, `drawer-scenarios.mjs`. Стенд доступен только по явному URL dev-сервера, не импортируется приложением и не входит в production-сборку. Команды и ограничения проверки — в `openspec/changes/mobile-drawer-interactions/verification.md`.
 
 ## State management: Zustand
 

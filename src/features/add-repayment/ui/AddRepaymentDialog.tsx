@@ -10,6 +10,7 @@ import { CURRENCY_SYMBOL } from "@/shared/config/currencies";
 import { COMMON_NS } from "@/shared/i18n";
 import { formatMoney } from "@/shared/lib/format-amount";
 import { roundAmount } from "@/shared/lib/round-amount";
+import { useModalClose } from "@/shared/lib/use-modal-close";
 import { cn } from "@/shared/lib/utils";
 import { FieldError, FormAlert } from "@/shared/ui/form-message";
 import { useAddRepayment } from "../model/use-add-repayment";
@@ -48,10 +49,7 @@ const AddRepaymentDialogComponent = NiceModal.create(({ debtId }: Props) => {
 		setErrors({});
 	}, [modal.visible]);
 
-	const closeModal = async () => {
-		await modal.hide();
-		modal.remove();
-	};
+	const { close: closeModal, onCloseComplete } = useModalClose(modal);
 
 	const handleOpenChange = (open: boolean) => {
 		if (open) return;
@@ -81,7 +79,12 @@ const AddRepaymentDialogComponent = NiceModal.create(({ debtId }: Props) => {
 	};
 
 	return (
-		<Dialog open={modal.visible} onOpenChange={handleOpenChange}>
+		<Dialog
+			open={modal.visible}
+			onCloseComplete={onCloseComplete}
+			dismissible={!pending}
+			onOpenChange={handleOpenChange}
+		>
 			<DialogContent className="gap-3">
 				<DialogHeader className="gap-0.5 px-1">
 					<DialogTitle>{t("title")}</DialogTitle>
@@ -89,84 +92,96 @@ const AddRepaymentDialogComponent = NiceModal.create(({ debtId }: Props) => {
 						{[debt.note || t("untitledDebt"), contactName].filter(Boolean).join(" · ")}
 					</DialogDescription>
 				</DialogHeader>
-				<form noValidate className="flex flex-col gap-3" onSubmit={(e) => void handleSubmit(e)}>
-					<div className="flex flex-col gap-2">
-						<div
-							className={cn(
-								"bg-secondary flex min-h-16 items-center gap-1 rounded-control pr-4 pl-4.5 transition-shadow focus-within:shadow-[inset_0_0_0_2px_var(--ring)]",
-								errors.amount &&
-									"shadow-[inset_0_0_0_2px_var(--destructive)] focus-within:shadow-[inset_0_0_0_2px_var(--destructive)]",
-							)}
-						>
-							<label htmlFor={amountId} className="sr-only">
-								{t("amountLabel")}
-							</label>
-							<AmountInput
-								id={amountId}
-								placeholder="0"
-								value={amount}
-								onValueChange={(raw) => {
-									setAmount(raw);
-									if (errors.amount) setErrors({});
-								}}
-								aria-invalid={errors.amount ? true : undefined}
-								aria-describedby={errors.amount ? `${amountErrorId} ${remainingId}` : remainingId}
-								autoComplete="off"
-								className="caret-accent placeholder:text-muted-foreground/60 text-amount-xl h-10 min-h-0 flex-1 rounded-none bg-transparent px-0 focus-visible:shadow-none aria-invalid:shadow-none lg:text-amount-xl"
-							/>
-							<span aria-hidden="true" className="text-muted-foreground text-2xl font-semibold">
-								{CURRENCY_SYMBOL[debt.currency]}
-							</span>
-						</div>
-						{errors.amount ? <FieldError id={amountErrorId}>{errors.amount}</FieldError> : null}
-						<div className="flex items-center justify-between gap-2 px-1">
-							<span id={remainingId} className="text-caption text-muted-foreground">
-								<Trans
-									t={t}
-									i18nKey="remaining"
-									values={{
-										balance: formatMoney(balance, debt.currency),
-										left: formatMoney(left, debt.currency),
-									}}
-									components={{ b: <b className="text-foreground font-semibold" /> }}
-								/>
-							</span>
-							<button
-								type="button"
-								onClick={() => {
-									setAmount(String(balance));
-									setErrors({});
-								}}
+				<form
+					noValidate
+					className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden"
+					onSubmit={(e) => void handleSubmit(e)}
+				>
+					<div className="flex min-h-0 flex-col gap-3.5 overflow-y-auto overscroll-contain">
+						<div className="flex flex-col gap-2">
+							<div
 								className={cn(
-									"touch-target min-h-9 shrink-0 rounded-full px-3 text-[13px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring",
-									debt.direction === "owed_to_me"
-										? "bg-owed-to-me-muted text-owed-to-me-strong"
-										: "bg-i-owe-muted text-i-owe-strong",
+									"bg-secondary flex min-h-16 items-center gap-1 rounded-control pr-4 pl-4.5 transition-shadow focus-within:shadow-[inset_0_0_0_2px_var(--ring)]",
+									errors.amount &&
+										"shadow-[inset_0_0_0_2px_var(--destructive)] focus-within:shadow-[inset_0_0_0_2px_var(--destructive)]",
 								)}
 							>
-								{t("repayAll")}
-							</button>
+								<label htmlFor={amountId} className="sr-only">
+									{t("amountLabel")}
+								</label>
+								<AmountInput
+									id={amountId}
+									placeholder="0"
+									value={amount}
+									onValueChange={(raw) => {
+										setAmount(raw);
+										if (errors.amount) setErrors({});
+									}}
+									aria-invalid={errors.amount ? true : undefined}
+									aria-describedby={errors.amount ? `${amountErrorId} ${remainingId}` : remainingId}
+									autoComplete="off"
+									className="caret-accent placeholder:text-muted-foreground/60 text-amount-xl h-10 min-h-0 flex-1 rounded-none bg-transparent px-0 focus-visible:shadow-none aria-invalid:shadow-none lg:text-amount-xl"
+								/>
+								<span aria-hidden="true" className="text-muted-foreground text-2xl font-semibold">
+									{CURRENCY_SYMBOL[debt.currency]}
+								</span>
+							</div>
+							{errors.amount ? <FieldError id={amountErrorId}>{errors.amount}</FieldError> : null}
+							<div className="flex items-center justify-between gap-2 px-1">
+								<span id={remainingId} className="text-caption text-muted-foreground">
+									<Trans
+										t={t}
+										i18nKey="remaining"
+										values={{
+											balance: formatMoney(balance, debt.currency),
+											left: formatMoney(left, debt.currency),
+										}}
+										components={{ b: <b className="text-foreground font-semibold" /> }}
+									/>
+								</span>
+								<button
+									type="button"
+									onClick={() => {
+										setAmount(String(balance));
+										setErrors({});
+									}}
+									className={cn(
+										"touch-target min-h-9 shrink-0 rounded-full px-3 text-[13px] font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring",
+										debt.direction === "owed_to_me"
+											? "bg-owed-to-me-muted text-owed-to-me-strong"
+											: "bg-i-owe-muted text-i-owe-strong",
+									)}
+								>
+									{t("repayAll")}
+								</button>
+							</div>
 						</div>
+
+						<div className="flex flex-col gap-1.5">
+							<label htmlFor={noteId} className="text-caption text-muted-foreground pl-1">
+								{t("noteLabel")}
+							</label>
+							<Input
+								id={noteId}
+								value={note}
+								onChange={(e) => setNote(e.target.value)}
+								placeholder={t("notePlaceholder")}
+								enterKeyHint="done"
+								className="rounded-[16px] px-4"
+							/>
+						</div>
+
+						{errors.form ? <FormAlert>{errors.form}</FormAlert> : null}
 					</div>
-
-					<div className="flex flex-col gap-1.5">
-						<label htmlFor={noteId} className="text-caption text-muted-foreground pl-1">
-							{t("noteLabel")}
-						</label>
-						<Input
-							id={noteId}
-							value={note}
-							onChange={(e) => setNote(e.target.value)}
-							placeholder={t("notePlaceholder")}
-							enterKeyHint="done"
-							className="rounded-[16px] px-4"
-						/>
-					</div>
-
-					{errors.form ? <FormAlert>{errors.form}</FormAlert> : null}
-
-					<div className="mt-1 flex gap-2">
-						<Button type="button" variant="secondary" size="lg" className="flex-1" onClick={() => void closeModal()}>
+					<div className="mt-1 flex shrink-0 gap-2">
+						<Button
+							type="button"
+							variant="secondary"
+							size="lg"
+							className="flex-1"
+							disabled={pending}
+							onClick={() => void closeModal()}
+						>
 							{tCommon("cancel")}
 						</Button>
 						<Button type="submit" variant="accent" size="lg" className="flex-[2]" disabled={pending}>

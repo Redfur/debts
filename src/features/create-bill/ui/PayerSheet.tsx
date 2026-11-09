@@ -28,8 +28,11 @@ export function PayerSheet({ open, onOpenChange, subtitle, participantRefs, valu
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="max-h-[85svh] gap-3 px-2">
-				<DialogHeader className="gap-0.5 px-3">
+			<DialogContent
+				showCloseButton
+				className="max-h-[85svh] gap-3 [--drawer-max-height:85svh] data-[modal-backend=drawer]:px-2"
+			>
+				<DialogHeader className="gap-0.5 px-3 pr-14">
 					<DialogTitle id={titleId}>{t("payerSheetTitle")}</DialogTitle>
 					<DialogDescription className="text-caption">{subtitle}</DialogDescription>
 				</DialogHeader>

@@ -61,8 +61,8 @@ export function CurrencyPicker({
 					</>
 				)}
 			</DialogTrigger>
-			<DialogContent className="overflow-hidden">
-				<DialogTitle className="shrink-0 px-1 pt-1">{title}</DialogTitle>
+			<DialogContent showCloseButton className="overflow-hidden">
+				<DialogTitle className="shrink-0 px-1 pt-1 pr-12">{title}</DialogTitle>
 				<DialogDescription className="sr-only">{title}</DialogDescription>
 				<SearchField
 					value={query}

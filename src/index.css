@@ -323,3 +323,39 @@
 		cursor: pointer;
 	}
 }
+
+/* Base UI управляет перемещением и клавиатурой; анимации остаются локальными для шторки. */
+body {
+	position: relative;
+}
+.drawer-popup {
+	bottom: var(--drawer-keyboard-inset, 0px);
+	max-height: calc(var(--drawer-max-height, 92dvh) - var(--drawer-keyboard-inset, 0px));
+	transform: translate3d(0, var(--drawer-swipe-movement-y, 0px), 0);
+	transition: transform 250ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.drawer-popup[data-starting-style],
+.drawer-popup[data-ending-style] {
+	transform: translate3d(0, 100%, 0);
+}
+.drawer-popup[data-swiping] {
+	transition-duration: 0ms;
+	user-select: none;
+}
+.drawer-overlay {
+	opacity: calc(1 - var(--drawer-swipe-progress, 0));
+	transition: opacity 250ms ease;
+}
+.drawer-overlay[data-starting-style],
+.drawer-overlay[data-ending-style] {
+	opacity: 0;
+}
+.drawer-overlay[data-swiping] {
+	transition-duration: 0ms;
+}
+@media (prefers-reduced-motion: reduce) {
+	.drawer-popup,
+	.drawer-overlay {
+		transition-duration: 0ms;
+	}
+}

@@ -1,5 +1,6 @@
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
 import { Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -11,6 +12,7 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { buttonVariants } from "@/components/ui/button";
+import { useModalClose } from "@/shared/lib/use-modal-close";
 import { cn } from "@/shared/lib/utils";
 
 type ConfirmActionModalProps = {
@@ -47,11 +49,13 @@ const ConfirmActionModal = NiceModal.create(
 		confirmVariant = "default",
 	}: ConfirmActionModalProps) => {
 		const modal = useModal();
+		const [busy, setBusy] = useState(false);
+		const running = useRef(false);
 
+		const { close, onCloseComplete } = useModalClose(modal);
 		const closeModal = async () => {
 			modal.resolve(true);
-			await modal.hide();
-			modal.remove();
+			await close();
 		};
 
 		const handleOpenChange = (open: boolean) => {
@@ -60,23 +64,42 @@ const ConfirmActionModal = NiceModal.create(
 		};
 
 		const handleConfirm = async () => {
-			await onConfirm();
-			await closeModal();
+			if (running.current) return;
+			running.current = true;
+			setBusy(true);
+			try {
+				await onConfirm();
+				void closeModal();
+			} finally {
+				running.current = false;
+				setBusy(false);
+			}
 		};
 
 		return (
-			<AlertDialog open={modal.visible} onOpenChange={handleOpenChange}>
+			<AlertDialog
+				open={modal.visible}
+				onCloseComplete={onCloseComplete}
+				dismissible={!busy}
+				onOpenChange={handleOpenChange}
+			>
 				<AlertDialogContent>
-					{confirmVariant === "destructive" ? <ConfirmIcon /> : null}
-					<AlertDialogHeader>
-						<AlertDialogTitle>{title}</AlertDialogTitle>
-						{lead ? <p className="text-foreground text-[15px] leading-[22px]">{lead}</p> : null}
-						<AlertDialogDescription>{body}</AlertDialogDescription>
-					</AlertDialogHeader>
+					<div className="flex min-h-0 w-full flex-col items-center gap-4 overflow-y-auto overscroll-contain">
+						{confirmVariant === "destructive" ? <ConfirmIcon /> : null}
+						<AlertDialogHeader>
+							<AlertDialogTitle>{title}</AlertDialogTitle>
+							{lead ? <p className="text-foreground text-[15px] leading-[22px]">{lead}</p> : null}
+							<AlertDialogDescription>{body}</AlertDialogDescription>
+						</AlertDialogHeader>
+					</div>
 					<AlertDialogFooter>
 						<AlertDialogAction
 							className={cn(buttonVariants({ variant: confirmVariant, size: "lg" }), "w-full")}
-							onClick={() => void handleConfirm()}
+							disabled={busy}
+							onClick={(event) => {
+								event.preventDefault();
+								void handleConfirm();
+							}}
 						>
 							{confirmLabel}
 						</AlertDialogAction>
