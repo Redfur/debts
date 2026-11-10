@@ -10,6 +10,7 @@ import {
 	type DebtOperation,
 	useDebtStore,
 } from "@/entities/debt";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import type { CurrencyCode } from "@/shared/lib/storage";
 import { cn } from "@/shared/lib/utils";
 import { FieldError } from "@/shared/ui/form-message";
@@ -32,6 +33,7 @@ type Option = { kind: "contact"; contact: Contact } | { kind: "create"; name: st
  * совпадения, остатками и пунктом «Создать «…»».
  */
 export function ContactPicker({ value, onChange, onExpandedChange, error }: Props) {
+	const { language } = useLocalizationPreferences();
 	const { t } = useTranslation(SELECT_CONTACT_NS);
 	const inputId = useId();
 	const listId = useId();
@@ -64,8 +66,8 @@ export function ContactPicker({ value, onChange, onExpandedChange, error }: Prop
 		() =>
 			Object.values(contactsById)
 				.filter((c) => !c.archivedAt)
-				.sort((a, b) => a.name.localeCompare(b.name, "ru")),
-		[contactsById],
+				.sort((a, b) => a.name.localeCompare(b.name, language)),
+		[contactsById, language],
 	);
 
 	const needle = trimmed.toLowerCase();

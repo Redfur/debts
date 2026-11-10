@@ -1,12 +1,13 @@
 import { Plus, Trash2 } from "lucide-react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
-import { AmountInput } from "@/components/ui/amount-input";
 import { Input } from "@/components/ui/input";
 import { ME_REF, toCents, useParticipantName } from "@/entities/debt";
 import { CURRENCY_SYMBOL } from "@/shared/config/currencies";
 import { formatMoney } from "@/shared/lib/format-amount";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { cn } from "@/shared/lib/utils";
+import { AmountInput } from "@/shared/ui/amount-input";
 import { type BillFormApi, type FormItem, itemIssue } from "../model/use-bill-form";
 import { CREATE_BILL_NS } from "../translations";
 import { BillPeopleChips } from "./BillPeopleChips";
@@ -57,6 +58,7 @@ export function BillItemsSection({ form, locked, hideLabelOnDesktop }: Props) {
 type RowProps = { form: BillFormApi; item: FormItem; index: number; locked: boolean };
 
 function ItemRow({ form, item, index, locked }: RowProps) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const nameOf = useParticipantName();
 	const titleId = useId();

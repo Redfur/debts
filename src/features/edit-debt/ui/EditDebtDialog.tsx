@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { DirectionToggle, ENTITY_DEBT_NS, useDebtCurrencies, useDebtOperations, useDebtStore } from "@/entities/debt";
 import { COMMON_NS } from "@/shared/i18n";
 import { formatMoney } from "@/shared/lib/format-amount";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import type { CurrencyCode, DebtDirection } from "@/shared/lib/storage";
 import { useModalClose } from "@/shared/lib/use-modal-close";
 import { AmountField } from "@/shared/ui/amount-field";
@@ -21,7 +22,7 @@ type Props = {
 	onOpenBill?: (billId: string) => void;
 };
 
-type Errors = { amount?: string; form?: string };
+type Errors = { amount?: "errorAmountInvalid"; form?: "errorGeneric" };
 
 /** Поле только для чтения (направление и сумма после погашений). */
 function ReadOnlyTile({ label, children }: { label: string; children: ReactNode }) {
@@ -39,6 +40,7 @@ function ReadOnlyTile({ label, children }: { label: string; children: ReactNode 
 const EditDebtDialogComponent = NiceModal.create(({ debtId, onOpenBill }: Props) => {
 	const { top: topCurrencies } = useDebtCurrencies();
 	const { t } = useTranslation(EDIT_DEBT_NS);
+	useLocalizationPreferences();
 	const { t: tCommon } = useTranslation(COMMON_NS);
 	const { t: tDebt } = useTranslation(ENTITY_DEBT_NS);
 	const modal = useModal();
@@ -89,7 +91,7 @@ const EditDebtDialogComponent = NiceModal.create(({ debtId, onOpenBill }: Props)
 		if (!locked) {
 			const parsedAmount = Number(amount);
 			if (amount === "" || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-				setErrors({ amount: t("errorAmountInvalid") });
+				setErrors({ amount: "errorAmountInvalid" });
 				return;
 			}
 			patch.amount = parsedAmount;
@@ -99,7 +101,7 @@ const EditDebtDialogComponent = NiceModal.create(({ debtId, onOpenBill }: Props)
 		setErrors({});
 		const ok = await submit(debtId, patch);
 		if (ok) await closeModal();
-		else setErrors({ form: t("errorGeneric") });
+		else setErrors({ form: "errorGeneric" });
 	};
 
 	return (
@@ -180,7 +182,7 @@ const EditDebtDialogComponent = NiceModal.create(({ debtId, onOpenBill }: Props)
 										describedBy={errors.amount ? amountErrorId : undefined}
 										surface="sheet"
 									/>
-									{errors.amount ? <FieldError id={amountErrorId}>{errors.amount}</FieldError> : null}
+									{errors.amount ? <FieldError id={amountErrorId}>{t(errors.amount)}</FieldError> : null}
 								</div>
 							</>
 						)}
@@ -199,7 +201,7 @@ const EditDebtDialogComponent = NiceModal.create(({ debtId, onOpenBill }: Props)
 							/>
 						</div>
 
-						{errors.form ? <FormAlert>{errors.form}</FormAlert> : null}
+						{errors.form ? <FormAlert>{t(errors.form)}</FormAlert> : null}
 					</div>
 					<div className="mt-1 flex shrink-0 gap-2">
 						<Button

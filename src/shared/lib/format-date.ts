@@ -1,5 +1,9 @@
 import { format, isValid, parseISO } from "date-fns";
-import { ru } from "date-fns/locale";
+import { enGB, ru } from "date-fns/locale";
+import { localizationPreferences } from "./localization-preference";
+
+const language = () => localizationPreferences.getSnapshot().language;
+const locale = () => (language() === "ru" ? ru : enGB);
 
 /** Короткие месяцы как в макетах: без точки, «мая» в родительном падеже (date-fns `ru` даёт «сент.»). */
 const SHORT_MONTHS = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"] as const;
@@ -15,24 +19,39 @@ function toDate(value: DateInput): Date {
 export function formatShortDate(value: DateInput, now: Date = new Date()): string {
 	const d = toDate(value);
 	if (!isValid(d)) return "";
-	const base = `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]}`;
+	const base =
+		language() === "ru" ? `${d.getDate()} ${SHORT_MONTHS[d.getMonth()]}` : format(d, "d MMM", { locale: enGB });
 	return d.getFullYear() === now.getFullYear() ? base : `${base} ${d.getFullYear()}`;
 }
 
 /** «15 октября». */
 export function formatLongDate(value: DateInput): string {
 	const d = toDate(value);
-	return isValid(d) ? format(d, "d MMMM", { locale: ru }) : "";
+	return isValid(d) ? format(d, "d MMMM", { locale: locale() }) : "";
 }
 
 /** «15 октября в 12:40» — момент события по местному времени. */
 export function formatMoment(value: DateInput): string {
 	const d = toDate(value);
-	return isValid(d) ? format(d, "d MMMM 'в' HH:mm", { locale: ru }) : "";
+	return isValid(d)
+		? format(d, language() === "ru" ? "d MMMM 'в' HH:mm" : "d MMMM 'at' HH:mm", { locale: locale() })
+		: "";
 }
 
 /** «12 октября 2026, 18:05». */
 export function formatDateTimeWithYear(value: DateInput): string {
 	const d = toDate(value);
-	return isValid(d) ? format(d, "d MMMM yyyy, HH:mm", { locale: ru }) : "";
+	return isValid(d) ? format(d, "d MMMM yyyy, HH:mm", { locale: locale() }) : "";
+}
+
+/** Дата релиза — календарная UTC-дата, не момент в местном часовом поясе. */
+export function formatReleaseDate(value: string): string {
+	return new Intl.DateTimeFormat(language() === "ru" ? "ru-RU" : "en-GB", {
+		day: "numeric",
+		month: "long",
+		year: "numeric",
+		timeZone: "UTC",
+	})
+		.format(new Date(`${value}T00:00:00Z`))
+		.replace(/ г\.$/, "");
 }

@@ -1,7 +1,8 @@
-import { AmountInput } from "@/components/ui/amount-input";
-import { CURRENCY_SHORT_LABEL } from "@/shared/config/currencies";
+import { currencyLabels } from "@/shared/config/currencies";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import type { CurrencyCode } from "@/shared/lib/storage";
 import { cn } from "@/shared/lib/utils";
+import { AmountInput } from "@/shared/ui/amount-input";
 import { CurrencyPicker } from "@/shared/ui/currency-picker";
 
 type Props = {
@@ -42,6 +43,8 @@ export function AmountField({
 	autoFocus,
 	surface = "card",
 }: Props) {
+	const { language } = useLocalizationPreferences();
+	const CURRENCY_SHORT_LABEL = currencyLabels(language, true);
 	return (
 		<div
 			className={cn(

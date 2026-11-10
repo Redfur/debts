@@ -7,6 +7,7 @@ import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmente
 import { formatMoney } from "@/shared/lib/format-amount";
 import { formatShortDate } from "@/shared/lib/format-date";
 import { formatPeopleCount } from "@/shared/lib/format-people-count";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import type { CurrencyCode } from "@/shared/lib/storage";
 import { cn } from "@/shared/lib/utils";
 import { groupBillTransfers } from "../model/bill/compute-bill";
@@ -63,6 +64,7 @@ function BillMyPart({ totals, currency, closed }: MyPartProps) {
  * «6 000 ₽ на четверых»; у счёта по чеку — «4 880 ₽ по чеку»: с людьми без имени число участников ничего не говорит.
  */
 function useBillAmountForPeople(bill: Pick<Bill, "totalAmount" | "currency" | "participants" | "splitMode">): string {
+	useLocalizationPreferences();
 	const { t } = useTranslation(ENTITY_DEBT_NS);
 	if (bill.splitMode === "items") {
 		return t("billAmountByReceipt", { amount: formatMoney(bill.totalAmount, bill.currency) });
@@ -118,6 +120,7 @@ type TransferListProps = {
  * направления, чужие — нейтрально.
  */
 export function TransferList({ transfers, currency, isRepaid, compact }: TransferListProps) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(ENTITY_DEBT_NS);
 	const nameOf = useParticipantName();
 	const [by, setBy] = useState<BillTransferGrouping>("from");

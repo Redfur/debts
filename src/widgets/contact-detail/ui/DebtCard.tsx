@@ -15,6 +15,7 @@ import { showEditDebtDialog } from "@/features/edit-debt";
 import { COMMON_NS } from "@/shared/i18n";
 import { formatMoney } from "@/shared/lib/format-amount";
 import { formatShortDate } from "@/shared/lib/format-date";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { cn } from "@/shared/lib/utils";
 import { CONTACT_DETAIL_NS } from "../translations";
 import { DebtHistory } from "./DebtHistory";
@@ -27,6 +28,7 @@ type Props = {
 
 /** Карточка активного долга: метка направления и дата, заголовок-заметка, остаток с полосой, действия, история. */
 export function DebtCard({ debt, operations, onDelete }: Props) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(CONTACT_DETAIL_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
 

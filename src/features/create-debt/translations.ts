@@ -1,6 +1,21 @@
 export const CREATE_DEBT_NS = "create-debt";
 
 export const createDebtTranslations = {
+	en: {
+		title: "New debt",
+		createDebt: "Create debt",
+		directionLabel: "Direction",
+		hintOwedToMe: "{{name}} will pay you back",
+		hintIOwe: "{{name}} is waiting for your repayment",
+		amountLabel: "Amount",
+		currencyTitle: "Currency",
+		currencyLabel: "Currency: {{name}}",
+		noteLabel: "Note · optional",
+		notePlaceholder: "For example, taxi from the airport",
+		errorContactRequired: "Select or create a contact",
+		errorAmountInvalid: "Enter an amount greater than zero",
+		errorGeneric: "Could not save. Please try again.",
+	},
 	ru: {
 		title: "Новый долг",
 		createDebt: "Создать долг",

@@ -1,5 +1,6 @@
 import { Trans, useTranslation } from "react-i18next";
 import { formatMoney } from "@/shared/lib/format-amount";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import type { CurrencyCode } from "@/shared/lib/storage";
 import { cn } from "@/shared/lib/utils";
 import type { NetPosition } from "../model/types";
@@ -29,6 +30,7 @@ type NetPositionLineProps = {
 
 /** «Вам должны на X больше» / «Вы должны на X больше» / «Долги уравновешены». */
 export function NetPositionLine({ net, currency, className }: NetPositionLineProps) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(ENTITY_DEBT_NS);
 	if (net.kind === "none") return null;
 	return (

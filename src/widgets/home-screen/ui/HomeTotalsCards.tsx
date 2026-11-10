@@ -3,6 +3,7 @@ import { DirectionIcon, ENTITY_DEBT_NS } from "@/entities/debt";
 import { nextSupportedCurrency } from "@/shared/config/currencies";
 import { setDisplayCurrency } from "@/shared/lib/currency-preference";
 import { formatMoney } from "@/shared/lib/format-amount";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import type { CurrencyCode, DebtDirection } from "@/shared/lib/storage";
 import { cn } from "@/shared/lib/utils";
 import { CurrencyBreakdown } from "@/shared/ui/money";
@@ -18,6 +19,7 @@ type CardProps = {
 
 /** Карточка итога направления. Нажатие на сумму переключает настройку «Валюта итогов» по кругу. */
 export function TotalCard({ direction, converted, byCurrency, displayCurrency, cycle }: CardProps) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(HOME_SCREEN_NS);
 	const { t: tDebt } = useTranslation(ENTITY_DEBT_NS);
 	const owedToMe = direction === "owed_to_me";

@@ -1,4 +1,5 @@
 import { formatMoneyBreakdown } from "@/shared/lib/format-amount";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import type { CurrencyCode } from "@/shared/lib/storage";
 import { cn } from "@/shared/lib/utils";
 
@@ -11,6 +12,7 @@ type CurrencyBreakdownProps = {
 
 /** «10 000 ₽ + 250 $» — разбивка по исходным валютам. */
 export function CurrencyBreakdown({ byCurrency, fallback, className }: CurrencyBreakdownProps) {
+	useLocalizationPreferences();
 	const text = formatMoneyBreakdown(byCurrency) ?? fallback;
 	if (!text) return null;
 	return <span className={cn("tabular-nums", className)}>{text}</span>;

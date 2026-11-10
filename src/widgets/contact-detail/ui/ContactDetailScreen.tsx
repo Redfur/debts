@@ -9,6 +9,7 @@ import { COMMON_NS } from "@/shared/i18n";
 import { PageHeader, PageHeaderBackLink, ScreenBody } from "@/shared/layout";
 import { useDisplayCurrency } from "@/shared/lib/currency-preference";
 import { formatMoney } from "@/shared/lib/format-amount";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { cn } from "@/shared/lib/utils";
 import { showConfirmActionModal } from "@/shared/ui/modals";
 import { CONTACT_DETAIL_NS } from "../translations";
@@ -21,6 +22,7 @@ type Props = {
 };
 
 export function ContactDetailScreen({ contact }: Props) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(CONTACT_DETAIL_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
 	const location = useLocation();

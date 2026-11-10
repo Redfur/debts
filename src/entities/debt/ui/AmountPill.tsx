@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { formatMoney } from "@/shared/lib/format-amount";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import type { CurrencyCode, DebtDirection } from "@/shared/lib/storage";
 import { cn } from "@/shared/lib/utils";
 import { ENTITY_DEBT_NS } from "../translations";
@@ -15,6 +16,7 @@ type Props = {
 
 /** Плашка суммы с направлением: «+10 000 ₽» / «−2 300 ₽» в цветах роли; диктор читает «Мне должны 10 000 ₽». */
 export function AmountPill({ amount, currency, direction, variant = "pill", className }: Props) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(ENTITY_DEBT_NS);
 	const money = formatMoney(amount, currency);
 	const owedToMe = direction === "owed_to_me";

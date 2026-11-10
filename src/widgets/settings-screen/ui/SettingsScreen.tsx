@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Download, Upload } from "lucide-react";
+import { ChevronRight, Download, Upload } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -25,6 +25,7 @@ import {
 import { cn } from "@/shared/lib/utils";
 import { showConfirmActionModal } from "@/shared/ui/modals";
 import { SETTINGS_SCREEN_NS } from "../translations";
+import { LocalizationSettings } from "./LocalizationSettings";
 import { displayAppVersion } from "./settings-about-utils";
 
 /**
@@ -206,18 +207,7 @@ export function SettingsScreen() {
 				</SettingsSection>
 
 				<SettingsSection title={t("languageSection")} className="order-4 lg:order-5">
-					<div aria-disabled="true" className={cn(LIST_CLASS, "min-h-13 flex-row items-center gap-3 px-4 lg:hidden")}>
-						<span className="text-body flex-1">{t("languageLabel")}</span>
-						<span className="text-muted-foreground text-[15px]">{t("languageCurrent")}</span>
-					</div>
-					<div
-						aria-disabled="true"
-						className="bg-secondary text-muted-foreground hidden min-h-11 items-center justify-between rounded-[12px] px-3.5 text-[15px] lg:flex"
-					>
-						{t("languageCurrent")}
-						<ChevronDown className="size-4" aria-hidden="true" />
-					</div>
-					<p className={HINT_CLASS}>{t("languageHint")}</p>
+					<LocalizationSettings />
 				</SettingsSection>
 
 				<SettingsSection title={t("backupSection")} className="order-5 lg:order-4">

@@ -27,6 +27,7 @@ import { COMMON_NS } from "@/shared/i18n";
 import { PageHeader, PageHeaderBackLink, ScreenBody } from "@/shared/layout";
 import { formatAmount, formatMoney } from "@/shared/lib/format-amount";
 import { formatShortDate } from "@/shared/lib/format-date";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { roundAmount } from "@/shared/lib/round-amount";
 import { cn } from "@/shared/lib/utils";
 import { BILL_DETAIL_NS } from "../translations";
@@ -52,6 +53,7 @@ function findDebt(transfer: BillTransfer, debts: Debt[]): Debt | undefined {
  * «Закрыть / Открыть счёт» и «Удалить счёт».
  */
 export function BillDetailScreen({ bill, backTo }: Props) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(BILL_DETAIL_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
 	const location = useLocation();
@@ -265,6 +267,7 @@ const ALL_TIPS_FROM = 3;
  * скидка и чаевые, они не сворачиваются.
  */
 function BillItemsList({ bill }: { bill: Bill }) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(BILL_DETAIL_NS);
 	const nameOf = useParticipantName();
 	const receipt = computeReceiptCents(bill);

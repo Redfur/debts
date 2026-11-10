@@ -1,12 +1,13 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useDebtCurrencies } from "@/entities/debt";
-import { CURRENCY_SHORT_LABEL, CURRENCY_SYMBOL } from "@/shared/config/currencies";
+import { CURRENCY_SYMBOL, currencyLabels } from "@/shared/config/currencies";
 import {
 	setDisplayCurrency,
 	setPreferredDisplayCurrency,
 	useCurrencyPreferences,
 } from "@/shared/lib/currency-preference";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import type { CurrencyCode } from "@/shared/lib/storage";
 import { CurrencyPicker } from "@/shared/ui/currency-picker";
 import { SET_DISPLAY_CURRENCY_NS } from "../translations";
@@ -48,6 +49,8 @@ function CurrencySettingRow({
 	label: string;
 	hint: string;
 }) {
+	const { language } = useLocalizationPreferences();
+	const CURRENCY_SHORT_LABEL = currencyLabels(language, true);
 	const value = `${CURRENCY_SYMBOL[currency]} ${CURRENCY_SHORT_LABEL[currency]}`;
 	const labels = (
 		<span className="flex min-w-0 flex-1 flex-col text-left">

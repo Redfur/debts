@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ContactRow, ContactRowList, useDebtStore } from "@/entities/debt";
 import { PageHeader, ScreenBody } from "@/shared/layout";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { SearchField } from "@/shared/ui/search-field";
 import { CONTACTS_SCREEN_NS } from "../translations";
 
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export function ContactsScreen({ selectedId }: Props) {
+	const { language } = useLocalizationPreferences();
 	const { t } = useTranslation(CONTACTS_SCREEN_NS);
 	const hydrated = useDebtStore((s) => s.hydrated);
 	const contactsById = useDebtStore((s) => s.contactsById);
@@ -21,8 +23,8 @@ export function ContactsScreen({ selectedId }: Props) {
 		() =>
 			Object.values(contactsById)
 				.filter((c) => !c.archivedAt)
-				.sort((a, b) => a.name.localeCompare(b.name, "ru")),
-		[contactsById],
+				.sort((a, b) => a.name.localeCompare(b.name, language)),
+		[contactsById, language],
 	);
 	const trimmed = query.trim().toLowerCase();
 	const visible = trimmed ? contacts.filter((c) => c.name.toLowerCase().includes(trimmed)) : contacts;

@@ -8,6 +8,7 @@ import {
 	RatioBar,
 } from "@/entities/debt";
 import { formatMoney } from "@/shared/lib/format-amount";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import type { CurrencyCode, DebtDirection } from "@/shared/lib/storage";
 import { cn } from "@/shared/lib/utils";
 import { CurrencyBreakdown } from "@/shared/ui/money";
@@ -20,6 +21,7 @@ type Props = {
 
 /** Сводка контакта в валюте итогов + чистая позиция; на десктопе третья карточка «Разница». */
 export function ContactSummary({ totals, displayCurrency }: Props) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(CONTACT_DETAIL_NS);
 	const net = computeNetPosition(totals.owedToMe.converted, totals.owedByMe.converted);
 	const owedToMe = totals.owedToMe.converted ?? 0;

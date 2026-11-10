@@ -4,6 +4,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { type Debt, type DebtOperation, useDebtStore } from "@/entities/debt";
 import { formatMoney } from "@/shared/lib/format-amount";
 import { formatShortDate } from "@/shared/lib/format-date";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { cn } from "@/shared/lib/utils";
 import { CONTACT_DETAIL_NS } from "../translations";
 
@@ -15,6 +16,7 @@ type Props = {
 
 /** История операций долга под переключателем «История · N операций», новые сверху. */
 export function DebtHistory({ debt, operations, defaultOpen }: Props) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(CONTACT_DETAIL_NS);
 	const ordered = [...operations].reverse();
 	const bill = useDebtStore((s) => (debt.billId ? s.billsById[debt.billId] : undefined));

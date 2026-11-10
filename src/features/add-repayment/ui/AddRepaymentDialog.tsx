@@ -1,7 +1,6 @@
 import NiceModal, { useModal } from "@ebay/nice-modal-react";
 import { type FormEvent, useEffect, useId, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -9,9 +8,11 @@ import { computeDebtBalance, useDebtOperations, useDebtStore } from "@/entities/
 import { CURRENCY_SYMBOL } from "@/shared/config/currencies";
 import { COMMON_NS } from "@/shared/i18n";
 import { formatMoney } from "@/shared/lib/format-amount";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { roundAmount } from "@/shared/lib/round-amount";
 import { useModalClose } from "@/shared/lib/use-modal-close";
 import { cn } from "@/shared/lib/utils";
+import { AmountInput } from "@/shared/ui/amount-input";
 import { FieldError, FormAlert } from "@/shared/ui/form-message";
 import { useAddRepayment } from "../model/use-add-repayment";
 import { ADD_REPAYMENT_NS } from "../translations";
@@ -20,10 +21,11 @@ type Props = {
 	debtId: string;
 };
 
-type Errors = { amount?: string; form?: string };
+type Errors = { amount?: "errorAmountInvalid" | "errorExceedsBalance"; form?: "errorGeneric" };
 
 const AddRepaymentDialogComponent = NiceModal.create(({ debtId }: Props) => {
 	const { t } = useTranslation(ADD_REPAYMENT_NS);
+	useLocalizationPreferences();
 	const { t: tCommon } = useTranslation(COMMON_NS);
 	const modal = useModal();
 	const { submit, pending } = useAddRepayment();
@@ -65,17 +67,17 @@ const AddRepaymentDialogComponent = NiceModal.create(({ debtId }: Props) => {
 	const handleSubmit = async (e: FormEvent) => {
 		e.preventDefault();
 		if (!validAmount) {
-			setErrors({ amount: t("errorAmountInvalid") });
+			setErrors({ amount: "errorAmountInvalid" });
 			return;
 		}
 		if (parsedAmount > balance) {
-			setErrors({ amount: t("errorExceedsBalance") });
+			setErrors({ amount: "errorExceedsBalance" });
 			return;
 		}
 		setErrors({});
 		const ok = await submit(debtId, parsedAmount, note.trim() || undefined);
 		if (ok) await closeModal();
-		else setErrors({ form: t("errorGeneric") });
+		else setErrors({ form: "errorGeneric" });
 	};
 
 	return (
@@ -126,7 +128,7 @@ const AddRepaymentDialogComponent = NiceModal.create(({ debtId }: Props) => {
 									{CURRENCY_SYMBOL[debt.currency]}
 								</span>
 							</div>
-							{errors.amount ? <FieldError id={amountErrorId}>{errors.amount}</FieldError> : null}
+							{errors.amount ? <FieldError id={amountErrorId}>{t(errors.amount)}</FieldError> : null}
 							<div className="flex items-center justify-between gap-2 px-1">
 								<span id={remainingId} className="text-caption text-muted-foreground">
 									<Trans
@@ -171,7 +173,7 @@ const AddRepaymentDialogComponent = NiceModal.create(({ debtId }: Props) => {
 							/>
 						</div>
 
-						{errors.form ? <FormAlert>{errors.form}</FormAlert> : null}
+						{errors.form ? <FormAlert>{t(errors.form)}</FormAlert> : null}
 					</div>
 					<div className="mt-1 flex shrink-0 gap-2">
 						<Button

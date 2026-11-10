@@ -1,6 +1,22 @@
 export const EDIT_DEBT_NS = "edit-debt";
 
 export const editDebtTranslations = {
+	en: {
+		title: "Edit debt",
+		directionLabel: "Direction",
+		amountLabel: "Amount",
+		currencyTitle: "Currency",
+		currencyLabel: "Currency: {{name}}",
+		noteLabel: "Note",
+		notePlaceholder: "For example, taxi from the airport",
+		lockedHint:
+			"This debt already has repayments, so its direction, amount and currency cannot be changed. To correct them, delete the debt and record it again.",
+		billHint: "This debt is part of the bill “{{title}}”. Change its amount and direction in the bill.",
+		untitledBill: "Bill",
+		openBill: "Open bill",
+		errorAmountInvalid: "Enter an amount greater than zero",
+		errorGeneric: "Could not save. Please try again.",
+	},
 	ru: {
 		title: "Изменить долг",
 		directionLabel: "Направление",

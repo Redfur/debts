@@ -1,7 +1,6 @@
 import { Check, Minus, Plus } from "lucide-react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
-import { AmountInput } from "@/components/ui/amount-input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
@@ -16,8 +15,10 @@ import {
 } from "@/entities/debt";
 import { formatAmount, formatMoney } from "@/shared/lib/format-amount";
 import { formatPeopleCount } from "@/shared/lib/format-people-count";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import type { CurrencyCode } from "@/shared/lib/storage";
 import { cn } from "@/shared/lib/utils";
+import { AmountInput } from "@/shared/ui/amount-input";
 import { describeParticipant } from "../model/describe-bill";
 import type { BillFormApi } from "../model/use-bill-form";
 import { CREATE_BILL_NS } from "../translations";
@@ -34,6 +35,7 @@ const MODES: readonly {
 
 /** «Как делим»: способ деления, участники деления, распределение, «Кто кому переводит» и сводка последствий. */
 export function BillSplitSection({ form }: { form: BillFormApi }) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const fieldId = useId();
 	const nameOf = useParticipantName();
@@ -223,6 +225,7 @@ type StatusProps = { form: BillFormApi; currency: CurrencyCode; leftoverNote: st
 
 /** «Распределено X из Y» с полосой; остаток с «Раскидать поровну» / «Отменить»; перебор; неделимая копейка. */
 function DistributionStatus({ form, currency, leftoverNote }: StatusProps) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const { draft, validation, spreadUndo, state } = form;
 	const totalCents = toCents(draft.totalAmount);

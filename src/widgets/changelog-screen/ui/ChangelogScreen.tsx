@@ -2,6 +2,7 @@ import entries, { type ChangelogEntry, type ChangelogInline } from "virtual:chan
 import { useTranslation } from "react-i18next";
 import { COMMON_NS } from "@/shared/i18n";
 import { PageHeader, PageHeaderBackLink, ScreenBody } from "@/shared/layout";
+import { formatReleaseDate } from "@/shared/lib/format-date";
 import { CHANGELOG_SCREEN_NS } from "../translations";
 
 // Позиции служат ключами для статического содержимого релиза: у фрагментов и пунктов нет состояния и перестановок.
@@ -26,13 +27,6 @@ function renderInline(token: ChangelogInline, position: number) {
 function inlineContent(tokens: ChangelogInline[]) {
 	return tokens.map(renderInline);
 }
-
-const releaseDate = new Intl.DateTimeFormat("ru-RU", {
-	day: "numeric",
-	month: "long",
-	year: "numeric",
-	timeZone: "UTC",
-});
 
 function ReleaseContent({ entry }: { entry: ChangelogEntry }) {
 	const { t } = useTranslation(CHANGELOG_SCREEN_NS);
@@ -76,7 +70,7 @@ export function ChangelogScreen() {
 									{t("version", { version: entry.version })}
 								</h2>
 								<time dateTime={entry.date} className="text-caption text-muted-foreground">
-									{releaseDate.format(new Date(`${entry.date}T00:00:00Z`)).replace(/ г\.$/, "")}
+									{formatReleaseDate(entry.date)}
 								</time>
 							</div>
 							<ReleaseContent entry={entry} />

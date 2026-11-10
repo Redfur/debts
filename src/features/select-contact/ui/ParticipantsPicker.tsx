@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ContactAvatar, useDebtStore } from "@/entities/debt";
 import { COMMON_NS } from "@/shared/i18n";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { useKeyboardInset } from "@/shared/lib/use-keyboard-inset";
 import { cn } from "@/shared/lib/utils";
 import { HighlightMatch } from "@/shared/ui/highlight-match";
@@ -22,6 +23,7 @@ type Props = {
  * «Найти или создать контакт», список с галочками и «Создать «<имя>»» — новый контакт сразу отмечается.
  */
 export function ParticipantsPicker({ value, onDone, onCancel }: Props) {
+	const { language } = useLocalizationPreferences();
 	const { t } = useTranslation(SELECT_CONTACT_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
 	const inputId = useId();
@@ -38,8 +40,8 @@ export function ParticipantsPicker({ value, onDone, onCancel }: Props) {
 		() =>
 			Object.values(contactsById)
 				.filter((c) => !c.archivedAt)
-				.sort((a, b) => a.name.localeCompare(b.name, "ru")),
-		[contactsById],
+				.sort((a, b) => a.name.localeCompare(b.name, language)),
+		[contactsById, language],
 	);
 	const trimmed = query.trim();
 	const needle = trimmed.toLowerCase();

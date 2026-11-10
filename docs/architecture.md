@@ -84,9 +84,21 @@ React 19, Vite 8, TypeScript, Zustand, react-router-dom, react-i18next, Tailwind
 
 - **IndexedDB** (`src/shared/lib/storage/`, БД `debts`, версия 3): сторы `contacts`, `debts` (индексы `by-contactId`, `by-billId`), `debtOperations` (индекс `by-debtId`), `bills`, `creationDrafts` (ключ `kind`), `meta` (одна запись: `schemaVersion` + `ratesCache`). Доступ — через интерфейс `StorageAdapter` (`contract.ts`), реализация `indexed-db-adapter.ts`. Одной транзакцией: `deleteDebt` (долг + операции), `putBillWithDebts` (счёт + добавленные, изменённые и удалённые долги с операциями), `deleteBillCascade` (счёт + долги по `by-billId` + их операции), `replaceAll`; синхронная ошибка внутри транзакции её отменяет (`commitOrAbort`).
 - **Миграции:** `upgrade` по `oldVersion`. `< 1` — исходные сторы; `< 2` — стор `bills` и индекс `debts.by-billId`; `< 3` — store `creationDrafts` по ключу `kind`. Старые долги и счета не переписываются: отсутствующий `billId` нормализуется в `null`, отсутствующие `Bill.items` — в `[]`, `discount` и `tips` — в `null` при `hydrate` и экспорте (`normalizeBill`) (деление по чеку не потребовало новой версии БД). `meta.schemaVersion = 3` пишется при любой записи `meta`. Откат на версию без счетов на том же профиле невозможен (VersionError) — только через резервную копию.
-- **localStorage** (не дублирует доменные данные): тема, текущая валюта `debts.displayCurrency` и предпочитаемая `debts.preferredDisplayCurrency`. `currency-preference-state.ts` хранит согласованный снимок и подписки; `currency-preference.ts` подключает React через `useSyncExternalStore`. Текущая меняется в настройках и нажатием на главной; предпочитаемая — отдельно в настройках с одновременной сменой текущей; ключи — `shared/lib/client-storage-keys.ts`, сброс — `clear-client-storage.ts`. Служебные отметки (`CLIENT_STATE_KEYS`: закрытая плашка установки) «Сбросить настройки интерфейса» не трогает, «Очистить всё» удаляет (`clearAllClientStorage`).
+- **localStorage** (не дублирует доменные данные): тема, язык и формат чисел (см. «Предпочтения локализации»), текущая валюта `debts.displayCurrency` и предпочитаемая `debts.preferredDisplayCurrency`. `currency-preference-state.ts` хранит согласованный снимок и подписки; `currency-preference.ts` подключает React через `useSyncExternalStore`. Текущая меняется в настройках и нажатием на главной; предпочитаемая — отдельно в настройках с одновременной сменой текущей; ключи — `shared/lib/client-storage-keys.ts`, сброс — `clear-client-storage.ts`. Служебные отметки (`CLIENT_STATE_KEYS`: закрытая плашка установки) «Сбросить настройки интерфейса» не трогает, «Очистить всё» удаляет (`clearAllClientStorage`).
 - **sessionStorage**: флаг однократной автоперезагрузки при ошибке загрузки чанка (`RouteErrorBoundary`).
 - **Backup/restore:** UI — `features/export-backup` (`useExportBackup`) и `features/import-backup` (`useImportBackup`: выбор файла → `parseDebtsBackup` → подтверждение), используются в настройках и на пустой главной; логика — `storage/backup.ts` — `createDebtsBackup` / `parseDebtsBackup` / `restoreDebtsFromBackup`; формат `{ version: 3, exportedAt, meta, contacts, debts, debtOperations, bills }` (у счёта — `items`, `discount`, `tips`); `parseDebtsBackup` принимает и `version: 1` (без `bills`: счетов нет, `billId = null`), и `version: 2` (счета без позиций, `items = []`), отклоняет копию 3 со счётом `items` без массива позиций и обнуляет `billId`, указывающий на отсутствующий счёт; восстановление = `replaceAll` одной транзакцией + перезагрузка страницы.
+
+## Предпочтения локализации
+
+`shared/lib/localization-preference-state.ts` содержит чистое разрешение языка и формата и фабрику состояния. Отдельные ключи `CLIENT_STORAGE_KEYS.language` (`debts.language`: `system | ru | en`) и `numberFormat` (`debts.numberFormat`: `language | space-comma | space-dot | comma-dot | dot-comma`) не входят в доменные данные и резервную копию. Неверное значение означает стандартный режим; недоступный localStorage оставляет настройки в памяти сеанса.
+
+`localization-preference.ts` создаёт единый снимок сохранённых режимов и эффективных значений и подключает React через `useSyncExternalStore`. Системный язык — первый ru/en из `navigator.languages` с учётом региональных вариантов; при пустом списке используется `navigator.language`, без совпадений — en. Событие `languagechange` обновляет снимок, но не отменяет ручной выбор.
+
+`i18n.ts` синхронно разрешает язык до первого UI и ленивого чтения валютных предпочтений, затем передаёт смены языка i18next. Подписка формата отдельная: изменение только формата не порождает `languageChanged`. Модуль состояния не импортирует i18n, циклической зависимости нет. Чистые проверки — `node --experimental-strip-types --test build/localization-preference.test.ts`; браузерный сценарий подписок — `scripts/localization-scenarios.mjs` через существующий CDP-стенд.
+
+`number-format.ts` — чистые описатели и форматирование, `amount-edit.ts` — маска, преобразование позиции курсора, операции над нормализованной строкой и строгий parser вставки. `components/ui/amount-input.tsx` различает набор, удаление и paste, не прогоняет вставку через sanitize. `shared/ui/amount-input` подключает доступный `FieldError` для всех денежных и процентных полей. Потребители `formatMoney`/`formatAmount` явно подписаны на локализацию, поэтому смена только формата обновляет и итоги, и пояснения. Суммы и строки черновиков не переписываются.
+
+`widgets/settings-screen/ui/LocalizationSettings` использует существующие адаптивные Dialog и RadioGroup: три режима языка, пять режимов формата. `clearClientStoragePreferences` после удаления ключей сбрасывает язык/формат (синхронные подписки i18n и метаданных), затем валюты к заново определённому языку. Служебная отметка плашки сохраняется; «Очистить всё» удаляет и её. Импорт и удаление только данных настроек не касаются. Переводы 23 namespaces колоцированы; проверка ключей, параметров, Trans и plurals — `build/translations.test.ts`. Тексты истории остаются русскими, обрамление и календарные даты релизов переводятся.
 
 ## Курс валют
 
@@ -110,9 +122,11 @@ UI (pages/widgets)
 
 ## PWA
 
-`vite-plugin-pwa`: precache сборки, манифест `site.webmanifest`, обновление по запросу пользователя (`features/pwa-app-update` показывает toast «Доступна новая версия»). Для GitHub Pages база задаётся `VITE_BASE_PATH`.
+`vite-plugin-pwa`: precache сборки и обоих манифестов, обновление по запросу пользователя (`features/pwa-app-update` показывает toast «Доступна новая версия»). Для GitHub Pages база задаётся `VITE_BASE_PATH`.
 
-**Манифест** (`vite.config.ts`):
+**Манифесты** (`build/app-manifest.ts`, подключение в `vite.config.ts`):
+- `localizedManifestsPlugin` генерирует статические `site.webmanifest` и `site.en.webmanifest` из общей конфигурации и отдаёт их в dev. Общие тексты HTML/манифеста — `shared/config/app-metadata.ts`. Встроенная генерация манифеста PWA-плагина отключена, чтобы не дублировать ссылку;
+- единственную ссылку из HTML, `document.title`, `html.lang`, описание и Apple title обновляет `app/init-localized-metadata.ts` до `initInstallApp()` и при смене эффективного языка. На текущем языке выставлены название «Долги» / `Debts`, описание и shortcuts. Оба файла включены в `globPatterns` precache; скриншоты остаются общими иллюстрациями русской версии;
 - `id: base` — равен `start_url`, который браузеры брали за идентификатор до появления явного `id`; менять нельзя, иначе установленные копии задвоятся;
 - иконки: `pwa-192x192.png` / `pwa-512x512.png` (`any`, знак с прозрачными углами) и `web-app-manifest-*.png` (`maskable`);
 - `shortcuts` «Новый долг» (`new`) и «Разделить счёт» (`bills/new`) с иконками `shortcut-*.png`;
@@ -121,6 +135,7 @@ UI (pages/widgets)
 **Установка** (`features/install-app`):
 - `initInstallApp()` вызывается в `src/main.tsx` до рендера: перехватывает `beforeinstallprompt` (откладывает системный диалог для кнопки «Установить») и `appinstalled` (тост), а в установленном режиме молча просит `navigator.storage.persist()`.
 - Режим — «установлено» (`display-mode` / `navigator.standalone`), «внутри другого приложения» (UA встроенных браузеров) или «в браузере»; платформа — iOS/iPadOS или другая (`lib/detect-platform.ts`, чистые функции). Состояние — модульный стор + `useSyncExternalStore` (`useInstallState`).
+- Смена языка сбрасывает ранее отложенный `beforeinstallprompt`: до нового события браузера доступны текущие инструкции, а не устаревший системный запрос. Переименование уже установленного ярлыка зависит от браузера/ОС; идентичность приложения и данные остаются прежними.
 - UI: `InstallOnboardingCard` (пустая главная), `InstallBanner` (над итогами, закрывается навсегда), шторка «Как установить» (шаги по платформе; на iOS и во встроенном браузере при наличии записей — перенос через резервную копию), `InstallSettingsRows` (группа «Приложение»: режим и защита данных от автоочистки). Экспорт копии — другая фича, поэтому виджеты передают `onSaveBackup` из `useExportBackup`.
 
 ## История изменений
@@ -164,9 +179,9 @@ UI (pages/widgets)
 
 ## Каталог и выбор валют
 
-`shared/config/currency-catalog.ts` — единый офлайн-источник 155 кодов, русских названий, коротких подписей и обозначений. Тип `CurrencyCode` выводится из ключей и реэкспортируется storage; обратного импорта storage в каталог нет. Источники и дата сверки API с текущим ISO 4217 указаны рядом с данными. Каталог входит в обычную сборку и precache; сетевые обращения за метаданными в приложении не нужны.
+`shared/config/currency-catalog.ts` — единый офлайн-источник 155 кодов, русских и английских названий, коротких подписей и обозначений. Английский набор типизирован по исходным кодам, без зависимости от поддержки Intl.DisplayNames на устройстве. Тип `CurrencyCode` выводится из ключей и реэкспортируется storage; обратного импорта storage в каталог нет. Источники и дата сверки API с текущим ISO 4217 указаны рядом с данными. Каталог входит в обычную сборку и precache; сетевые обращения за метаданными в приложении не нужны.
 
-`shared/config/currencies.ts` строит справочники, выполняет поиск и сортировку. Валюта фактической локали задаётся явно (`ru`/`ru-RU` → RUB, fallback — RUB); при добавлении языка нужно добавить соответствие. Верхний набор и круг формируются одним правилом порядка: локаль, предпочитаемая, USD, использованные коды по алфавиту, с удалением повторов.
+`shared/config/currencies.ts` строит справочники, выполняет поиск и сортировку по эффективному языку. Валюта локали задана явно (ru → RUB, en → USD); верхний набор и круг формируются одним правилом порядка: локаль, предпочитаемая, USD, использованные коды по алфавиту, с удалением повторов. Мемоизированные списки контактов включают эффективный язык в зависимости.
 
 `entities/debt/model/debt-currencies.ts` выделяет все использованные валюты и активные с положительным остатком через `computeDebtBalance`; `useDebtCurrencies` соединяет их с preferences. Features передают верхний набор в `AmountField`/`CurrencyPicker` параметрами, `HomeScreen` передаёт единый круг обеим карточкам итогов. Shared не импортирует entities.
 

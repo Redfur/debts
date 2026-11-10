@@ -15,6 +15,7 @@ import {
 	ENTITY_DEBT_NS,
 	useDebtStore,
 } from "@/entities/debt";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import type { CurrencyCode } from "@/shared/lib/storage";
 import { cn } from "@/shared/lib/utils";
 import { HOME_SCREEN_NS } from "../translations";
@@ -26,6 +27,7 @@ const FILTERS: ContactDirectionFilter[] = ["all", "owed-to-me", "i-owe"];
  * Без активных долгов — «всё погашено», а если долгов нет совсем (есть только счета без меня) — пояснение про итоги.
  */
 export function ContactList({ hasDebts }: { hasDebts: boolean }) {
+	const { language } = useLocalizationPreferences();
 	const { t } = useTranslation(HOME_SCREEN_NS);
 	const { t: tDebt } = useTranslation(ENTITY_DEBT_NS);
 	const contactsById = useDebtStore((s) => s.contactsById);
@@ -37,8 +39,8 @@ export function ContactList({ hasDebts }: { hasDebts: boolean }) {
 		() =>
 			Object.values(contactsById)
 				.filter((c) => !c.archivedAt && contactMatchesFilter(c.id, "all", debtsById, operationsByDebtId))
-				.sort((a, b) => a.name.localeCompare(b.name, "ru")),
-		[contactsById, debtsById, operationsByDebtId],
+				.sort((a, b) => a.name.localeCompare(b.name, language)),
+		[contactsById, debtsById, operationsByDebtId, language],
 	);
 	const counts = useMemo(
 		() => countContactsByDirection(withActive, debtsById, operationsByDebtId),

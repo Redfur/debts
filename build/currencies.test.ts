@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { isCreationDraft } from "../src/entities/debt/model/creation-drafts/validate.ts";
 import {
-	CURRENCY_LABEL,
 	CURRENCY_SYMBOL,
 	currencyGroups,
+	currencyLabels,
 	isSupportedCurrency,
 	localeCurrency,
 	nextSupportedCurrency,
@@ -25,7 +25,9 @@ test("catalog covers current fiat API snapshot and excludes non-fiat/historical 
 	for (const code of ["BTC", "ETH", "XAU", "XAG", "XDR", "MXV", "BGN", "ANG", "HRK", "BYR", "toString", "usd", null])
 		assert.equal(isSupportedCurrency(code), false);
 	for (const code of SUPPORTED_CURRENCIES) {
-		assert.ok(CURRENCY_LABEL[code]);
+		assert.ok(currencyLabels("ru")[code]);
+		assert.ok(currencyLabels("en")[code]);
+		assert.ok(currencyLabels("en", true)[code]);
 		assert.ok(CURRENCY_SYMBOL[code]);
 	}
 	assert.deepEqual(
@@ -83,6 +85,17 @@ test("draft validation restores new fiat currencies and rejects non-fiat", () =>
 });
 
 test("search normalizes code/name and groups never duplicate currencies", () => {
+	assert.equal(localeCurrency("en-GB"), "USD");
+	assert.deepEqual(currencyGroups(["THB"], " BAHT ", "en"), { top: ["THB"], other: [] });
+	assert.deepEqual(currencyGroups([], "THB", "en"), { top: [], other: ["THB"] });
+	assert.deepEqual(currencyGroups([], "no such currency", "en"), { top: [], other: [] });
+	for (const language of ["en", "ru"] as const) {
+		const labels = currencyLabels(language);
+		const ordered = currencyGroups([], "", language).other;
+		assert.equal(ordered.length, SUPPORTED_CURRENCIES.length);
+		for (let i = 1; i < ordered.length; i++)
+			assert.ok(labels[ordered[i - 1]].localeCompare(labels[ordered[i]], language) <= 0);
+	}
 	const top = prioritizedCurrencies(["THB", "KZT", "RUB", "THB"], "EUR", localeCurrency("ru-RU"));
 	assert.deepEqual(top, ["RUB", "EUR", "USD", "KZT", "THB"]);
 	assert.deepEqual(currencyGroups(top, " thb "), { top: ["THB"], other: [] });

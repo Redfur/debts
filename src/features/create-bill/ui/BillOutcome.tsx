@@ -1,12 +1,14 @@
 import { useTranslation } from "react-i18next";
 import { ME_REF, useParticipantName } from "@/entities/debt";
 import { formatMoney } from "@/shared/lib/format-amount";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { describeConsequences, type ParticipantOutcome } from "../model/describe-bill";
 import type { BillFormApi } from "../model/use-bill-form";
 import { CREATE_BILL_NS } from "../translations";
 
 /** Подпись под именем участника: «переведёт вам», «вы переведёте», «переводы с: …», «в расчёте», «моя доля, не долг». */
 export function useOutcomeText(): (part: ParticipantOutcome) => string {
+	useLocalizationPreferences();
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const nameOf = useParticipantName();
 	return (part) => {
@@ -27,6 +29,7 @@ export function useOutcomeText(): (part: ParticipantOutcome) => string {
 
 /** Сводка последствий: «Появятся N долгов» с перечнем или «Ваши долги не изменятся». */
 export function BillConsequencesBox({ form }: { form: BillFormApi }) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const nameOf = useParticipantName();
 	const { transfers, draft, shares, state } = form;

@@ -2,12 +2,13 @@ import { CircleAlert, Coins, Percent, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
-import { AmountInput } from "@/components/ui/amount-input";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import { type BillAdjustmentUnit, ME_REF, useParticipantName } from "@/entities/debt";
 import { CURRENCY_SYMBOL } from "@/shared/config/currencies";
 import { formatAmount, formatMoney } from "@/shared/lib/format-amount";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { cn } from "@/shared/lib/utils";
+import { AmountInput } from "@/shared/ui/amount-input";
 import type { BillFormApi, FormAdjustment } from "../model/use-bill-form";
 import { CREATE_BILL_NS } from "../translations";
 import { BillPeopleChips } from "./BillPeopleChips";
@@ -28,6 +29,7 @@ const TIPS_ISSUE_KEYS = { zero: "tipsZero", percent_max: "tipsPercentMax" } as c
 
 /** «Скидка на весь чек» и «Чаевые» под позициями; на десктопе — с подзаголовком «3 · Скидка и чаевые». */
 export function BillAdjustmentsSection({ form, locked }: Props) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const nameOf = useParticipantName();
 	const { state, receipt } = form;
@@ -228,7 +230,7 @@ function AdjustmentCard({
 				</SegmentedControl>
 				<div
 					className={cn(
-						"flex h-12 min-w-0 flex-1 items-center gap-1 rounded-[14px] px-3",
+						"flex min-h-12 min-w-0 flex-1 items-center gap-1 rounded-[14px] px-3 py-2",
 						locked ? "shadow-[inset_0_0_0_1px_var(--border)]" : "bg-(--field-bg,var(--background))",
 						error ? "shadow-[inset_0_0_0_2px_var(--destructive)]" : "focus-within:shadow-[inset_0_0_0_2px_var(--ring)]",
 					)}

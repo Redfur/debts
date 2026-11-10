@@ -2,6 +2,7 @@ import { Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { fromCents, ME_REF, ParticipantAvatar, useParticipantName } from "@/entities/debt";
 import { formatMoney } from "@/shared/lib/format-amount";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { cn } from "@/shared/lib/utils";
 import { describeParticipant } from "../model/describe-bill";
 import type { BillFormApi } from "../model/use-bill-form";
@@ -26,6 +27,7 @@ export function usePendingItemsText(): (pending: number[]) => string {
  * заполненным позициям; пока ни одной нет — не показываются.
  */
 export function BillReceiptShares({ form }: { form: BillFormApi }) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const nameOf = useParticipantName();
 	const outcomeText = useOutcomeText();

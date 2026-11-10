@@ -1,14 +1,15 @@
 import { Check, ChevronRight, Plus, X } from "lucide-react";
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
-import { AmountInput } from "@/components/ui/amount-input";
 import { Input } from "@/components/ui/input";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import { fromCents, ME_REF, ParticipantAvatar, toCents, useDebtCurrencies, useParticipantName } from "@/entities/debt";
-import { CURRENCY_SHORT_LABEL } from "@/shared/config/currencies";
+import { currencyLabels } from "@/shared/config/currencies";
 import { formatAmount, formatMoney } from "@/shared/lib/format-amount";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { cn } from "@/shared/lib/utils";
 import { AmountField } from "@/shared/ui/amount-field";
+import { AmountInput } from "@/shared/ui/amount-input";
 import { CurrencyPicker } from "@/shared/ui/currency-picker";
 import { FieldError } from "@/shared/ui/form-message";
 import type { BillFormApi, PayerMode } from "../model/use-bill-form";
@@ -29,6 +30,8 @@ type Props = {
  * позиций, плательщик всегда один.
  */
 export function BillBasicsSection({ form, locked, showErrors, onAddParticipants, onChangePayer }: Props) {
+	const { language } = useLocalizationPreferences();
+	const CURRENCY_SHORT_LABEL = currencyLabels(language, true);
 	const { top: topCurrencies } = useDebtCurrencies();
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const nameOf = useParticipantName();
@@ -244,6 +247,7 @@ function SinglePayer({ name, participantRef, whole, locked, onChange }: SinglePa
 
 /** Поле оплаты у каждого участника, «Оплачено X из Y» с полосой и «Осталось X». */
 function SeveralPayers({ form, locked }: { form: BillFormApi; locked: boolean }) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const nameOf = useParticipantName();
 	const fieldId = useId();
@@ -303,6 +307,7 @@ function SeveralPayers({ form, locked }: { form: BillFormApi; locked: boolean })
 
 /** Под «Сумма по чеку»: из чего она складывается — со скидкой или чаевыми построчно, иначе подсказка. */
 function ReceiptBreakdown({ form }: { form: BillFormApi }) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const { receipt, state } = form;
 	const money = (cents: number) => formatMoney(cents / 100, state.currency);

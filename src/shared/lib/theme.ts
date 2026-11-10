@@ -13,8 +13,8 @@ function getSystemTheme(): Theme {
 }
 
 function readStoredPreference(): ThemePreference | null {
-	if (typeof localStorage === "undefined") return null;
 	try {
+		if (typeof localStorage === "undefined") return null;
 		const stored = localStorage.getItem(THEME_KEY);
 		if (stored === "system" || stored === "light" || stored === "dark") return stored;
 	} catch {

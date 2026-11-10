@@ -1,6 +1,18 @@
 export const ADD_REPAYMENT_NS = "add-repayment";
 
 export const addRepaymentTranslations = {
+	en: {
+		title: "Repayment",
+		untitledDebt: "Debt",
+		amountLabel: "Repayment amount",
+		remaining: "Balance {{balance}} → <b>{{left}}</b> left",
+		repayAll: "Repay in full",
+		noteLabel: "Note · optional",
+		notePlaceholder: "For example, bank transfer",
+		errorAmountInvalid: "Enter an amount greater than zero",
+		errorExceedsBalance: "Amount exceeds the remaining debt",
+		errorGeneric: "Could not save. Please try again.",
+	},
 	ru: {
 		title: "Погашение",
 		untitledDebt: "Долг",

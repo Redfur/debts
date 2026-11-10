@@ -1,5 +1,6 @@
 import { toast } from "sonner";
 import { i18n } from "@/shared/lib/i18n";
+import { localizationPreferences } from "@/shared/lib/localization-preference";
 import {
 	detectInstallMode,
 	detectInstallPlatform,
@@ -60,6 +61,14 @@ export function getInstallState(): InstallState {
  */
 export function initInstallState(): void {
 	if (typeof window === "undefined") return;
+	let previousLanguage = localizationPreferences.getSnapshot().language;
+	localizationPreferences.subscribe(() => {
+		const { language } = localizationPreferences.getSnapshot();
+		if (language === previousLanguage) return;
+		previousLanguage = language;
+		deferredPrompt = null;
+		update();
+	});
 	window.addEventListener("beforeinstallprompt", (event) => {
 		event.preventDefault();
 		deferredPrompt = event as BeforeInstallPromptEvent;

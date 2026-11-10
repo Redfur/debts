@@ -1,6 +1,37 @@
 export const HOME_SCREEN_NS = "homeScreen";
 
 export const homeScreenTranslations = {
+	en: {
+		draftsTitle: "Unfinished",
+		draftDebt: "Unfinished debt",
+		draftBill: "Unfinished bill",
+		draftContinue: "Continue",
+		draftDelete: "Delete draft",
+		draftReadError: "Could not read the draft.",
+		title: "Debts",
+		amountA11y: "{{label}} {{amount}}. Show in another currency",
+		noRateA11y: "Amount unavailable without exchange rates",
+		noRateNotice: "Offline — exchange rates have not loaded, so totals are unavailable",
+		retry: "Retry",
+		difference: "Difference",
+		filterLabel: "Filter",
+		filterAll: "All",
+		openDebts: "Open debts",
+		allSettled: "No open debts — all settled",
+		allSettledHint: "Repaid debts are in contact details",
+		noDebtsOnlyBills: "No debts yet. You are not involved in the bills below, so they do not affect your totals.",
+		bills: "Bills",
+		billsClosed: "Closed",
+		colContact: "Contact",
+		colOpenDebts: "Open debts",
+		emptyTitle: "Nobody owes anyone yet",
+		emptyBody:
+			"Record your first debt — for example, someone who owes you for a taxi. Or split a shared bill. Everything stays on this device.",
+		emptyAdd: "Add first debt",
+		emptySplit: "Split a bill",
+		emptyRestore: "Restore from backup",
+		loading: "Loading…",
+	},
 	ru: {
 		draftsTitle: "Незавершённые",
 		draftDebt: "Незавершённый долг",

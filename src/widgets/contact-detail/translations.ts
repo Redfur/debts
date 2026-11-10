@@ -1,6 +1,36 @@
 export const CONTACT_DETAIL_NS = "contact-detail";
 
 export const contactDetailTranslations = {
+	en: {
+		backToHome: "Go to home",
+		notFoundTitle: "Contact not found",
+		notFoundBody:
+			"This contact is not on this device. The link may be outdated, or data may have been cleared or replaced with a backup.",
+		addDebtAction: "Add debt",
+		difference: "Difference",
+		noRateA11y: "Amount unavailable without exchange rates",
+		sectionOpen: "Open",
+		sectionClosed: "Repaid",
+		emptyDebts: "This contact has no debts yet.",
+		untitledDebt: "Debt",
+		untitledBill: "Bill",
+		fromBill: "from bill “{{title}}”",
+		balance: "Remaining",
+		ofPrincipal: "of {{amount}}",
+		progressA11y: "Repaid {{repaid}} of {{principal}}",
+		progressNoneA11y: "Nothing repaid yet",
+		repayAction: "Repay",
+		history_one: "History · {{count}} operation",
+		history_other: "History · {{count}} operations",
+		operationInitial: "Debt created",
+		operationRepayment: "Repayment",
+		deleteDebtConfirmTitle: "Delete debt?",
+		deleteDebtConfirmBodyNote:
+			"“{{note}}” for {{amount}} and its entire repayment history will be deleted. This cannot be undone.",
+		deleteDebtConfirmBody:
+			"The debt of {{amount}} and its entire repayment history will be deleted. This cannot be undone.",
+		loading: "Loading…",
+	},
 	ru: {
 		backToHome: "На главную",
 		notFoundTitle: "Контакт не найден",

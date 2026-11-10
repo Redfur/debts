@@ -1,3 +1,5 @@
+import { localizationPreferences } from "./localization-preference";
+
 /** Собирательные числительные в винительном падеже: «на двоих» … «на десятерых». */
 const COLLECTIVE = [
 	"",
@@ -15,6 +17,7 @@ const COLLECTIVE = [
 
 /** Число людей после «на»: «четверых», «12 человек», «22 человека». От имён не зависит. */
 export function formatPeopleCount(count: number): string {
+	if (localizationPreferences.getSnapshot().language === "en") return `${count} ${count === 1 ? "person" : "people"}`;
 	if (count >= 2 && count <= 10) return COLLECTIVE[count];
 	const mod10 = count % 10;
 	const mod100 = count % 100;

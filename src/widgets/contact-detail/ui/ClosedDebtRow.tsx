@@ -16,6 +16,7 @@ import { showEditDebtDialog } from "@/features/edit-debt";
 import { COMMON_NS } from "@/shared/i18n";
 import { formatMoney } from "@/shared/lib/format-amount";
 import { formatShortDate } from "@/shared/lib/format-date";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { CONTACT_DETAIL_NS } from "../translations";
 import { DebtHistory } from "./DebtHistory";
 
@@ -27,6 +28,7 @@ type Props = {
 
 /** Компактная строка погашенного долга; по нажатию раскрывается история и «Изменить» / «Удалить». */
 export function ClosedDebtRow({ debt, operations, onDelete }: Props) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(CONTACT_DETAIL_NS);
 	const { t: tDebt } = useTranslation(ENTITY_DEBT_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);

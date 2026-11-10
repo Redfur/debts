@@ -3,7 +3,8 @@ import { type ReactNode, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CURRENCY_LABEL, CURRENCY_SYMBOL, currencyGroups, isSupportedCurrency } from "@/shared/config/currencies";
+import { CURRENCY_SYMBOL, currencyGroups, currencyLabels, isSupportedCurrency } from "@/shared/config/currencies";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import type { CurrencyCode } from "@/shared/lib/storage";
 import { cn } from "@/shared/lib/utils";
 import { SearchField } from "@/shared/ui/search-field";
@@ -32,10 +33,12 @@ export function CurrencyPicker({
 	triggerClassName,
 }: Props) {
 	const { t } = useTranslation(CURRENCY_PICKER_NS);
+	const { language } = useLocalizationPreferences();
+	const CURRENCY_LABEL = currencyLabels(language);
 	const [open, setOpen] = useState(false);
 	const id = useId();
 	const [query, setQuery] = useState("");
-	const groups = currencyGroups(topCurrencies, query);
+	const groups = currencyGroups(topCurrencies, query, language);
 	const changeOpen = (next: boolean) => {
 		setOpen(next);
 		if (!next) setQuery("");

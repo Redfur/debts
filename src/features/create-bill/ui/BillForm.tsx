@@ -16,6 +16,7 @@ import {
 import { ParticipantsPicker } from "@/features/select-contact";
 import { COMMON_NS } from "@/shared/i18n";
 import { formatMoney } from "@/shared/lib/format-amount";
+import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { useKeyboardInset } from "@/shared/lib/use-keyboard-inset";
 import { cn } from "@/shared/lib/utils";
 import { FormAlert } from "@/shared/ui/form-message";
@@ -53,6 +54,7 @@ type Props = {
  * «За что».
  */
 export function BillForm({ bill, locked = false, onSaved, onCancel, onDelete }: Props) {
+	useLocalizationPreferences();
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
 	const { t: tEntity } = useTranslation(ENTITY_DEBT_NS);
@@ -422,6 +424,7 @@ type ReceiptStatus = { text: string; tone: "muted" | "warning" | "error"; blocke
  * позиции, ошибки скидки и чаевых, нет позиций, иначе сумма по чеку. `blocked` — сохранить нельзя.
  */
 function useReceiptStatus(form: BillFormApi, locked: boolean): ReceiptStatus {
+	useLocalizationPreferences();
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const pendingText = usePendingItemsText();
 	const { receipt, state } = form;

@@ -1,6 +1,26 @@
 export const SELECT_CONTACT_NS = "select-contact";
 
 export const selectContactTranslations = {
+	en: {
+		label: "Contact",
+		searchPlaceholder: "Name or search",
+		newContactPlaceholder: "New contact name",
+		listLabel: "Contacts",
+		clear: "Clear",
+		change: "Choose another contact",
+		notFound: "No contacts match “{{query}}”",
+		createNew: "Create “{{name}}”",
+		createHint: "The new contact will be selected",
+		emptyTitle: "No contacts yet",
+		emptyHint: "Enter a name — the contact will be created with the debt",
+		participantsTitle: "Participants",
+		selectedCount: "Selected · {{count}}",
+		selectedMeHint: "· you are already included",
+		unselect: "Deselect: {{name}}",
+		participantsSearch: "Find or create a contact",
+		createHintMulti: "The new contact will be selected",
+		done: "Done ({{count}})",
+	},
 	ru: {
 		label: "Контакт",
 		searchPlaceholder: "Имя или поиск",

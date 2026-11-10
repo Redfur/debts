@@ -28,7 +28,7 @@ type Props = {
 	onDelete: () => void;
 };
 
-type Errors = { contact?: string; amount?: string; form?: string };
+type Errors = { contact?: "errorContactRequired"; amount?: "errorAmountInvalid"; form?: "errorGeneric" };
 
 /**
  * Экран нового долга на весь экран: шапка «Назад» / «Новый долг», контакт, направление с подсказкой,
@@ -74,8 +74,8 @@ export function CreateDebtForm({ initialContactId, onSuccess, onCancel, onDelete
 		if (pending || useCreationDraftStore.getState().debt.locked) return;
 		const parsedAmount = Number(amount);
 		const next: Errors = {};
-		if (!contact) next.contact = t("errorContactRequired");
-		if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) next.amount = t("errorAmountInvalid");
+		if (!contact) next.contact = "errorContactRequired";
+		if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) next.amount = "errorAmountInvalid";
 		setErrors(next);
 		if (!contact || next.amount) return;
 
@@ -87,7 +87,7 @@ export function CreateDebtForm({ initialContactId, onSuccess, onCancel, onDelete
 			note: note.trim() || undefined,
 		});
 		if (debtId) onSuccess(debtId);
-		else setErrors({ form: t("errorGeneric") });
+		else setErrors({ form: "errorGeneric" });
 	};
 
 	return (
@@ -114,7 +114,7 @@ export function CreateDebtForm({ initialContactId, onSuccess, onCancel, onDelete
 							setErrors((prev) => ({ ...prev, contact: undefined }));
 						}}
 						onExpandedChange={setPicking}
-						error={errors.contact}
+						error={errors.contact ? t(errors.contact) : undefined}
 					/>
 
 					<div className={cn("flex flex-col gap-3.5", picking && "hidden")}>
@@ -153,7 +153,7 @@ export function CreateDebtForm({ initialContactId, onSuccess, onCancel, onDelete
 								invalid={Boolean(errors.amount)}
 								describedBy={errors.amount ? amountErrorId : undefined}
 							/>
-							{errors.amount ? <FieldError id={amountErrorId}>{errors.amount}</FieldError> : null}
+							{errors.amount ? <FieldError id={amountErrorId}>{t(errors.amount)}</FieldError> : null}
 						</div>
 
 						<div className="flex flex-col gap-1.5">
@@ -184,7 +184,7 @@ export function CreateDebtForm({ initialContactId, onSuccess, onCancel, onDelete
 					)}
 					style={{ bottom: keyboardInset }}
 				>
-					{errors.form ? <FormAlert>{errors.form}</FormAlert> : null}
+					{errors.form ? <FormAlert>{t(errors.form)}</FormAlert> : null}
 					<Button type="submit" variant="accent" size="lg" className="w-full" disabled={pending}>
 						{t("createDebt")}
 					</Button>
