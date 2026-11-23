@@ -110,6 +110,7 @@ type TransferListProps = {
 	currency: CurrencyCode;
 	/** Связанный с моим переводом долг погашен: сумма приглушена, без знака, подпись «✓ погашен». */
 	isRepaid?: (transfer: BillTransfer) => boolean;
+	renderSettlement?: (transfer: BillTransfer) => React.ReactNode;
 	/** Плотнее — для формы счёта. */
 	compact?: boolean;
 };
@@ -119,7 +120,7 @@ type TransferListProps = {
  * если переводов больше одного) или по получателю («от:», «<имя> получит»). Мои переводы — со знаком и цветом
  * направления, чужие — нейтрально.
  */
-export function TransferList({ transfers, currency, isRepaid, compact }: TransferListProps) {
+export function TransferList({ transfers, currency, isRepaid, renderSettlement, compact }: TransferListProps) {
 	useLocalizationPreferences();
 	const { t } = useTranslation(ENTITY_DEBT_NS);
 	const nameOf = useParticipantName();
@@ -198,12 +199,14 @@ export function TransferList({ transfers, currency, isRepaid, compact }: Transfe
 													{t(by === "from" ? "transferToLabel" : "transferFromLabel")}{" "}
 													<span className="text-foreground font-medium">{counterpart(tr)}</span>
 												</span>
-												{repaid ? (
-													<span className="text-caption text-muted-foreground inline-flex items-center gap-1">
-														<Check className="size-3" strokeWidth={2.8} aria-hidden="true" />
-														{t("transferRepaid")}
-													</span>
-												) : null}
+												{repaid
+													? (renderSettlement?.(tr) ?? (
+															<span className="text-caption text-muted-foreground inline-flex items-center gap-1">
+																<Check className="size-3" strokeWidth={2.8} aria-hidden="true" />
+																{t("transferRepaid")}
+															</span>
+														))
+													: null}
 											</span>
 											{mine && !repaid ? (
 												<AmountPill amount={tr.amount} currency={currency} direction={mine} />

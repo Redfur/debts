@@ -11,7 +11,7 @@ const params = (text: string) => [...text.matchAll(/{{\s*([^},]+)(?:,[^}]+)?}}/g
 
 test("every translation namespace has complete English keys, interpolation and plural forms", async () => {
 	const files = (await readdir("src", { recursive: true })).filter((file) => file.endsWith("translations.ts"));
-	assert.equal(files.length, 23);
+	assert.equal(files.length, 25);
 	for (const file of files) {
 		const module = await import(pathToFileURL(path.resolve("src", file)).href);
 		const resources = Object.values(module).find(

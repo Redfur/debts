@@ -2,6 +2,7 @@ import { ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { type Debt, type DebtOperation, useDebtStore } from "@/entities/debt";
+import { showContactSettlementDetails } from "@/features/view-contact-settlement";
 import { formatMoney } from "@/shared/lib/format-amount";
 import { formatShortDate } from "@/shared/lib/format-date";
 import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
@@ -20,6 +21,7 @@ export function DebtHistory({ debt, operations, defaultOpen }: Props) {
 	const { t } = useTranslation(CONTACT_DETAIL_NS);
 	const ordered = [...operations].reverse();
 	const bill = useDebtStore((s) => (debt.billId ? s.billsById[debt.billId] : undefined));
+	const settlements = useDebtStore((s) => s.settlementsById);
 	// У «Создание долга» из счёта вместо заметки — «из счёта «<описание>»».
 	const billNote = bill ? t("fromBill", { title: bill.title ?? t("untitledBill") }) : null;
 
@@ -33,6 +35,17 @@ export function DebtHistory({ debt, operations, defaultOpen }: Props) {
 				<ol className="flex flex-col">
 					{ordered.map((op) => {
 						const repayment = op.kind === "repayment";
+						const settlement = op.settlementId ? settlements[op.settlementId] : undefined;
+						const fromSettlement = op.kind === "initial" ? settlement : undefined;
+						const label = t(
+							op.kind === "settlement_close"
+								? "operationSettlement"
+								: fromSettlement
+									? "operationSettlementOrigin"
+									: repayment
+										? "operationRepayment"
+										: "operationInitial",
+						);
 						return (
 							<li key={op.id} className="flex items-start gap-2.5 py-1.5">
 								<span
@@ -47,9 +60,17 @@ export function DebtHistory({ debt, operations, defaultOpen }: Props) {
 									)}
 								/>
 								<span className="flex min-w-0 flex-1 flex-col gap-px">
-									<span className="text-body-s font-semibold">
-										{t(repayment ? "operationRepayment" : "operationInitial")}
-									</span>
+									{settlement ? (
+										<button
+											type="button"
+											className="touch-target text-body-s w-fit text-left font-semibold underline"
+											onClick={() => void showContactSettlementDetails(settlement.id)}
+										>
+											{label}
+										</button>
+									) : (
+										<span className="text-body-s font-semibold">{label}</span>
+									)}
 									<span className="text-caption text-muted-foreground">
 										{[formatShortDate(op.createdAt), repayment ? op.note : (billNote ?? op.note)]
 											.filter(Boolean)
@@ -57,7 +78,9 @@ export function DebtHistory({ debt, operations, defaultOpen }: Props) {
 									</span>
 								</span>
 								<span className="text-body-s font-semibold whitespace-nowrap">
-									{formatMoney(op.amount, debt.currency)}
+									{fromSettlement?.remainder
+										? formatMoney(fromSettlement.remainder.cents / 100, fromSettlement.currency)
+										: formatMoney(op.amount, debt.currency)}
 								</span>
 							</li>
 						);

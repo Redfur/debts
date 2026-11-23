@@ -5,7 +5,14 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { DirectionToggle, ENTITY_DEBT_NS, useDebtCurrencies, useDebtOperations, useDebtStore } from "@/entities/debt";
+import {
+	DirectionToggle,
+	ENTITY_DEBT_NS,
+	hasDebtReductions,
+	useDebtCurrencies,
+	useDebtOperations,
+	useDebtStore,
+} from "@/entities/debt";
 import { COMMON_NS } from "@/shared/i18n";
 import { formatMoney } from "@/shared/lib/format-amount";
 import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
@@ -54,7 +61,8 @@ const EditDebtDialogComponent = NiceModal.create(({ debtId, onOpenBill }: Props)
 	const operations = useDebtOperations(debtId);
 	const bill = useDebtStore((s) => (debt?.billId ? s.billsById[debt.billId] : undefined));
 	// Долг из счёта: направление, сумма и валюта меняются только через счёт.
-	const locked = Boolean(bill) || operations.some((op) => op.kind === "repayment");
+	const locked = Boolean(bill) || hasDebtReductions(operations);
+	const closedBySettlement = operations.some((op) => op.kind === "settlement_close");
 
 	const [direction, setDirection] = useState<DebtDirection>("owed_to_me");
 	const [currency, setCurrency] = useState<CurrencyCode>("RUB");
@@ -127,7 +135,9 @@ const EditDebtDialogComponent = NiceModal.create(({ debtId, onOpenBill }: Props)
 								<div className="bg-secondary text-muted-foreground flex gap-2.5 rounded-[16px] px-3.5 py-3">
 									<Info className="mt-px size-4 shrink-0" aria-hidden="true" />
 									<span className="text-caption">
-										{bill ? t("billHint", { title: bill.title ?? t("untitledBill") }) : t("lockedHint")}
+										{bill
+											? t("billHint", { title: bill.title ?? t("untitledBill") })
+											: t(closedBySettlement ? "settlementHint" : "lockedHint")}
 									</span>
 								</div>
 								{bill && onOpenBill ? (

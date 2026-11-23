@@ -7,6 +7,7 @@ export const contactDetailTranslations = {
 		notFoundBody:
 			"This contact is not on this device. The link may be outdated, or data may have been cleared or replaced with a backup.",
 		addDebtAction: "Add debt",
+		settleAction: "Settle up",
 		difference: "Difference",
 		noRateA11y: "Amount unavailable without exchange rates",
 		sectionOpen: "Open",
@@ -24,6 +25,8 @@ export const contactDetailTranslations = {
 		history_other: "History · {{count}} operations",
 		operationInitial: "Debt created",
 		operationRepayment: "Repayment",
+		operationSettlement: "Closed in a settlement",
+		operationSettlementOrigin: "Created by a settlement",
 		deleteDebtConfirmTitle: "Delete debt?",
 		deleteDebtConfirmBodyNote:
 			"“{{note}}” for {{amount}} and its entire repayment history will be deleted. This cannot be undone.",
@@ -37,6 +40,7 @@ export const contactDetailTranslations = {
 		notFoundBody:
 			"Такого контакта нет на этом устройстве. Возможно, ссылка устарела или данные были очищены либо заменены резервной копией.",
 		addDebtAction: "Добавить долг",
+		settleAction: "Рассчитаться",
 		difference: "Разница",
 		noRateA11y: "Сумма недоступна без курса",
 		sectionOpen: "Открытые",
@@ -56,6 +60,8 @@ export const contactDetailTranslations = {
 		history_other: "История · {{count}} операции",
 		operationInitial: "Создание долга",
 		operationRepayment: "Погашение",
+		operationSettlement: "Закрыт общим расчётом",
+		operationSettlementOrigin: "Возник из расчёта",
 		deleteDebtConfirmTitle: "Удалить долг?",
 		deleteDebtConfirmBodyNote: "«{{note}}» на {{amount}} и вся его история погашений удалятся. Отменить это нельзя.",
 		deleteDebtConfirmBody: "Долг на {{amount}} и вся его история погашений удалятся. Отменить это нельзя.",

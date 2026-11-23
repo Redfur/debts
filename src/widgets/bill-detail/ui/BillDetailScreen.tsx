@@ -23,6 +23,7 @@ import {
 } from "@/entities/debt";
 import { showDeleteBillConfirm } from "@/features/delete-bill";
 import { ToggleBillClosedButton } from "@/features/toggle-bill-closed";
+import { showContactSettlementDetails } from "@/features/view-contact-settlement";
 import { COMMON_NS } from "@/shared/i18n";
 import { PageHeader, PageHeaderBackLink, ScreenBody } from "@/shared/layout";
 import { formatAmount, formatMoney } from "@/shared/lib/format-amount";
@@ -82,11 +83,23 @@ export function BillDetailScreen({ bill, backTo }: Props) {
 	const returned = roundAmount(
 		debts.reduce((acc, d) => acc + d.principalAmount - computeDebtBalance(d, operationsByDebtId[d.id] ?? []), 0),
 	);
+	const settlementByDebtId = new Map(
+		debts.flatMap((debt) => {
+			const closure = operationsByDebtId[debt.id]?.find((op) => op.kind === "settlement_close");
+			return closure ? [[debt.id, closure.settlementId] as const] : [];
+		}),
+	);
+	const hasSettlement = settlementByDebtId.size > 0;
 
 	const myTransfers = transfers.filter((tr) => tr.from === ME_REF || tr.to === ME_REF);
 	const hasOthers = transfers.length > myTransfers.length;
 	const note = (() => {
 		if (status.hasMyDebts) {
+			if (hasSettlement) {
+				return closed
+					? t("noteSettlementClosed", { date: formatShortDate(status.closedAt ?? bill.updatedAt) })
+					: t("noteSettlementOpen");
+			}
 			if (closed) return t("noteClosedAuto", { date: formatShortDate(status.closedAt ?? bill.updatedAt) });
 			if (hasOthers && myTransfers.length === 1) return t("noteOneOfMany");
 			return debts.every((d) => d.direction === "i_owe") ? t("noteIOwe") : t("noteOwedToMe");
@@ -150,14 +163,17 @@ export function BillDetailScreen({ bill, backTo }: Props) {
 						{status.hasMyDebts ? (
 							<div className="mt-2.5 flex flex-col gap-2 border-t pt-3.5">
 								<div className="flex justify-between gap-2 text-sm">
-									<span className="text-muted-foreground">{t("returned")}</span>
+									<span className="text-muted-foreground">{t(hasSettlement ? "settled" : "returned")}</span>
 									<b className="font-semibold tabular-nums">
 										{t("ofTotal", { done: formatAmount(returned), total: money(principal) })}
 									</b>
 								</div>
 								<div
 									role="img"
-									aria-label={t("returnedA11y", { done: money(returned), total: money(principal) })}
+									aria-label={t(hasSettlement ? "settledA11y" : "returnedA11y", {
+										done: money(returned),
+										total: money(principal),
+									})}
 									className="bg-secondary flex h-1.5 overflow-hidden rounded-full"
 								>
 									<span
@@ -189,6 +205,19 @@ export function BillDetailScreen({ bill, backTo }: Props) {
 									transfers={transfers}
 									currency={bill.currency}
 									isRepaid={(tr) => findDebt(tr, debts)?.status === "closed"}
+									renderSettlement={(tr) => {
+										const debt = findDebt(tr, debts);
+										const settlementId = debt && settlementByDebtId.get(debt.id);
+										return settlementId ? (
+											<button
+												type="button"
+												className="touch-target text-caption text-muted-foreground w-fit text-left underline"
+												onClick={() => void showContactSettlementDetails(settlementId)}
+											>
+												{t("transferSettled")}
+											</button>
+										) : null;
+									}}
 								/>
 							</div>
 						)}

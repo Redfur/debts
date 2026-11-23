@@ -2,9 +2,10 @@ import { Plus } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { type Contact, ContactAvatar, computeContactTotals, type Debt, useDebtStore } from "@/entities/debt";
 import { showDeleteBillConfirm } from "@/features/delete-bill";
+import { showSettleContactDialog } from "@/features/settle-contact";
 import { COMMON_NS } from "@/shared/i18n";
 import { PageHeader, PageHeaderBackLink, ScreenBody } from "@/shared/layout";
 import { useDisplayCurrency } from "@/shared/lib/currency-preference";
@@ -92,6 +93,9 @@ export function ContactDetailScreen({ contact }: Props) {
 					<ContactSummary totals={totals} displayCurrency={displayCurrency} />
 					{open.length > 0 ? (
 						<section className="flex flex-col gap-3">
+							<Button variant="outline" className="self-start" onClick={() => void showSettleContactDialog(contact.id)}>
+								{t("settleAction")}
+							</Button>
 							<h2 className="text-heading mx-1 mt-1.5 lg:text-[20px] lg:leading-7">
 								{t("sectionOpen")} <span className="text-muted-foreground font-medium">{open.length}</span>
 							</h2>

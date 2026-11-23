@@ -15,6 +15,7 @@ import type {
 	ExchangeRatesCache,
 	PersistedBill,
 	PersistedContact,
+	PersistedContactSettlement,
 	PersistedDebt,
 	PersistedDebtOperation,
 } from "@/shared/lib/storage";
@@ -27,7 +28,14 @@ import {
 	validateBill,
 } from "./bill/compute-bill";
 import { type BillDraft, MAX_EXTRA_PEOPLE, ME_REF } from "./bill/types";
-import { computeDebtBalance } from "./compute-debt-balance";
+import {
+	computeSettlementBasis,
+	computeSettlementRemainder,
+	type SettlementBasis,
+	type SettlementTransfer,
+	sameSettlementBasis,
+} from "./compute-contact-settlement";
+import { computeDebtBalance, hasDebtReductions } from "./compute-debt-balance";
 
 function contactsToRecord(rows: PersistedContact[]): Record<string, PersistedContact> {
 	return Object.fromEntries(rows.map((r) => [r.id, r]));
@@ -212,6 +220,7 @@ type DebtState = {
 	debtsById: Record<string, PersistedDebt>;
 	operationsByDebtId: Record<string, PersistedDebtOperation[]>;
 	billsById: Record<string, PersistedBill>;
+	settlementsById: Record<string, PersistedContactSettlement>;
 	ratesCache: ExchangeRatesCache | null;
 	ratesFetchError: string | null;
 	hydrated: boolean;
@@ -221,6 +230,12 @@ type DebtState = {
 	createDebt: (input: CreateDebtInput, draftId?: string) => Promise<string | undefined>;
 	updateDebt: (id: string, patch: UpdateDebtInput) => Promise<boolean>;
 	addRepayment: (debtId: string, amount: number, note?: string) => Promise<boolean>;
+	settleContact: (
+		contactId: string,
+		currency: CurrencyCode,
+		expected: SettlementBasis,
+		transfer: SettlementTransfer | null,
+	) => Promise<"saved" | "changed" | "error">;
 	deleteDebt: (id: string) => Promise<boolean>;
 	createBill: (input: BillInput, draftId?: string) => Promise<string | undefined>;
 	/** Пока по долгам счёта нет погашений, меняется всё; после — только описание (иначе отказ). */
@@ -237,6 +252,7 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 	debtsById: {},
 	operationsByDebtId: {},
 	billsById: {},
+	settlementsById: {},
 	ratesCache: null,
 	ratesFetchError: null,
 	hydrated: false,
@@ -247,20 +263,15 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 	hydrate: async () => {
 		const storage = getStorageAdapter();
 		try {
-			const [contacts, debts, operations, bills, meta] = await Promise.all([
-				storage.getAllContacts(),
-				storage.getAllDebts(),
-				storage.getAllDebtOperations(),
-				storage.getAllBills(),
-				storage.getMeta(),
-			]);
+			const { contacts, debts, debtOperations, bills, contactSettlements, meta } = await storage.readAll();
 			set({
 				contactsById: contactsToRecord(contacts),
 				// Долги, записанные до появления счетов, не имеют поля billId.
 				debtsById: debtsToRecord(debts.map((d) => ({ ...d, billId: d.billId ?? null }))),
-				operationsByDebtId: groupOperationsByDebt(operations),
+				operationsByDebtId: groupOperationsByDebt(debtOperations),
 				// Счета, записанные до деления по чеку, не имеют полей items, discount и tips.
 				billsById: Object.fromEntries(bills.map((b) => [b.id, normalizeBill(b)])),
+				settlementsById: Object.fromEntries(contactSettlements.map((settlement) => [settlement.id, settlement])),
 				ratesCache: meta.ratesCache,
 				hydrated: true,
 				lastError: null,
@@ -360,7 +371,7 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 		const debt = get().debtsById[id];
 		if (!debt) return false;
 		const prevOperations = get().operationsByDebtId[id] ?? [];
-		const hasRepayment = prevOperations.some((op) => op.kind === "repayment");
+		const hasRepayment = hasDebtReductions(prevOperations);
 
 		const now = new Date().toISOString();
 		const updatedDebt: PersistedDebt = { ...debt, updatedAt: now };
@@ -392,8 +403,7 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 
 		try {
 			const storage = getStorageAdapter();
-			await storage.putDebt(updatedDebt);
-			if (updatedInitialOp) await storage.putDebtOperation(updatedInitialOp);
+			await storage.updateDebt(updatedDebt, debt, updatedInitialOp);
 			return true;
 		} catch (e) {
 			const message = e instanceof Error ? e.message : String(e);
@@ -437,8 +447,7 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 
 		try {
 			const storage = getStorageAdapter();
-			await storage.putDebtOperation(operationRow);
-			await storage.putDebt(updatedDebt);
+			await storage.updateDebt(updatedDebt, debt, operationRow);
 			return true;
 		} catch (e) {
 			const message = e instanceof Error ? e.message : String(e);
@@ -448,6 +457,81 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 				lastError: message,
 			}));
 			return false;
+		}
+	},
+
+	settleContact: async (contactId, currency, expected, transfer) => {
+		try {
+			const committed = await getStorageAdapter().commitContactSettlement(contactId, (rows, operations) => {
+				const basis = computeSettlementBasis(contactId, currency, rows, groupOperationsByDebt(operations));
+				if (!sameSettlementBasis(basis, expected)) return null;
+				const remainder = computeSettlementRemainder(basis, transfer);
+				if (remainder === undefined) return null;
+
+				const id = generateId();
+				const now = new Date().toISOString();
+				const debts: PersistedDebt[] = basis.debts.map(({ debt }) => ({
+					...debt,
+					closedAt: now,
+					updatedAt: now,
+					status: "closed",
+				}));
+				const nextOperations: PersistedDebtOperation[] = basis.debts.map(({ debt, balanceCents }) => ({
+					id: generateId(),
+					debtId: debt.id,
+					kind: "settlement_close",
+					settlementId: id,
+					amount: fromCents(balanceCents),
+					createdAt: now,
+					note: null,
+				}));
+				const resultDebt =
+					remainder &&
+					buildDebtRow(contactId, remainder.direction, currency, fromCents(remainder.cents), null, now, null);
+				if (resultDebt) {
+					debts.push(resultDebt);
+					nextOperations.push({
+						...buildInitialOperation(resultDebt.id, resultDebt.principalAmount, now),
+						kind: "initial",
+						settlementId: id,
+					});
+				}
+				return {
+					settlement: {
+						id,
+						createdAt: now,
+						contactId,
+						currency,
+						owedToMeCents: basis.owedToMeCents,
+						iOweCents: basis.iOweCents,
+						transfer: transfer?.cents ? transfer : null,
+						debts: basis.debts.map(({ debt, balanceCents }) => ({
+							debtId: debt.id,
+							billId: debt.billId ?? null,
+							label: debt.note ?? null,
+							direction: debt.direction,
+							cents: balanceCents,
+						})),
+						remainder: remainder && resultDebt ? { ...remainder, debtId: resultDebt.id } : null,
+					},
+					debts,
+					operations: nextOperations,
+				};
+			});
+			if (!committed) {
+				await get().hydrate();
+				return "changed";
+			}
+			set((state) => ({
+				debtsById: { ...state.debtsById, ...debtsToRecord(committed.debts) },
+				operationsByDebtId: { ...state.operationsByDebtId, ...groupOperationsByDebt(committed.operations) },
+				settlementsById: { ...state.settlementsById, [committed.settlement.id]: committed.settlement },
+				lastError: null,
+			}));
+			return "saved";
+		} catch (error) {
+			set({ lastError: error instanceof Error ? error.message : String(error) });
+			return "error";
 		}
 	},
 
@@ -465,7 +549,7 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 		});
 
 		try {
-			await getStorageAdapter().deleteDebt(id);
+			removeSettlementSnapshots(await getStorageAdapter().deleteDebt(id));
 			return true;
 		} catch (e) {
 			const message = e instanceof Error ? e.message : String(e);
@@ -526,7 +610,7 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 		if (!prev) return false;
 		const { debtsById, operationsByDebtId, contactsById } = get();
 		const prevDebts = selectBillDebts(debtsById, id);
-		const hasRepayments = prevDebts.some((d) => (operationsByDebtId[d.id] ?? []).some((op) => op.kind === "repayment"));
+		const hasRepayments = prevDebts.some((d) => hasDebtReductions(operationsByDebtId[d.id] ?? []));
 		const now = new Date().toISOString();
 		const note = input.title.trim() || null;
 		const draft = prepareBillDraft(input);
@@ -544,7 +628,7 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 			const bill: PersistedBill = { ...prev, title: note, updatedAt: now };
 			const debts = prevDebts.map((d) => ({ ...d, note, updatedAt: now }));
 			return commitBillPatch({ bills: { [id]: bill }, debts: Object.fromEntries(debts.map((d) => [d.id, d])) }, () =>
-				getStorageAdapter().putBillWithDebts(bill, debts, [], []),
+				getStorageAdapter().putBillWithDebts(bill, debts, [], [], undefined, { bill: prev, debts: prevDebts }),
 			);
 		}
 
@@ -610,16 +694,20 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 				},
 				operations: operationsPatch,
 			},
-			() => getStorageAdapter().putBillWithDebts(bill, upsertDebts, upsertOperations, deleteDebtIds),
+			() =>
+				getStorageAdapter().putBillWithDebts(bill, upsertDebts, upsertOperations, deleteDebtIds, undefined, {
+					bill: prev,
+					debts: prevDebts,
+				}),
 		);
 	},
 
 	deleteBill: async (id: string) => {
 		if (!get().billsById[id]) return false;
 		const removed = Object.fromEntries(selectBillDebts(get().debtsById, id).map((d) => [d.id, undefined]));
-		return commitBillPatch({ bills: { [id]: undefined }, debts: removed, operations: removed }, () =>
-			getStorageAdapter().deleteBillCascade(id),
-		);
+		return commitBillPatch({ bills: { [id]: undefined }, debts: removed, operations: removed }, async () => {
+			removeSettlementSnapshots(await getStorageAdapter().deleteBillCascade(id));
+		});
 	},
 
 	setBillManualClosed: async (id: string, closed: boolean) => {
@@ -627,7 +715,9 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 		if (!prev || selectBillDebts(get().debtsById, id).length > 0) return false;
 		const now = new Date().toISOString();
 		const bill: PersistedBill = { ...prev, manualClosedAt: closed ? now : null, updatedAt: now };
-		return commitBillPatch({ bills: { [id]: bill } }, () => getStorageAdapter().putBillWithDebts(bill, [], [], []));
+		return commitBillPatch({ bills: { [id]: bill } }, () =>
+			getStorageAdapter().putBillWithDebts(bill, [], [], [], undefined, { bill: prev, debts: [] }),
+		);
 	},
 
 	refreshRatesIfStale: async (force = false) => {
@@ -644,6 +734,15 @@ export const useDebtStore = create<DebtState>((set, get) => ({
 		}
 	},
 }));
+
+function removeSettlementSnapshots(ids: string[]): void {
+	if (!ids.length) return;
+	useDebtStore.setState(({ settlementsById }) => {
+		const remaining = { ...settlementsById };
+		for (const id of ids) delete remaining[id];
+		return { settlementsById: remaining };
+	});
+}
 
 /** Оптимистично применяет патч, пишет в хранилище и при ошибке откатывает только затронутые записи. */
 async function commitBillPatch(patch: BillPatch, write: () => Promise<void>): Promise<boolean> {

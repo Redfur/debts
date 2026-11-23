@@ -2,6 +2,7 @@ export const EDIT_DEBT_NS = "edit-debt";
 
 export const editDebtTranslations = {
 	en: {
+		settlementHint: "This debt was closed in a settlement. Only the note can be changed.",
 		title: "Edit debt",
 		directionLabel: "Direction",
 		amountLabel: "Amount",
@@ -18,6 +19,7 @@ export const editDebtTranslations = {
 		errorGeneric: "Could not save. Please try again.",
 	},
 	ru: {
+		settlementHint: "Долг закрыт общим расчётом. Можно изменить только заметку.",
 		title: "Изменить долг",
 		directionLabel: "Направление",
 		amountLabel: "Сумма",

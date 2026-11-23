@@ -3,6 +3,7 @@ export const CREATE_BILL_NS = "create-bill";
 /** Имена — только в именительном падеже, после двоеточия или в перечне; глаголы без рода (spec «Имена в текстах счёта»). */
 export const createBillTranslations = {
 	en: {
+		lockedSettlementNote: "A debt in this bill was closed in a settlement. Only the description can be changed.",
 		titleCreate: "Split a bill",
 		titleEdit: "Edit bill",
 		step1: "1 of 2",
@@ -182,6 +183,7 @@ export const createBillTranslations = {
 		saveError: "Could not save. Please try again.",
 	},
 	ru: {
+		lockedSettlementNote: "Долг из этого счёта закрыт общим расчётом. Можно изменить только описание.",
 		titleCreate: "Разделить счёт",
 		titleEdit: "Изменить счёт",
 		step1: "1 из 2",

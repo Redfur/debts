@@ -30,9 +30,14 @@ export type {
 } from "./model/bill/types";
 export { MAX_EXTRA_PEOPLE, ME_REF } from "./model/bill/types";
 export { useBillDebts } from "./model/bill/use-bill-debts";
+export {
+	computeSettlementBasis,
+	computeSettlementRemainder,
+	type SettlementTransfer,
+} from "./model/compute-contact-settlement";
 export { computeContactSummary } from "./model/compute-contact-summary";
 export { computeContactTotals } from "./model/compute-contact-totals";
-export { computeDebtBalance } from "./model/compute-debt-balance";
+export { computeDebtBalance, hasDebtReductions } from "./model/compute-debt-balance";
 export { computeNetPosition } from "./model/compute-net-position";
 export { computeGlobalTotals } from "./model/compute-totals";
 export { contactMatchesFilter, countContactsByDirection } from "./model/count-contacts-by-direction";

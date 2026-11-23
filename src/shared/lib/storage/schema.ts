@@ -22,7 +22,7 @@ export type PersistedDebt = {
 	contactId: string;
 	direction: DebtDirection;
 	currency: CurrencyCode;
-	/** Исходная сумма долга; текущий остаток = principalAmount − сумма repayment-операций. */
+	/** Исходная сумма долга; остаток уменьшают погашения и закрытие общим расчётом. */
 	principalAmount: number;
 	note: string | null;
 	status: DebtStatus;
@@ -33,15 +33,31 @@ export type PersistedDebt = {
 	billId: string | null;
 };
 
-type DebtOperationKind = "initial" | "repayment";
-
-export type PersistedDebtOperation = {
+type DebtOperationFields = {
 	id: string;
 	debtId: string;
-	kind: DebtOperationKind;
 	amount: number;
 	note: string | null;
 	createdAt: string;
+};
+
+export type PersistedDebtOperation = DebtOperationFields &
+	(
+		| { kind: "initial"; settlementId?: string }
+		| { kind: "repayment"; settlementId?: never }
+		| { kind: "settlement_close"; settlementId: string }
+	);
+
+export type PersistedContactSettlement = {
+	id: string;
+	createdAt: string;
+	contactId: string;
+	currency: CurrencyCode;
+	owedToMeCents: number;
+	iOweCents: number;
+	transfer: { direction: "sent" | "received"; cents: number } | null;
+	debts: { debtId: string; billId: string | null; label: string | null; direction: DebtDirection; cents: number }[];
+	remainder: { debtId: string; direction: DebtDirection; cents: number } | null;
 };
 
 export type BillSplitMode = "equal" | "shares" | "amounts" | "items";

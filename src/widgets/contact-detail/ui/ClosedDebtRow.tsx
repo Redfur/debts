@@ -51,8 +51,12 @@ export function ClosedDebtRow({ debt, operations, onDelete }: Props) {
 						<span className="text-body font-medium break-words">{debt.note || t("untitledDebt")}</span>
 						<span className="text-caption text-muted-foreground">{summary}</span>
 					</span>
-					<span className="flex shrink-0 items-center gap-1.5">
-						<DebtStatusBadge />
+					<span className="flex min-w-0 items-center gap-1.5">
+						{operations.some((op) => op.kind === "settlement_close") ? (
+							<span className="text-caption text-muted-foreground text-right">{t("operationSettlement")}</span>
+						) : (
+							<DebtStatusBadge />
+						)}
 						<ChevronDown
 							className="text-muted-foreground size-4 transition-transform group-data-[state=open]:rotate-180"
 							aria-hidden="true"

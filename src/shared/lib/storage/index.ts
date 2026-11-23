@@ -31,6 +31,7 @@ export type {
 	PayerMode,
 	PersistedBill,
 	PersistedContact,
+	PersistedContactSettlement,
 	PersistedDebt,
 	PersistedDebtOperation,
 } from "./schema";

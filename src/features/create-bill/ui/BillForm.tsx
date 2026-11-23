@@ -41,6 +41,7 @@ type Props = {
 	bill?: Bill;
 	/** По долгам счёта есть погашения: меняется только «За что». */
 	locked?: boolean;
+	closedBySettlement?: boolean;
 	onSaved: (billId: string) => void;
 	onCancel: () => void;
 	onDelete?: () => void;
@@ -53,7 +54,7 @@ type Props = {
  * От 1024 px — две колонки с «Назад» (при редактировании — «Отмена») и «Сохранить счёт» в шапке. После погашений — один экран, где меняется только
  * «За что».
  */
-export function BillForm({ bill, locked = false, onSaved, onCancel, onDelete }: Props) {
+export function BillForm({ bill, locked = false, closedBySettlement = false, onSaved, onCancel, onDelete }: Props) {
 	useLocalizationPreferences();
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
@@ -236,7 +237,7 @@ export function BillForm({ bill, locked = false, onSaved, onCancel, onDelete }: 
 							className="bg-card text-muted-foreground shadow-card flex gap-2.5 rounded-[16px] px-3.5 py-3 lg:max-w-[calc(50%-10px)]"
 						>
 							<Lock className="mt-px size-[18px] shrink-0" aria-hidden="true" />
-							<span className="text-caption">{t("lockedNote")}</span>
+							<span className="text-caption">{t(closedBySettlement ? "lockedSettlementNote" : "lockedNote")}</span>
 						</div>
 					) : null}
 

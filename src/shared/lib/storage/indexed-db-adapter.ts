@@ -5,14 +5,15 @@ import type {
 	CreationDraftKind,
 	PersistedBill,
 	PersistedContact,
+	PersistedContactSettlement,
 	PersistedDebt,
 	PersistedDebtOperation,
 	PersistedMeta,
 } from "./schema";
 
 const DB_NAME = "debts";
-const DB_VERSION = 3;
-const CURRENT_SCHEMA_VERSION = 3;
+const DB_VERSION = 4;
+const CURRENT_SCHEMA_VERSION = 4;
 
 type MetaRow = PersistedMeta & { key: string };
 
@@ -30,8 +31,9 @@ interface DebtsDBSchema extends DBSchema {
 	debtOperations: {
 		key: string;
 		value: PersistedDebtOperation;
-		indexes: { "by-debtId": string };
+		indexes: { "by-debtId": string; "by-settlementId": string };
 	};
+	contactSettlements: { key: string; value: PersistedContactSettlement };
 	bills: {
 		key: string;
 		value: PersistedBill;
@@ -62,6 +64,10 @@ function getDb(): Promise<IDBPDatabase<DebtsDBSchema>> {
 					tx.objectStore("debts").createIndex("by-billId", "billId");
 				}
 				if (oldVersion < 3) database.createObjectStore("creationDrafts", { keyPath: "kind" });
+				if (oldVersion < 4) {
+					database.createObjectStore("contactSettlements", { keyPath: "id" });
+					tx.objectStore("debtOperations").createIndex("by-settlementId", "settlementId");
+				}
 			},
 			blocking() {
 				// Другой клиент удаляет или обновляет БД — отпускаем соединение, чтобы не держать его.
@@ -81,6 +87,17 @@ async function closeDb(): Promise<void> {
 
 const META_KEY = "app";
 
+function sameDebt(current: PersistedDebt | undefined, expected: PersistedDebt): boolean {
+	return (
+		current?.updatedAt === expected.updatedAt &&
+		current.status === expected.status &&
+		current.principalAmount === expected.principalAmount &&
+		current.direction === expected.direction &&
+		current.currency === expected.currency &&
+		current.note === expected.note
+	);
+}
+
 /** Синхронное исключение внутри транзакции (например, DataError у `put`) её не отменяет — отменяем сами. */
 async function commitOrAbort(tx: { done: Promise<void>; abort(): void }, write: () => Promise<void>): Promise<void> {
 	try {
@@ -95,6 +112,38 @@ async function commitOrAbort(tx: { done: Promise<void>; abort(): void }, write: 
 		throw e;
 	}
 	await tx.done;
+}
+
+const debtDeletionStores = ["debts", "debtOperations", "bills", "contactSettlements"] as const;
+
+async function deleteDebtsAndOrphanedSettlements(
+	db: IDBPDatabase<DebtsDBSchema>,
+	debtId: string | null,
+	billId: string | null,
+): Promise<string[]> {
+	const tx = db.transaction(debtDeletionStores, "readwrite");
+	const debts = tx.objectStore("debts");
+	const operations = tx.objectStore("debtOperations");
+	const removed: string[] = [];
+	await commitOrAbort(tx, async () => {
+		const ids = billId ? await debts.index("by-billId").getAllKeys(billId) : debtId ? [debtId] : [];
+		const candidates = new Set<string>();
+		for (const id of ids) {
+			for (const operation of await operations.index("by-debtId").getAll(id)) {
+				if (operation.settlementId) candidates.add(operation.settlementId);
+				await operations.delete(operation.id);
+			}
+			await debts.delete(id);
+		}
+		if (billId) await tx.objectStore("bills").delete(billId);
+		for (const id of candidates) {
+			if (!(await operations.index("by-settlementId").count(id))) {
+				await tx.objectStore("contactSettlements").delete(id);
+				removed.push(id);
+			}
+		}
+	});
+	return removed;
 }
 
 function createIndexedDbStorageAdapter(): StorageAdapter {
@@ -143,22 +192,19 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 			return db.getAll("debts");
 		},
 
-		async putDebt(debt: PersistedDebt) {
+		async updateDebt(debt, previous, operation) {
 			const db = await getDb();
-			await db.put("debts", debt);
+			const tx = db.transaction(["debts", "debtOperations"], "readwrite");
+			await commitOrAbort(tx, async () => {
+				const debts = tx.objectStore("debts");
+				if (!sameDebt(await debts.get(debt.id), previous)) throw new Error("Debt changed before saving");
+				await debts.put(debt);
+				if (operation) await tx.objectStore("debtOperations").put(operation);
+			});
 		},
 
 		async deleteDebt(id: string) {
-			const db = await getDb();
-			const tx = db.transaction(["debts", "debtOperations"], "readwrite");
-			const operationsStore = tx.objectStore("debtOperations");
-			const operationsIndex = operationsStore.index("by-debtId");
-			const operations = await operationsIndex.getAllKeys(id);
-			for (const operationId of operations) {
-				await operationsStore.delete(operationId);
-			}
-			await tx.objectStore("debts").delete(id);
-			await tx.done;
+			return deleteDebtsAndOrphanedSettlements(await getDb(), id, null);
 		},
 
 		async getAllBills() {
@@ -166,13 +212,25 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 			return db.getAll("bills");
 		},
 
-		async putBillWithDebts(bill, upsertDebts, upsertOperations, deleteDebtIds, draftId) {
+		async putBillWithDebts(bill, upsertDebts, upsertOperations, deleteDebtIds, draftId, expected) {
 			const db = await getDb();
 			const tx = db.transaction(["bills", "debts", "debtOperations", "creationDrafts"], "readwrite");
 			const debtsStore = tx.objectStore("debts");
 			const operationsStore = tx.objectStore("debtOperations");
 			const operationsIndex = operationsStore.index("by-debtId");
 			await commitOrAbort(tx, async () => {
+				if (expected) {
+					const currentBill = await tx.objectStore("bills").get(bill.id);
+					const currentDebts = await debtsStore.index("by-billId").getAll(bill.id);
+					const byId = new Map(currentDebts.map((debt) => [debt.id, debt]));
+					if (
+						currentBill?.updatedAt !== expected.bill.updatedAt ||
+						byId.size !== expected.debts.length ||
+						expected.debts.some((debt) => !sameDebt(byId.get(debt.id), debt))
+					) {
+						throw new Error("Bill changed before saving");
+					}
+				}
 				await tx.objectStore("bills").put(bill);
 				const current = await tx.objectStore("creationDrafts").get("bill");
 				if (draftId && current?.id === draftId) await tx.objectStore("creationDrafts").delete("bill");
@@ -192,20 +250,7 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 		},
 
 		async deleteBillCascade(billId: string) {
-			const db = await getDb();
-			const tx = db.transaction(["bills", "debts", "debtOperations"], "readwrite");
-			const debtsStore = tx.objectStore("debts");
-			const operationsStore = tx.objectStore("debtOperations");
-			const operationsIndex = operationsStore.index("by-debtId");
-			await commitOrAbort(tx, async () => {
-				for (const debtId of await debtsStore.index("by-billId").getAllKeys(billId)) {
-					for (const operationId of await operationsIndex.getAllKeys(debtId)) {
-						await operationsStore.delete(operationId);
-					}
-					await debtsStore.delete(debtId);
-				}
-				await tx.objectStore("bills").delete(billId);
-			});
+			return deleteDebtsAndOrphanedSettlements(await getDb(), null, billId);
 		},
 
 		async getAllDebtOperations() {
@@ -213,9 +258,39 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 			return db.getAll("debtOperations");
 		},
 
-		async putDebtOperation(operation: PersistedDebtOperation) {
+		async getAllContactSettlements() {
+			return (await getDb()).getAll("contactSettlements");
+		},
+
+		async commitContactSettlement(contactId, prepare) {
 			const db = await getDb();
-			await db.put("debtOperations", operation);
+			const tx = db.transaction(["contacts", "debts", "debtOperations", "contactSettlements"], "readwrite");
+			const debtStore = tx.objectStore("debts");
+			const operationStore = tx.objectStore("debtOperations");
+			const { result } = await (async () => {
+				let result: ReturnType<typeof prepare> = null;
+				await commitOrAbort(tx, async () => {
+					if (!(await tx.objectStore("contacts").get(contactId))) return;
+					const debts = await debtStore.index("by-contactId").getAll(contactId);
+					const active = debts.filter((debt) => debt.status === "active");
+					const operations = await Promise.all(active.map((debt) => operationStore.index("by-debtId").getAll(debt.id)));
+					result = prepare(active, operations.flat());
+					if (!result) return;
+					await tx.objectStore("contactSettlements").add(result.settlement);
+					for (const debt of result.debts) await debtStore.put(debt);
+					for (const operation of result.operations) await operationStore.add(operation);
+					const changedIds = new Set(result.debts.map((debt) => debt.id));
+					result = {
+						...result,
+						operations: [
+							...operations.flat().filter((operation) => changedIds.has(operation.debtId)),
+							...result.operations,
+						],
+					};
+				});
+				return { result };
+			})();
+			return result;
 		},
 
 		async getMeta() {
@@ -231,10 +306,32 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 			await db.put("meta", { key: META_KEY, ...meta, schemaVersion: CURRENT_SCHEMA_VERSION });
 		},
 
-		async replaceAll({ contacts, debts, debtOperations, bills, meta }) {
+		async readAll() {
+			const db = await getDb();
+			const tx = db.transaction(["contacts", "debts", "debtOperations", "bills", "meta", "contactSettlements"]);
+			const [contacts, debts, debtOperations, bills, row, contactSettlements] = await Promise.all([
+				tx.objectStore("contacts").getAll(),
+				tx.objectStore("debts").getAll(),
+				tx.objectStore("debtOperations").getAll(),
+				tx.objectStore("bills").getAll(),
+				tx.objectStore("meta").get(META_KEY),
+				tx.objectStore("contactSettlements").getAll(),
+				tx.done,
+			]);
+			return {
+				contacts,
+				debts,
+				debtOperations,
+				bills,
+				contactSettlements,
+				meta: { schemaVersion: CURRENT_SCHEMA_VERSION, ratesCache: row?.ratesCache ?? null },
+			};
+		},
+
+		async replaceAll({ contacts, debts, debtOperations, bills, contactSettlements, meta }) {
 			const db = await getDb();
 			const tx = db.transaction(
-				["contacts", "debts", "debtOperations", "bills", "meta", "creationDrafts"],
+				["contacts", "debts", "debtOperations", "bills", "meta", "contactSettlements", "creationDrafts"],
 				"readwrite",
 			);
 			const contactsStore = tx.objectStore("contacts");
@@ -249,10 +346,12 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 				await operationsStore.clear();
 				await billsStore.clear();
 				await metaStore.clear();
+				await tx.objectStore("contactSettlements").clear();
 				for (const row of contacts) await contactsStore.put(row);
 				for (const row of debts) await debtsStore.put(row);
 				for (const row of debtOperations) await operationsStore.put(row);
 				for (const row of bills) await billsStore.put(row);
+				for (const row of contactSettlements) await tx.objectStore("contactSettlements").put(row);
 				await metaStore.put({ key: META_KEY, ...meta, schemaVersion: CURRENT_SCHEMA_VERSION });
 			});
 		},

@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { useBillDebts, useDebtStore } from "@/entities/debt";
+import { hasDebtReductions, useBillDebts, useDebtStore } from "@/entities/debt";
 import { BillForm } from "@/features/create-bill";
 import { BillDetailSkeleton, BillNotFound } from "@/widgets/bill-detail";
 
@@ -15,13 +15,14 @@ export function EditBillPage() {
 	if (!hydrated) return <BillDetailSkeleton />;
 	if (!bill) return <BillNotFound />;
 
-	const locked = debts.some((d) => (operationsByDebtId[d.id] ?? []).some((op) => op.kind === "repayment"));
+	const locked = debts.some((d) => hasDebtReductions(operationsByDebtId[d.id] ?? []));
+	const closedBySettlement = debts.some((d) => operationsByDebtId[d.id]?.some((op) => op.kind === "settlement_close"));
 	// Открыта с экрана счёта — вернуться назад по истории; по прямой ссылке — на экран счёта.
 	const close = () => (location.key === "default" ? navigate(`/bills/${bill.id}`, { replace: true }) : navigate(-1));
 
 	return (
 		<div className="animate-in fade-in flex flex-1 flex-col duration-300">
-			<BillForm bill={bill} locked={locked} onSaved={close} onCancel={close} />
+			<BillForm bill={bill} locked={locked} closedBySettlement={closedBySettlement} onSaved={close} onCancel={close} />
 		</div>
 	);
 }
