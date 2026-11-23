@@ -113,11 +113,11 @@ function keepRefs(items: FormItem[], refs: string[]): FormItem[] {
 	);
 }
 
-export function createEmptyBillForm(): BillFormState {
+export function createEmptyBillForm(currency: CurrencyCode): BillFormState {
 	return {
 		entry: "sum",
 		amount: "",
-		currency: "RUB",
+		currency,
 		title: "",
 		participants: [newParticipant(ME_REF)],
 		payerMode: "one",

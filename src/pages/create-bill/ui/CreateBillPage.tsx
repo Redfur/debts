@@ -19,14 +19,17 @@ export function CreateBillPage() {
 	return (
 		<div className="animate-in fade-in flex flex-1 flex-col duration-300">
 			<CreationDraftGate kind="bill" onBack={leave} onDelete={remove}>
-				<BillForm
-					// После сохранения «назад» не возвращает в форму.
-					onSaved={(billId) => navigate(`/bills/${billId}`, { replace: true, state: billState })}
-					onCancel={() => {
-						void leaveCreationDraft("bill", leave);
-					}}
-					onDelete={remove}
-				/>
+				{(currency) => (
+					<BillForm
+						initialCurrency={currency}
+						// После сохранения «назад» не возвращает в форму.
+						onSaved={(billId) => navigate(`/bills/${billId}`, { replace: true, state: billState })}
+						onCancel={() => {
+							void leaveCreationDraft("bill", leave);
+						}}
+						onDelete={remove}
+					/>
+				)}
 			</CreationDraftGate>
 		</div>
 	);

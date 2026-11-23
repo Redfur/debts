@@ -1,8 +1,10 @@
 import { type DBSchema, deleteDB, type IDBPDatabase, openDB } from "idb";
+import { isSupportedCurrency } from "../../config/currencies";
 import type { StorageAdapter } from "./contract";
 import type {
 	CreationDraft,
 	CreationDraftKind,
+	CurrencyCode,
 	PersistedBill,
 	PersistedContact,
 	PersistedContactSettlement,
@@ -15,7 +17,11 @@ const DB_NAME = "debts";
 const DB_VERSION = 4;
 const CURRENT_SCHEMA_VERSION = 4;
 
-type MetaRow = PersistedMeta & { key: string };
+const META_KEY = "app";
+const LAST_CREATION_CURRENCY_KEY = "lastCreationCurrency";
+type MetaRow =
+	| (PersistedMeta & { key: typeof META_KEY })
+	| { key: typeof LAST_CREATION_CURRENCY_KEY; currency: CurrencyCode };
 
 interface DebtsDBSchema extends DBSchema {
 	creationDrafts: { key: CreationDraftKind; value: CreationDraft };
@@ -85,8 +91,6 @@ async function closeDb(): Promise<void> {
 	db?.close();
 }
 
-const META_KEY = "app";
-
 function sameDebt(current: PersistedDebt | undefined, expected: PersistedDebt): boolean {
 	return (
 		current?.updatedAt === expected.updatedAt &&
@@ -151,6 +155,22 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 		async getCreationDraft(kind) {
 			return (await getDb()).get("creationDrafts", kind);
 		},
+		async readCreationCurrencyBasis() {
+			const db = await getDb();
+			const tx = db.transaction(["meta", "debts", "bills", "debtOperations"]);
+			const row = await tx.objectStore("meta").get(LAST_CREATION_CURRENCY_KEY);
+			if (row?.key === LAST_CREATION_CURRENCY_KEY && isSupportedCurrency(row.currency)) {
+				await tx.done;
+				return { remembered: row.currency };
+			}
+			const [debts, bills, debtOperations] = await Promise.all([
+				tx.objectStore("debts").getAll(),
+				tx.objectStore("bills").getAll(),
+				tx.objectStore("debtOperations").getAll(),
+				tx.done,
+			]);
+			return { debts, bills, debtOperations };
+		},
 		async putCreationDraft(draft) {
 			const db = await getDb();
 			const tx = db.transaction("creationDrafts", "readwrite");
@@ -169,12 +189,13 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 		},
 		async putDebtWithOperation(debt, operation, draftId) {
 			const db = await getDb();
-			const tx = db.transaction(["debts", "debtOperations", "creationDrafts"], "readwrite");
+			const tx = db.transaction(["debts", "debtOperations", "creationDrafts", "meta"], "readwrite");
 			await commitOrAbort(tx, async () => {
 				await tx.objectStore("debts").put(debt);
 				await tx.objectStore("debtOperations").put(operation);
 				const current = await tx.objectStore("creationDrafts").get("debt");
 				if (draftId && current?.id === draftId) await tx.objectStore("creationDrafts").delete("debt");
+				await tx.objectStore("meta").put({ key: LAST_CREATION_CURRENCY_KEY, currency: debt.currency });
 			});
 		},
 		async getAllContacts() {
@@ -214,7 +235,7 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 
 		async putBillWithDebts(bill, upsertDebts, upsertOperations, deleteDebtIds, draftId, expected) {
 			const db = await getDb();
-			const tx = db.transaction(["bills", "debts", "debtOperations", "creationDrafts"], "readwrite");
+			const tx = db.transaction(["bills", "debts", "debtOperations", "creationDrafts", "meta"], "readwrite");
 			const debtsStore = tx.objectStore("debts");
 			const operationsStore = tx.objectStore("debtOperations");
 			const operationsIndex = operationsStore.index("by-debtId");
@@ -246,6 +267,7 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 				for (const operation of upsertOperations) {
 					await operationsStore.put(operation);
 				}
+				if (!expected) await tx.objectStore("meta").put({ key: LAST_CREATION_CURRENCY_KEY, currency: bill.currency });
 			});
 		},
 
@@ -296,7 +318,7 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 		async getMeta() {
 			const db = await getDb();
 			const row = await db.get("meta", META_KEY);
-			return row
+			return row?.key === META_KEY
 				? { schemaVersion: CURRENT_SCHEMA_VERSION, ratesCache: row.ratesCache }
 				: { schemaVersion: CURRENT_SCHEMA_VERSION, ratesCache: null };
 		},
@@ -324,7 +346,7 @@ function createIndexedDbStorageAdapter(): StorageAdapter {
 				debtOperations,
 				bills,
 				contactSettlements,
-				meta: { schemaVersion: CURRENT_SCHEMA_VERSION, ratesCache: row?.ratesCache ?? null },
+				meta: { schemaVersion: CURRENT_SCHEMA_VERSION, ratesCache: row?.key === META_KEY ? row.ratesCache : null },
 			};
 		},
 

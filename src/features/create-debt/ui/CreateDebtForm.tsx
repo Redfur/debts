@@ -14,6 +14,7 @@ import {
 } from "@/entities/debt";
 import { ContactPicker } from "@/features/select-contact";
 import { COMMON_NS } from "@/shared/i18n";
+import type { CurrencyCode } from "@/shared/lib/storage";
 import { useKeyboardInset } from "@/shared/lib/use-keyboard-inset";
 import { cn } from "@/shared/lib/utils";
 import { AmountField } from "@/shared/ui/amount-field";
@@ -23,6 +24,7 @@ import { CREATE_DEBT_NS } from "../translations";
 
 type Props = {
 	initialContactId?: string;
+	initialCurrency: CurrencyCode;
 	onSuccess: (debtId: string) => void;
 	onCancel: () => void;
 	onDelete: () => void;
@@ -34,7 +36,7 @@ type Errors = { contact?: "errorContactRequired"; amount?: "errorAmountInvalid";
  * Экран нового долга на весь экран: шапка «Назад» / «Новый долг», контакт, направление с подсказкой,
  * крупная сумма с валютой, заметка и «Создать долг», закреплённая над клавиатурой.
  */
-export function CreateDebtForm({ initialContactId, onSuccess, onCancel, onDelete }: Props) {
+export function CreateDebtForm({ initialContactId, initialCurrency, onSuccess, onCancel, onDelete }: Props) {
 	const { top: topCurrencies } = useDebtCurrencies();
 	const { t } = useTranslation(CREATE_DEBT_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
@@ -51,7 +53,7 @@ export function CreateDebtForm({ initialContactId, onSuccess, onCancel, onDelete
 		const saved = useCreationDraftStore.getState().debt.draft;
 		return saved?.kind === "debt"
 			? saved.payload
-			: { contactId: initialContactId, direction: "owed_to_me", currency: "RUB", amount: "", note: "" };
+			: { contactId: initialContactId, direction: "owed_to_me", currency: initialCurrency, amount: "", note: "" };
 	});
 	const current = useRef(fields);
 	const patch = (change: Partial<DebtCreationFields>) => {

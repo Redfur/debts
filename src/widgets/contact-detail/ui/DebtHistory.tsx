@@ -4,7 +4,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { type Debt, type DebtOperation, useDebtStore } from "@/entities/debt";
 import { showContactSettlementDetails } from "@/features/view-contact-settlement";
 import { formatMoney } from "@/shared/lib/format-amount";
-import { formatShortDate } from "@/shared/lib/format-date";
+import { formatShortDateTime } from "@/shared/lib/format-date";
 import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { cn } from "@/shared/lib/utils";
 import { CONTACT_DETAIL_NS } from "../translations";
@@ -72,7 +72,7 @@ export function DebtHistory({ debt, operations, defaultOpen }: Props) {
 										<span className="text-body-s font-semibold">{label}</span>
 									)}
 									<span className="text-caption text-muted-foreground">
-										{[formatShortDate(op.createdAt), repayment ? op.note : (billNote ?? op.note)]
+										{[formatShortDateTime(op.createdAt), repayment ? op.note : (billNote ?? op.note)]
 											.filter(Boolean)
 											.join(" · ")}
 									</span>

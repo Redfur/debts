@@ -17,6 +17,7 @@ import { ParticipantsPicker } from "@/features/select-contact";
 import { COMMON_NS } from "@/shared/i18n";
 import { formatMoney } from "@/shared/lib/format-amount";
 import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
+import type { CurrencyCode } from "@/shared/lib/storage";
 import { useKeyboardInset } from "@/shared/lib/use-keyboard-inset";
 import { cn } from "@/shared/lib/utils";
 import { FormAlert } from "@/shared/ui/form-message";
@@ -36,9 +37,7 @@ import { BillReceiptShares, usePendingItemsText } from "./BillReceiptShares";
 import { BillSplitSection } from "./BillSplitSection";
 import { PayerSheet } from "./PayerSheet";
 
-type Props = {
-	/** Счёт для изменения; без него — создание. */
-	bill?: Bill;
+type Props = ({ bill: Bill; initialCurrency?: never } | { bill?: never; initialCurrency: CurrencyCode }) & {
 	/** По долгам счёта есть погашения: меняется только «За что». */
 	locked?: boolean;
 	closedBySettlement?: boolean;
@@ -54,7 +53,15 @@ type Props = {
  * От 1024 px — две колонки с «Назад» (при редактировании — «Отмена») и «Сохранить счёт» в шапке. После погашений — один экран, где меняется только
  * «За что».
  */
-export function BillForm({ bill, locked = false, closedBySettlement = false, onSaved, onCancel, onDelete }: Props) {
+export function BillForm({
+	bill,
+	initialCurrency,
+	locked = false,
+	closedBySettlement = false,
+	onSaved,
+	onCancel,
+	onDelete,
+}: Props) {
 	useLocalizationPreferences();
 	const { t } = useTranslation(CREATE_BILL_NS);
 	const { t: tCommon } = useTranslation(COMMON_NS);
@@ -63,7 +70,12 @@ export function BillForm({ bill, locked = false, closedBySettlement = false, onS
 	const [step, renderStep] = useState<1 | 2>(() => (savedDraft?.kind === "bill" ? savedDraft.payload.step : 1));
 	const stepRef = useRef(step);
 	const form = useBillForm(
-		() => (bill ? billToFormState(bill) : savedDraft?.kind === "bill" ? savedDraft.payload : createEmptyBillForm()),
+		() =>
+			bill
+				? billToFormState(bill)
+				: savedDraft?.kind === "bill"
+					? savedDraft.payload
+					: createEmptyBillForm(initialCurrency),
 		bill ? undefined : (next) => saveCreationDraft("bill", { ...next, step: stepRef.current }),
 	);
 	const setStep = (next: 1 | 2) => {

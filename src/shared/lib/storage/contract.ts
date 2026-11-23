@@ -1,6 +1,7 @@
 import type {
 	CreationDraft,
 	CreationDraftKind,
+	CurrencyCode,
 	PersistedBill,
 	PersistedContact,
 	PersistedContactSettlement,
@@ -26,6 +27,9 @@ type StoredData = {
 
 export interface StorageAdapter {
 	getCreationDraft(kind: CreationDraftKind): Promise<unknown>;
+	readCreationCurrencyBasis(): Promise<
+		{ remembered: CurrencyCode } | Pick<StoredData, "debts" | "bills" | "debtOperations">
+	>;
 	putCreationDraft(draft: CreationDraft): Promise<void>;
 	deleteCreationDraft(kind: CreationDraftKind, expectedId: string | undefined): Promise<void>;
 	putDebtWithOperation(debt: PersistedDebt, operation: PersistedDebtOperation, draftId?: string): Promise<void>;

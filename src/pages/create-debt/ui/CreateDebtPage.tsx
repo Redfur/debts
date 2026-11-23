@@ -18,14 +18,17 @@ export function CreateDebtPage() {
 	return (
 		<div className="animate-in fade-in flex flex-1 flex-col duration-300">
 			<CreationDraftGate kind="debt" onBack={leave} onDelete={remove}>
-				<CreateDebtForm
-					initialContactId={contactId}
-					onSuccess={() => navigate(backTo)}
-					onCancel={() => {
-						void leaveCreationDraft("debt", leave);
-					}}
-					onDelete={remove}
-				/>
+				{(currency) => (
+					<CreateDebtForm
+						initialContactId={contactId}
+						initialCurrency={currency}
+						onSuccess={() => navigate(backTo)}
+						onCancel={() => {
+							void leaveCreationDraft("debt", leave);
+						}}
+						onDelete={remove}
+					/>
+				)}
 			</CreationDraftGate>
 		</div>
 	);

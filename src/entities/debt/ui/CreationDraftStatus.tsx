@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { i18n } from "@/shared/lib/i18n";
-import type { CreationDraftKind } from "@/shared/lib/storage";
+import type { CreationDraftKind, CurrencyCode } from "@/shared/lib/storage";
 import { cn } from "@/shared/lib/utils";
 import { showConfirmActionModal } from "@/shared/ui/modals/ConfirmActionModal";
+import { readInitialCreationCurrency } from "../model/creation-currency";
 import {
 	flushCreationDraft,
 	hydrateCreationDraft,
@@ -22,7 +23,7 @@ export function CreationDraftGate({
 	kind: CreationDraftKind;
 	onBack: () => void;
 	onDelete: () => void;
-	children: ReactNode;
+	children: (currency: CurrencyCode) => ReactNode;
 }) {
 	const { t } = useTranslation(ENTITY_DEBT_NS);
 	const ready = useCreationDraftStore((s) => s[kind].ready);
@@ -33,7 +34,12 @@ export function CreationDraftGate({
 				{t("draftLoading")}
 			</p>
 		);
-	if (!error) return children;
+	if (!error)
+		return (
+			<CreationCurrencyGate kind={kind} onBack={onBack}>
+				{children}
+			</CreationCurrencyGate>
+		);
 	return (
 		<div className="mx-auto flex max-w-xl flex-col gap-3 py-6">
 			<p role="alert" className="text-body text-destructive">
@@ -48,6 +54,56 @@ export function CreationDraftGate({
 			</Button>
 		</div>
 	);
+}
+
+function CreationCurrencyGate({
+	kind,
+	onBack,
+	children,
+}: {
+	kind: CreationDraftKind;
+	onBack: () => void;
+	children: (currency: CurrencyCode) => ReactNode;
+}) {
+	const { t } = useTranslation(ENTITY_DEBT_NS);
+	const [currency, setCurrency] = useState<CurrencyCode | null | "error">(
+		() => useCreationDraftStore.getState()[kind].draft?.payload.currency ?? null,
+	);
+	useEffect(() => {
+		if (currency !== null) return;
+		let active = true;
+		void readInitialCreationCurrency().then(
+			(value) => {
+				if (active) setCurrency(value);
+			},
+			() => {
+				if (active) setCurrency("error");
+			},
+		);
+		return () => {
+			active = false;
+		};
+	}, [currency]);
+
+	if (currency === null)
+		return (
+			<p role="status" className="text-body text-muted-foreground py-6">
+				{t("creationLoading")}
+			</p>
+		);
+	if (currency === "error")
+		return (
+			<div className="mx-auto flex max-w-xl flex-col gap-3 py-6">
+				<p role="alert" className="text-body text-destructive">
+					{t("creationCurrencyError")}
+				</p>
+				<Button onClick={() => setCurrency(null)}>{t("draftRetry")}</Button>
+				<Button variant="secondary" onClick={onBack}>
+					{t("draftBack")}
+				</Button>
+			</div>
+		);
+	return children(currency);
 }
 
 export function CreationDraftStatus({ kind, onDelete }: { kind: CreationDraftKind; onDelete: () => void }) {

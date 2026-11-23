@@ -15,7 +15,7 @@ import {
 import { showEditDebtDialog } from "@/features/edit-debt";
 import { COMMON_NS } from "@/shared/i18n";
 import { formatMoney } from "@/shared/lib/format-amount";
-import { formatShortDate } from "@/shared/lib/format-date";
+import { formatShortDateTime } from "@/shared/lib/format-date";
 import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { CONTACT_DETAIL_NS } from "../translations";
 import { DebtHistory } from "./DebtHistory";
@@ -40,7 +40,7 @@ export function ClosedDebtRow({ debt, operations, onDelete }: Props) {
 	const summary = [
 		`${owedToMe ? "+" : "−"}${formatMoney(debt.principalAmount, debt.currency)}`,
 		tDebt(owedToMe ? "directionOwedToMeLower" : "directionIOweLower"),
-		formatShortDate(debt.createdAt),
+		formatShortDateTime(debt.createdAt),
 	].join(" · ");
 
 	return (

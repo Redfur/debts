@@ -24,6 +24,13 @@ export function formatShortDate(value: DateInput, now: Date = new Date()): strin
 	return d.getFullYear() === now.getFullYear() ? base : `${base} ${d.getFullYear()}`;
 }
 
+/** «12 сен, 18:05» — короткая дата и местное время записи. */
+export function formatShortDateTime(value: DateInput, now: Date = new Date()): string {
+	const date = formatShortDate(value, now);
+	if (!date || (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value))) return date;
+	return `${date}, ${format(toDate(value), "HH:mm")}`;
+}
+
 /** «15 октября». */
 export function formatLongDate(value: DateInput): string {
 	const d = toDate(value);

@@ -14,7 +14,7 @@ import { showAddRepaymentDialog } from "@/features/add-repayment";
 import { showEditDebtDialog } from "@/features/edit-debt";
 import { COMMON_NS } from "@/shared/i18n";
 import { formatMoney } from "@/shared/lib/format-amount";
-import { formatShortDate } from "@/shared/lib/format-date";
+import { formatShortDateTime } from "@/shared/lib/format-date";
 import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { cn } from "@/shared/lib/utils";
 import { CONTACT_DETAIL_NS } from "../translations";
@@ -45,7 +45,7 @@ export function DebtCard({ debt, operations, onDelete }: Props) {
 		<article className="bg-card shadow-card flex flex-col gap-3 rounded-card p-4">
 			<div className="flex items-center justify-between gap-2">
 				<DirectionChip direction={debt.direction} />
-				<span className="text-caption text-muted-foreground">{formatShortDate(debt.createdAt)}</span>
+				<span className="text-caption text-muted-foreground">{formatShortDateTime(debt.createdAt)}</span>
 			</div>
 			<h3 className="text-heading break-words">{debt.note || t("untitledDebt")}</h3>
 			{bill ? <BillLink bill={bill} state={{ from: "contact", contactId: debt.contactId }} /> : null}

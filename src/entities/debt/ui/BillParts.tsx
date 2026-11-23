@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { SegmentedControl, SegmentedControlItem } from "@/components/ui/segmented-control";
 import { formatMoney } from "@/shared/lib/format-amount";
-import { formatShortDate } from "@/shared/lib/format-date";
+import { formatShortDateTime } from "@/shared/lib/format-date";
 import { formatPeopleCount } from "@/shared/lib/format-people-count";
 import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import type { CurrencyCode } from "@/shared/lib/storage";
@@ -97,7 +97,7 @@ export function BillRow({ bill, totals, currency, closed }: RowProps) {
 			<span className="flex min-w-0 flex-1 flex-col">
 				<span className="text-body truncate font-medium">{bill.title ?? t("billUntitled")}</span>
 				<span className="text-caption text-muted-foreground truncate">
-					{formatShortDate(bill.createdAt)} · {amountForPeople}
+					{formatShortDateTime(bill.createdAt)} · {amountForPeople}
 				</span>
 			</span>
 			<BillMyPart totals={totals} currency={currency} closed={closed} />

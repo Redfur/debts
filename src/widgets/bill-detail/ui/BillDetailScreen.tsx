@@ -27,7 +27,7 @@ import { showContactSettlementDetails } from "@/features/view-contact-settlement
 import { COMMON_NS } from "@/shared/i18n";
 import { PageHeader, PageHeaderBackLink, ScreenBody } from "@/shared/layout";
 import { formatAmount, formatMoney } from "@/shared/lib/format-amount";
-import { formatShortDate } from "@/shared/lib/format-date";
+import { formatShortDateTime } from "@/shared/lib/format-date";
 import { useLocalizationPreferences } from "@/shared/lib/localization-preference";
 import { roundAmount } from "@/shared/lib/round-amount";
 import { cn } from "@/shared/lib/utils";
@@ -73,7 +73,7 @@ export function BillDetailScreen({ bill, backTo }: Props) {
 		.filter((p) => p.paid > 0)
 		.map((p) => (p.ref === ME_REF ? t("payersMe") : nameOf(p.ref)));
 	const meta = t("meta", {
-		date: formatShortDate(bill.createdAt),
+		date: formatShortDateTime(bill.createdAt),
 		payers: payers.join(", "),
 		mode: t(MODE_KEYS[bill.splitMode]),
 		people: t("participantsCount", { count: bill.participants.length }),
@@ -97,15 +97,15 @@ export function BillDetailScreen({ bill, backTo }: Props) {
 		if (status.hasMyDebts) {
 			if (hasSettlement) {
 				return closed
-					? t("noteSettlementClosed", { date: formatShortDate(status.closedAt ?? bill.updatedAt) })
+					? t("noteSettlementClosed", { date: formatShortDateTime(status.closedAt ?? bill.updatedAt) })
 					: t("noteSettlementOpen");
 			}
-			if (closed) return t("noteClosedAuto", { date: formatShortDate(status.closedAt ?? bill.updatedAt) });
+			if (closed) return t("noteClosedAuto", { date: formatShortDateTime(status.closedAt ?? bill.updatedAt) });
 			if (hasOthers && myTransfers.length === 1) return t("noteOneOfMany");
 			return debts.every((d) => d.direction === "i_owe") ? t("noteIOwe") : t("noteOwedToMe");
 		}
 		return closed
-			? t("noteClosedManual", { date: formatShortDate(status.closedAt ?? bill.updatedAt) })
+			? t("noteClosedManual", { date: formatShortDateTime(status.closedAt ?? bill.updatedAt) })
 			: t("noteWithoutMe");
 	})();
 
